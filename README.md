@@ -1,3 +1,5 @@
+# This fork is intended to implement some features that I personally miss in the original Toast UI Editor. The fork's code is created mainly with the help of AI.
+
 # ![TOAST UI Editor](https://uicdn.toast.com/toastui/img/tui-editor-bi.png)
 
 > GFM  Markdown and WYSIWYG Editor - Productive and Extensible
