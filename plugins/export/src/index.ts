@@ -97,69 +97,6 @@ function inlineCanvases(fromRoot: HTMLElement, toRoot: HTMLElement) {
   });
 }
 
-function inlineMermaidSvgs(rootEl: HTMLElement) {
-  const svgs = Array.from(rootEl.querySelectorAll('.mermaid > svg'));
-
-  if (!svgs.length) return;
-
-  svgs.forEach((svg) => {
-    try {
-      const serializer = new XMLSerializer();
-      const svgText = serializer.serializeToString(svg);
-      const encoded = encodeURIComponent(svgText);
-      const dataUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
-      const img = document.createElement('img');
-      const widthAttr = svg.getAttribute('width') || '';
-      const heightAttr = svg.getAttribute('height') || '';
-      const viewBox = svg.getAttribute('viewBox') || '';
-      const viewBoxParts = viewBox.split(/\s+/).map((part) => Number(part));
-      const viewBoxWidth = viewBoxParts.length === 4 ? viewBoxParts[2] : NaN;
-      const viewBoxHeight = viewBoxParts.length === 4 ? viewBoxParts[3] : NaN;
-      const widthNum = Number.parseFloat(widthAttr);
-      const heightNum = Number.parseFloat(heightAttr);
-      const isWidthNumeric = Number.isFinite(widthNum) && !widthAttr.includes('%');
-      const isHeightNumeric = Number.isFinite(heightNum) && !heightAttr.includes('%');
-
-      img.src = dataUrl;
-      if (isWidthNumeric) {
-        img.width = widthNum;
-      } else if (Number.isFinite(viewBoxWidth)) {
-        img.width = viewBoxWidth;
-      } else if (widthAttr) {
-        img.style.width = widthAttr;
-      }
-      if (isHeightNumeric) {
-        img.height = heightNum;
-      } else if (Number.isFinite(viewBoxHeight)) {
-        img.height = viewBoxHeight;
-      } else if (heightAttr) {
-        img.style.height = heightAttr;
-      }
-
-      if (svg.style.maxWidth) {
-        img.style.maxWidth = svg.style.maxWidth;
-      }
-      if (svg.style.width) {
-        img.style.width = svg.style.width;
-      }
-      if (svg.style.height) {
-        img.style.height = svg.style.height;
-      }
-      if (!img.style.width) {
-        img.style.width = '100%';
-      }
-      if (!img.style.height) {
-        img.style.height = 'auto';
-      }
-
-      svg.replaceWith(img);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('Inline mermaid failed:', e);
-    }
-  });
-}
-
 function collectInlineStyles() {
   let cssText = '';
 
@@ -245,27 +182,16 @@ function nextTick() {
   });
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(() => resolve(), ms);
+  });
+}
+
 async function waitForPreviewRender() {
   await nextFrame();
   await nextTick();
   await nextTick();
-}
-
-async function waitForChartRender(rootEl: HTMLElement) {
-  const maxTries = 8;
-
-  const poll = async (attempt: number) => {
-    const chartRoots = rootEl.querySelectorAll('[data-chart-id]');
-    const chartCanvas = rootEl.querySelectorAll('[data-chart-id] canvas');
-
-    if (!chartRoots.length || chartCanvas.length || attempt >= maxTries) return;
-
-    await waitForPreviewRender();
-
-    await poll(attempt + 1);
-  };
-
-  await poll(0);
 }
 
 /**
@@ -292,37 +218,33 @@ export default function exportPlugin(
   };
 
   const downloadHtml = async () => {
-    let previewRoot = getPreviewRoot(instance);
     const wasMarkdownMode = instance.isMarkdownMode?.() ?? false;
     let switchedMode = false;
     let htmlBody = '';
 
     try {
-      if ((!previewRoot || !previewRoot.innerHTML.trim()) && !wasMarkdownMode) {
+      if (!wasMarkdownMode) {
         instance.changeMode?.('markdown', true);
         switchedMode = true;
         await waitForPreviewRender();
-        previewRoot = getPreviewRoot(instance);
+        await sleep(300);
       }
 
+      const previewRoot = getPreviewRoot(instance);
+
       if (previewRoot && previewRoot.innerHTML.trim()) {
-        await waitForPreviewRender();
         await tryRenderMermaid(previewRoot);
         await waitForPreviewRender();
-        await waitForChartRender(previewRoot);
 
         const clone = previewRoot.cloneNode(true) as HTMLElement;
 
         inlineCanvases(previewRoot, clone);
-        inlineMermaidSvgs(clone);
         await inlineImagesIn(clone);
 
         htmlBody = clone.innerHTML;
       }
     } finally {
-      if (switchedMode) {
-        instance.changeMode?.('wysiwyg', true);
-      }
+      // Keep markdown mode after export when we switched from WYSIWYG.
     }
 
     if (!htmlBody) return;
