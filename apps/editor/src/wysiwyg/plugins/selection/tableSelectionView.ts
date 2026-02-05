@@ -38,14 +38,17 @@ export default class TableSelection {
   }
 
   init() {
-    this.view.dom.addEventListener('mousedown', this.handlers.mousedown);
+    this.view.dom.addEventListener('mousedown', this.handlers.mousedown, true);
   }
 
   handleMousedown(ev: Event) {
     const foundCell = findCellElement(ev.target as HTMLElement, this.view.dom);
 
     if ((ev as MouseEvent).button === MOUSE_RIGHT_BUTTON) {
+      this.handleRightClick(foundCell, ev as MouseEvent);
+
       ev.preventDefault();
+      ev.stopPropagation();
       return;
     }
 
@@ -58,6 +61,31 @@ export default class TableSelection {
 
       this.bindEvent();
     }
+  }
+
+  handleRightClick(foundCell: HTMLElement | null, ev: MouseEvent) {
+    const currentSelection = this.view.state.selection;
+
+    if (currentSelection instanceof CellSelection) {
+      (this.view as { __lastCellSelection?: CellSelection }).__lastCellSelection = currentSelection;
+      this.view.dispatch(this.view.state.tr.setSelection(currentSelection));
+      return;
+    }
+
+    if (!foundCell) {
+      return;
+    }
+
+    const cellPos = this.getCellPos(ev);
+
+    if (!cellPos) {
+      return;
+    }
+
+    const selection = new CellSelection(cellPos);
+
+    (this.view as { __lastCellSelection?: CellSelection }).__lastCellSelection = selection;
+    this.view.dispatch(this.view.state.tr.setSelection(selection));
   }
 
   handleMousemove(ev: Event) {
@@ -104,6 +132,15 @@ export default class TableSelection {
 
   getCellPos({ clientX, clientY }: MouseEvent) {
     const mousePos = this.view.posAtCoords({ left: clientX, top: clientY });
+    let fallbackCell: HTMLElement | null = null;
+
+    if (!mousePos) {
+      const fromPoint = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+
+      if (fromPoint) {
+        fallbackCell = findCellElement(fromPoint, this.view.dom);
+      }
+    }
 
     if (mousePos) {
       const { doc } = this.view.state;
@@ -112,6 +149,30 @@ export default class TableSelection {
 
       if (foundCell) {
         const cellOffset = currentPos.before(foundCell.depth);
+
+        return doc.resolve(cellOffset);
+      }
+    }
+
+    if (!fallbackCell) {
+      const targetCell = findCellElement(
+        this.view.dom.ownerDocument.activeElement as HTMLElement,
+        this.view.dom
+      );
+
+      if (targetCell) {
+        fallbackCell = targetCell;
+      }
+    }
+
+    if (fallbackCell) {
+      const { doc } = this.view.state;
+      const domPos = this.view.posAtDOM(fallbackCell, 0);
+      const resolved = doc.resolve(domPos);
+      const foundCell = findCell(resolved);
+
+      if (foundCell) {
+        const cellOffset = resolved.before(foundCell.depth);
 
         return doc.resolve(cellOffset);
       }
@@ -137,6 +198,6 @@ export default class TableSelection {
   }
 
   destroy() {
-    this.view.dom.removeEventListener('mousedown', this.handlers.mousedown);
+    this.view.dom.removeEventListener('mousedown', this.handlers.mousedown, true);
   }
 }

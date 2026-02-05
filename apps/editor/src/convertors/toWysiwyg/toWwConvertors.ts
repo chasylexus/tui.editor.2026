@@ -92,10 +92,10 @@ const toWwConvertors: ToWwConvertorMap = {
   list(state, node, { entering }, customAttrs) {
     if (entering) {
       const { bulletList, orderedList } = state.schema.nodes;
-      const { type, start } = (node as ListItemMdNode).listData;
+      const { type, start, bulletChar } = (node as ListItemMdNode).listData;
 
       if (type === 'bullet') {
-        state.openNode(bulletList, customAttrs);
+        state.openNode(bulletList, { bulletChar, ...customAttrs });
       } else {
         state.openNode(orderedList, { order: start, ...customAttrs });
       }

@@ -1,0 +1,21 @@
+.toastui-editor-toolbar-icons.export-button {
+  background: none;
+  background-image: none;
+  font-size: 12px;
+  line-height: 30px;
+  min-width: 32px;
+  padding: 0 6px;
+  color: #555;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+
+.toastui-editor-toolbar-icons.export-button:hover:not(:disabled),
+.toastui-editor-toolbar-icons.export-button:focus:not(:disabled) {
+  background-color: #f1f3f5;
+  border-color: #dadde6;
+}
+
+.toastui-editor-toolbar-icons.export-button:active:not(:disabled) {
+  background-color: #e9ecef;
+}

@@ -90,8 +90,10 @@ export const nodeTypeWriters: ToMdNodeTypeWriterMap = {
           state.write('<br>');
 
           state.setDelim(prevDelim);
+          state.write('\n');
+        } else {
+          state.write('<br>\n');
         }
-        state.write('\n');
       } else {
         state.convertInline(node);
 

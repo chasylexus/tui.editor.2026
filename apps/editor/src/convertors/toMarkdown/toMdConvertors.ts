@@ -96,7 +96,7 @@ export const toMdConvertors: ToMdConvertorMap = {
     }
 
     return {
-      delim: '*',
+      delim: node.attrs.bulletChar || '*',
       rawHTML: getPairRawHTML(rawHTML),
     };
   },

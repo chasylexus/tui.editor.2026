@@ -1,0 +1,50 @@
+{
+  "name": "@toast-ui/editor-plugin-mermaid",
+  "version": "3.0.1",
+  "description": "TOAST UI Editor : Mermaid Plugin",
+  "keywords": [
+    "nhn",
+    "nhn cloud",
+    "toast",
+    "toastui",
+    "toast-ui",
+    "editor",
+    "plugin",
+    "mermaid",
+    "diagram"
+  ],
+  "main": "dist/toastui-editor-plugin-mermaid.js",
+  "types": "types/index.d.ts",
+  "files": [
+    "dist/*.js",
+    "types/index.d.ts"
+  ],
+  "browserslist": "last 2 versions, not ie <= 10",
+  "author": "NHN Cloud FE Development Lab <dl_javascript@nhn.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nhn/tui.editor.git",
+    "directory": "plugins/mermaid"
+  },
+  "bugs": {
+    "url": "https://github.com/nhn/tui.editor/issues"
+  },
+  "homepage": "https://ui.toast.com",
+  "scripts": {
+    "lint": "eslint .",
+    "test:types": "tsc",
+    "test": "jest --watch",
+    "test:ci": "jest",
+    "serve": "snowpack dev",
+    "serve:ie": "webpack serve",
+    "build:cdn": "webpack build --env cdn & webpack build --env cdn minify",
+    "build": "webpack build && npm run build:cdn"
+  },
+  "dependencies": {
+    "mermaid": "11.12.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

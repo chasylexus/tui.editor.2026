@@ -22,6 +22,7 @@ export class BulletList extends NodeSchema {
       group: 'block',
       attrs: {
         rawHTML: { default: null },
+        bulletChar: { default: '*' },
         ...getDefaultCustomAttrs(),
       },
       parseDOM: [createDOMInfoParsedRawHTML('ul')],

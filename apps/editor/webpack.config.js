@@ -17,6 +17,7 @@ const ENTRY_VIEWER = './src/indexViewer.ts';
 
 let isProduction;
 let minify;
+let analyze;
 
 function addFileManagerPlugin(config) {
   // When an entry option's value is set to a CSS file,
@@ -60,12 +61,15 @@ function addMinifyPlugin(config) {
 }
 
 function addAnalyzerPlugin(config, type) {
-  config.plugins.push(
-    new BundleAnalyzerPlugin({
-      analyzerMode: 'static',
-      reportFilename: `../../report/webpack/stats-${pkg.version}-${type}.html`,
-    })
-  );
+  if (analyze) {
+    config.plugins.push(
+      new BundleAnalyzerPlugin({
+        analyzerMode: 'static',
+        reportFilename: `../../report/webpack/stats-${pkg.version}-${type}.html`,
+        openAnalyzer: true,
+      })
+    );
+  }
 }
 
 function setDevelopConfig(config) {
@@ -78,12 +82,11 @@ function setDevelopConfig(config) {
 
   config.devtool = 'inline-source-map';
   config.devServer = {
-    // https://github.com/webpack/webpack-dev-server/issues/2484
-    injectClient: false,
-    inline: true,
     host: '0.0.0.0',
     port: 8080,
     disableHostCheck: true,
+    contentBase: path.resolve(__dirname),
+    watchContentBase: true,
   };
 }
 
@@ -118,6 +121,7 @@ function setProductionConfigForAll(config) {
 
 module.exports = (env) => {
   minify = !!env.minify;
+  analyze = !!env.analyze;
   isProduction = env.WEBPACK_BUILD;
 
   const configs = Array(isProduction ? 2 : 1)

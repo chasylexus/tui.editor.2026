@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>20. Full Featured 2026</title>
+    <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
+    <!-- Editor -->
+    <link rel="stylesheet" href="../dist/cdn/toastui-editor.css" />
+    <!-- Chart -->
+    <link rel="stylesheet" href="https://uicdn.toast.com/chart/v4.3.4/toastui-chart.css" />
+    <!-- Code Highlight -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="/plugins/code-syntax-highlight/dist/cdn/toastui-editor-plugin-code-syntax-highlight.css"
+    />
+    <!-- Color syntax -->
+    <link
+      rel="stylesheet"
+      href="https://uicdn.toast.com/tui-color-picker/v2.2.6/tui-color-picker.css"
+    />
+    <link
+      rel="stylesheet"
+      href="/plugins/color-syntax/dist/cdn/toastui-editor-plugin-color-syntax.css"
+    />
+    <!-- Merged Table -->
+    <link
+      rel="stylesheet"
+      href="/plugins/table-merged-cell/dist/cdn/toastui-editor-plugin-table-merged-cell.css"
+    />
+    <!-- Export -->
+    <link
+      rel="stylesheet"
+      href="/plugins/export/dist/cdn/toastui-editor-plugin-export.css"
+    />
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="/node_modules/katex/dist/katex.min.css" />
+    <style>
+      .toastui-editor-defaultUI-toolbar .export-toolbar-group {
+        margin-left: auto;
+      }
+
+      .toastui-editor-defaultUI-toolbar .export-toolbar-group .toastui-editor-toolbar-divider {
+        display: none;
+      }
+
+      .toastui-editor-toolbar-icons.export-button {
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 18px 18px;
+        color: transparent;
+        text-indent: -9999px;
+        overflow: hidden;
+      }
+
+      .toastui-editor-toolbar-icons.export-markdown {
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><rect width='20' height='20' rx='3' fill='%232b6cb0'/><text x='10' y='13' font-size='8' text-anchor='middle' fill='%23fff' font-family='Arial,sans-serif' font-weight='700'>MD</text></svg>");
+      }
+
+      .toastui-editor-toolbar-icons.export-html {
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><rect width='20' height='20' rx='3' fill='%232f855a'/><text x='10' y='13' font-size='6' text-anchor='middle' fill='%23fff' font-family='Arial,sans-serif' font-weight='700'>HTML</text></svg>");
+      }
+    </style>
+  </head>
+  <body>
+    <div class="code-html tui-doc-contents">
+      <!-- Editor -->
+      <div id="editor"></div>
+    </div>
+    <!-- Added to check demo page in Internet Explorer -->
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="./data/example20-full-featured-2026.js"></script>
+    <!-- Editor -->
+    <script src="../dist/cdn/toastui-editor-all.js"></script>
+    <!-- Chart -->
+    <script src="https://uicdn.toast.com/chart/v4.3.4/toastui-chart.js"></script>
+    <!-- Color Picker -->
+    <script src="https://uicdn.toast.com/tui-color-picker/v2.2.6/tui-color-picker.min.js"></script>
+    <!-- Mermaid -->
+    <script src="/node_modules/mermaid/dist/mermaid.min.js"></script>
+    <!-- Editor's Plugin -->
+    <script src="/plugins/chart/dist/cdn/toastui-editor-plugin-chart.js"></script>
+    <script src="/plugins/code-syntax-highlight/dist/cdn/toastui-editor-plugin-code-syntax-highlight-all.js"></script>
+    <script src="/plugins/color-syntax/dist/cdn/toastui-editor-plugin-color-syntax.js"></script>
+    <script src="/plugins/table-merged-cell/dist/cdn/toastui-editor-plugin-table-merged-cell.js"></script>
+    <script src="/plugins/uml/dist/cdn/toastui-editor-plugin-uml.js"></script>
+    <script src="/plugins/mermaid/dist/cdn/toastui-editor-plugin-mermaid.js"></script>
+    <script src="/plugins/katex/dist/cdn/toastui-editor-plugin-katex.js"></script>
+    <script src="/plugins/export/dist/cdn/toastui-editor-plugin-export.js"></script>
+    <script type="text/babel" class="code-js">
+      const { Editor } = toastui;
+      const {
+        chart,
+        codeSyntaxHighlight,
+        colorSyntax,
+        tableMergedCell,
+        uml,
+        mermaid,
+        katex,
+        export: exportPlugin
+      } = Editor.plugin;
+
+      const chartOptions = {
+        minWidth: 100,
+        maxWidth: 600,
+        minHeight: 100,
+        maxHeight: 300
+      };
+
+      const editor = new Editor({
+        el: document.querySelector('#editor'),
+        previewStyle: 'vertical',
+        height: '500px',
+        initialEditType: 'wysiwyg',
+        initialValue: fullFeatured2026Content,
+        plugins: [
+          [chart, chartOptions],
+          [codeSyntaxHighlight, { highlighter: Prism }],
+          colorSyntax,
+          tableMergedCell,
+          uml,
+          mermaid,
+          katex,
+          [exportPlugin, { toolbarGroupIndex: 99, toolbarItemIndex: 0 }]
+        ]
+      });
+
+      const toolbarEl = document.querySelector('.toastui-editor-defaultUI-toolbar');
+      const exportButton = toolbarEl && toolbarEl.querySelector('.export-button');
+
+      if (exportButton) {
+        const exportGroup = exportButton.closest('.toastui-editor-toolbar-group');
+
+        if (exportGroup) {
+          exportGroup.classList.add('export-toolbar-group');
+        }
+      }
+    </script>
+  </body>
+</html>

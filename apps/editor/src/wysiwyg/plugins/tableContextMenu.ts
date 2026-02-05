@@ -1,10 +1,11 @@
 import { Plugin } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 
-import { findCellElement } from '@/wysiwyg/helper/table';
+import { findCell, findCellElement } from '@/wysiwyg/helper/table';
 import i18n from '@/i18n/i18n';
 
 import { Emitter } from '@t/event';
+import CellSelection from './selection/cellSelection';
 
 interface ContextMenuInfo {
   action: string;
@@ -85,7 +86,31 @@ export function tableContextMenu(eventEmitter: Emitter) {
           const tableCell = findCellElement(ev.target as HTMLElement, view.dom);
 
           if (tableCell) {
+            const lastSelection = (view as { __lastCellSelection?: CellSelection })
+              .__lastCellSelection;
+
+            if (!(view.state.selection instanceof CellSelection) && lastSelection) {
+              requestAnimationFrame(() => {
+                view.dispatch(view.state.tr.setSelection(lastSelection));
+              });
+            }
+
+            if (!(view.state.selection instanceof CellSelection)) {
+              const domPos = view.posAtDOM(tableCell, 0);
+              const resolved = view.state.doc.resolve(domPos);
+              const cell = findCell(resolved);
+
+              if (cell) {
+                const cellOffset = resolved.before(cell.depth);
+                const cellPos = view.state.doc.resolve(cellOffset);
+                const tr = view.state.tr.setSelection(new CellSelection(cellPos));
+
+                view.dispatch(tr);
+              }
+            }
+
             ev.preventDefault();
+            ev.stopPropagation();
 
             const { clientX, clientY } = ev as MouseEvent;
             const { left, top } = (view.dom.parentNode as HTMLElement).getBoundingClientRect();
