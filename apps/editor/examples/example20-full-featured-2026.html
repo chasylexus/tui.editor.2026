@@ -77,70 +77,39 @@
         background: #111;
       }
 
-      .toastui-editor-toolbar-icons.theme-toggle-group {
-        background-image: none;
-        padding: 0;
-        width: auto;
-        height: 32px;
-        display: flex;
-        align-items: center;
-      }
-
-      .theme-segmented {
+      .export-split-icon.theme-split-icon {
+        background-color: transparent;
+        mask-image: none;
+        -webkit-mask-image: none;
         display: inline-flex;
         align-items: center;
-        gap: 0;
-        padding: 2px;
-        height: 24px;
-        border-radius: 999px;
-        background: #f7f9fc;
-        border: 1px solid #e4e7ee;
-        box-sizing: border-box;
+        justify-content: center;
       }
 
-      .theme-segmented-button {
-        appearance: none;
-        border: 0;
-        background: transparent;
-        color: #81858f;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 0 6px;
-        height: 22px;
-        line-height: 22px;
-        min-width: 24px;
-        border-radius: 999px;
-        cursor: pointer;
-        transition: background 0.2s ease, color 0.2s ease;
+      .export-split-icon.theme-split-icon svg {
+        display: block;
       }
 
-      .theme-segmented-button.is-active {
-        background: #00a9ff;
-        color: #fff;
+      .export-split > .export-split-main:only-child {
+        border-right: 1px solid #f7f9fc;
+        border-radius: 3px;
       }
 
-      .theme-segmented-button:not(.is-active):hover {
-        background: #fff;
-        color: #81858f;
+      .toastui-editor-dark .export-split > .export-split-main:only-child {
+        border-right: 1px solid #232428;
       }
 
-      .toastui-editor-dark .theme-segmented {
-        background: #232428;
-        border-color: #303238;
+      .export-menu-icon.theme-menu-icon {
+        background-color: transparent;
+        mask-image: none;
+        -webkit-mask-image: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
 
-      .toastui-editor-dark .theme-segmented-button {
-        color: #8f939f;
-      }
-
-      .toastui-editor-dark .theme-segmented-button.is-active {
-        background: #67ccff;
-        color: #121212;
-      }
-
-      .toastui-editor-dark .theme-segmented-button:not(.is-active):hover {
-        background: #36383f;
-        color: #8f939f;
+      .export-menu-icon.theme-menu-icon svg {
+        display: block;
       }
 
       .toastui-editor-defaultUI-toolbar .export-toolbar-group {
@@ -149,23 +118,6 @@
 
       .toastui-editor-defaultUI-toolbar .export-toolbar-group .toastui-editor-toolbar-divider {
         display: none;
-      }
-
-      .toastui-editor-toolbar-icons.export-button {
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: 18px 18px;
-        color: transparent;
-        text-indent: -9999px;
-        overflow: hidden;
-      }
-
-      .toastui-editor-toolbar-icons.export-markdown {
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><rect width='20' height='20' rx='3' fill='%232b6cb0'/><text x='10' y='13' font-size='8' text-anchor='middle' fill='%23fff' font-family='Arial,sans-serif' font-weight='700'>MD</text></svg>");
-      }
-
-      .toastui-editor-toolbar-icons.export-html {
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><rect width='20' height='20' rx='3' fill='%232f855a'/><text x='10' y='13' font-size='6' text-anchor='middle' fill='%23fff' font-family='Arial,sans-serif' font-weight='700'>HTML</text></svg>");
       }
     </style>
   </head>
@@ -247,52 +199,55 @@
       const rootEl = document.querySelector('.toastui-editor-defaultUI');
       const bodyEl = document.body;
       let currentMode = themeMode;
-      const themeOptions = [
-        { mode: 'light', label: '☀', title: 'Light' },
-        { mode: 'auto', label: 'A', title: 'Auto' },
-        { mode: 'dark', label: '☾', title: 'Dark' }
-      ];
+      const themeIcons = Editor.themeIcons;
 
-      const themeGroup = document.createElement('div');
+      const themeSplit = document.createElement('div');
+      const themeMainButton = document.createElement('button');
+      const themeIconWrap = document.createElement('span');
 
-      themeGroup.className = 'toastui-editor-toolbar-icons theme-toggle-group';
-      themeGroup.setAttribute('role', 'radiogroup');
-      themeGroup.setAttribute('aria-label', 'Theme');
+      themeSplit.className = 'export-split';
+      themeSplit.setAttribute('role', 'group');
 
-      const themeSegmented = document.createElement('div');
+      themeMainButton.type = 'button';
+      themeMainButton.className = 'toastui-editor-toolbar-icons export-split-main';
+      themeMainButton.setAttribute('aria-label', 'Theme');
+      themeMainButton.setAttribute('aria-haspopup', 'menu');
 
-      themeSegmented.className = 'theme-segmented';
-      themeGroup.appendChild(themeSegmented);
+      themeIconWrap.className = 'export-split-icon theme-split-icon';
+      themeMainButton.appendChild(themeIconWrap);
 
-      const themeButtons = themeOptions.map((option) => {
-        const button = document.createElement('button');
+      themeSplit.appendChild(themeMainButton);
 
-        button.type = 'button';
-        button.className = 'theme-segmented-button';
-        button.setAttribute('role', 'radio');
-        button.setAttribute('aria-checked', 'false');
-        button.setAttribute('aria-label', option.title);
-        button.dataset.themeMode = option.mode;
-        button.textContent = option.label;
-        themeSegmented.appendChild(button);
-        return button;
-      });
+      const menuStateKey = '__toastuiToolbarMenuState';
+      const menuState = window[menuStateKey] || { openId: null };
 
-      const setButtonState = (mode) => {
-        themeButtons.forEach((button) => {
-          const isActive = button.dataset.themeMode === mode;
+      if (!window[menuStateKey]) {
+        window[menuStateKey] = menuState;
+      }
 
-          button.classList.toggle('is-active', isActive);
-          button.setAttribute('aria-checked', String(isActive));
+      if (!menuState.listenerAttached) {
+        document.addEventListener('mousedown', (event) => {
+          const target = event.target;
+
+          if (
+            target.closest('.toastui-editor-popup') ||
+            target.closest('.toastui-editor-toolbar-item-wrapper')
+          ) {
+            return;
+          }
+
+          menuState.openId = null;
         });
-      };
+        menuState.listenerAttached = true;
+      }
 
       const applyTheme = (mode, shouldPersist = true) => {
         const useDark = mode === 'dark' || (mode === 'auto' && media.matches);
 
         rootEl.classList.toggle('toastui-editor-dark', useDark);
         bodyEl.classList.toggle('dark', useDark);
-        setButtonState(mode);
+        themeIconWrap.textContent = '';
+        themeIconWrap.appendChild(themeIcons[mode]());
         editor.eventEmitter.emit('change');
         currentMode = mode;
 
@@ -301,20 +256,106 @@
         }
       };
 
-      themeButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-          applyTheme(button.dataset.themeMode);
+      const closeThemePopup = () => {
+        editor.eventEmitter.emit('closePopup');
+        menuState.openId = null;
+      };
+
+      const createThemeMenuItem = (label, mode) => {
+        const item = document.createElement('li');
+        const icon = document.createElement('span');
+        const text = document.createElement('span');
+
+        item.className = 'menu-item';
+        item.setAttribute('role', 'menuitem');
+        item.tabIndex = 0;
+        icon.className = 'export-menu-icon theme-menu-icon';
+        icon.appendChild(themeIcons[mode]());
+        text.textContent = label;
+        item.appendChild(icon);
+        item.appendChild(text);
+
+        const handleSelect = () => {
+          applyTheme(mode);
+          closeThemePopup();
+        };
+
+        item.addEventListener('click', (event) => {
+          event.preventDefault();
+          handleSelect();
         });
-      });
+        item.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleSelect();
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closeThemePopup();
+          }
+        });
+
+        return item;
+      };
+
+      const themeMenu = document.createElement('ul');
+
+      themeIconWrap.appendChild(themeIcons[currentMode]());
+
+      themeMenu.className = 'menu-group';
+      themeMenu.setAttribute('role', 'menu');
+      themeMenu.appendChild(createThemeMenuItem('Auto', 'auto'));
+      themeMenu.appendChild(createThemeMenuItem('Light', 'light'));
+      themeMenu.appendChild(createThemeMenuItem('Dark', 'dark'));
 
       editor.insertToolbarItem(
-        { groupIndex: 99, itemIndex: 0 },
+        { groupIndex: 98, itemIndex: 0 },
         {
-          el: themeGroup,
+          el: themeSplit,
           name: 'themeToggle',
-          tooltip: 'Theme'
+          tooltip: 'Theme',
+          popup: {
+            body: themeMenu,
+            className: 'toastui-editor-popup-add-heading export-split-menu'
+          }
         }
       );
+
+      const openThemeMenu = () => {
+        const wrapper = themeSplit.closest('.toastui-editor-toolbar-item-wrapper');
+
+        if (wrapper) {
+          wrapper.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
+      };
+
+      const toggleThemeMenu = () => {
+        if (menuState.openId === 'theme') {
+          closeThemePopup();
+          return;
+        }
+
+        closeThemePopup();
+        menuState.openId = 'theme';
+        openThemeMenu();
+      };
+
+      themeMainButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleThemeMenu();
+      });
+
+      themeMainButton.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleThemeMenu();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          closeThemePopup();
+        }
+      });
+
 
       const handleMediaChange = () => {
         if (currentMode === 'auto') {
@@ -331,7 +372,7 @@
       applyTheme(currentMode, false);
 
       const toolbarEl = document.querySelector('.toastui-editor-defaultUI-toolbar');
-      const exportButton = toolbarEl && toolbarEl.querySelector('.export-button');
+      const exportButton = toolbarEl && toolbarEl.querySelector('.export-split');
 
       if (exportButton) {
         const exportGroup = exportButton.closest('.toastui-editor-toolbar-group');

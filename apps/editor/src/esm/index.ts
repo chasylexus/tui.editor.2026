@@ -1,7 +1,11 @@
 import EditorCore from '@/editorCore';
 import Editor from '@/editor';
+import { themeIcons } from '@/ui/icons/themeIcons';
 
 import '@/i18n/en-us';
 
+// Expose theme icons for example integrations.
+(Editor as any).themeIcons = themeIcons;
+
 export default Editor;
-export { Editor, EditorCore };
+export { Editor, EditorCore, themeIcons };
