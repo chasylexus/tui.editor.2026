@@ -51,8 +51,11 @@
 
       .toastui-editor-toolbar-icons.theme-toggle-group {
         background-image: none;
-        padding: 0 8px;
+        padding: 0;
         width: auto;
+        height: 32px;
+        display: flex;
+        align-items: center;
       }
 
       .theme-segmented {
@@ -60,43 +63,56 @@
         align-items: center;
         gap: 0;
         padding: 2px;
+        height: 24px;
         border-radius: 999px;
-        background: rgba(0, 0, 0, 0.06);
-        border: 1px solid rgba(0, 0, 0, 0.1);
+        background: #f7f9fc;
+        border: 1px solid #e4e7ee;
+        box-sizing: border-box;
       }
 
       .theme-segmented-button {
         appearance: none;
         border: 0;
         background: transparent;
-        color: #333;
+        color: #81858f;
         font-size: 12px;
         font-weight: 600;
-        padding: 4px 10px;
+        padding: 0 6px;
+        height: 22px;
+        line-height: 22px;
+        min-width: 24px;
         border-radius: 999px;
         cursor: pointer;
         transition: background 0.2s ease, color 0.2s ease;
       }
 
       .theme-segmented-button.is-active {
+        background: #00a9ff;
+        color: #fff;
+      }
+
+      .theme-segmented-button:not(.is-active):hover {
         background: #fff;
-        color: #111;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+        color: #81858f;
       }
 
       .toastui-editor-dark .theme-segmented {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.18);
+        background: #232428;
+        border-color: #303238;
       }
 
       .toastui-editor-dark .theme-segmented-button {
-        color: #e5e7eb;
+        color: #8f939f;
       }
 
       .toastui-editor-dark .theme-segmented-button.is-active {
-        background: #2b2b2b;
-        color: #fff;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+        background: #67ccff;
+        color: #121212;
+      }
+
+      .toastui-editor-dark .theme-segmented-button:not(.is-active):hover {
+        background: #36383f;
+        color: #8f939f;
       }
 
       .toastui-editor-defaultUI-toolbar .export-toolbar-group {
