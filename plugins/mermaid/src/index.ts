@@ -101,22 +101,36 @@ function ensureMermaidStyles() {
   styleInjected = true;
 }
 
-async function renderMermaidIn(rootEl: HTMLElement | null, restoreSources: boolean) {
+function resetMermaidNode(node: HTMLElement) {
+  const { mermaidSource } = node.dataset;
+  let source = node.textContent || '';
+
+  if (mermaidSource) {
+    try {
+      source = decodeURIComponent(mermaidSource);
+    } catch (e) {
+      source = node.textContent || '';
+    }
+  }
+
+  node.textContent = source;
+  node.dataset.mermaidRendered = '0';
+  node.removeAttribute('data-processed');
+  node.querySelectorAll('[data-processed]').forEach((el) => {
+    el.removeAttribute('data-processed');
+  });
+}
+
+async function renderMermaidIn(rootEl: HTMLElement | null, forceRerender: boolean) {
   if (!rootEl) return;
-  const nodes = Array.from(rootEl.querySelectorAll('.mermaid[data-mermaid="1"]')).filter(
-    (node) => (node as HTMLElement).dataset.mermaidRendered !== '1'
-  ) as HTMLElement[];
+  const allNodes = Array.from(rootEl.querySelectorAll<HTMLElement>('.mermaid[data-mermaid="1"]'));
+  const nodes = forceRerender
+    ? allNodes
+    : allNodes.filter((node) => node.dataset.mermaidRendered !== '1');
 
   if (!nodes.length) return;
-  if (restoreSources) {
-    nodes.forEach((node) => {
-      const { mermaidSource } = node.dataset;
-
-      if (mermaidSource) {
-        node.textContent = decodeURIComponent(mermaidSource);
-      }
-      node.dataset.mermaidRendered = '0';
-    });
+  if (forceRerender) {
+    nodes.forEach((node) => resetMermaidNode(node));
   }
   nodes.forEach((node) => {
     node.dataset.mermaidRendered = '1';
@@ -140,6 +154,7 @@ function makeMermaidScheduler(
   }
 ) {
   let scheduled = false;
+  let lastEffectiveTheme: 'default' | 'dark' | null = null;
 
   const schedule = () => {
     if (scheduled) return;
@@ -155,10 +170,13 @@ function makeMermaidScheduler(
       const isDark = themeRoot?.classList.contains('toastui-editor-dark') || false;
       const theme = isDark ? 'dark' : 'default';
       const didReinitialize = ensureInitialized(theme);
+      const forceRerender = theme !== lastEffectiveTheme || didReinitialize;
 
-      await renderMermaidIn(previewRoot, didReinitialize);
+      lastEffectiveTheme = theme;
 
-      await renderMermaidIn(wysiwygRoot, didReinitialize);
+      await renderMermaidIn(previewRoot, forceRerender);
+
+      await renderMermaidIn(wysiwygRoot, forceRerender);
     });
   };
 
