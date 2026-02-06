@@ -85,9 +85,6 @@ Follow other PR title format on below.
 If it has related to issues, add links to the issues(like `#123`) in the description.
 Fill in the [Pull Request Template](./docs/PULL_REQUEST_TEMPLATE.md) by check your case.
 
-## Code of Conduct
-This project and everyone participating in it is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to dl_javascript@nhn.com.
-
 > This Guide is base on [atom contributing guide](https://github.com/atom/atom/blob/master/CONTRIBUTING.md), [CocoaPods](http://guides.cocoapods.org/contributing/contribute-to-cocoapods.html) and [ESLint](http://eslint.org/docs/developer-guide/contributing/pull-requests)
 
 [demo]:https://nhn.github.io/tui.editor/

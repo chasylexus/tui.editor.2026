@@ -20,4 +20,3 @@
 
 - [📌 Commit Message Convention](https://github.com/nhn/tui.editor/blob/master/docs/COMMIT_MESSAGE_CONVENTION.md)
 - [📌 Contributing](https://github.com/nhn/tui.editor/blob/master/CONTRIBUTING.md)
-- [📌 Code of conduct](https://github.com/nhn/tui.editor/blob/master/CODE_OF_CONDUCT.md)

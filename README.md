@@ -171,7 +171,6 @@ For more information on PR's steps, please see links in the Contributing section
 
 ## 💬 Contributing
 
-* [Code of Conduct](https://github.com/nhn/tui.editor/blob/master/CODE_OF_CONDUCT.md)
 * [Contributing Guideline](https://github.com/nhn/tui.editor/blob/master/CONTRIBUTING.md)
 * [Commit Convention](https://github.com/nhn/tui.editor/blob/master/docs/COMMIT_MESSAGE_CONVENTION.md)
 * [Issue Guidelines](https://github.com/nhn/tui.editor/tree/master/.github/ISSUE_TEMPLATE)
