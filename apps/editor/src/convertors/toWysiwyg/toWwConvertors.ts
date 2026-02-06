@@ -274,6 +274,46 @@ const toWwConvertors: ToWwConvertorMap = {
     }
   },
 
+  mark(state, _, { entering }, customAttrs) {
+    const { mark } = state.schema.marks;
+
+    if (entering) {
+      state.openMark(mark.create(customAttrs));
+    } else {
+      state.closeMark(mark);
+    }
+  },
+
+  superscript(state, _, { entering }, customAttrs) {
+    const { superscript } = state.schema.marks;
+
+    if (entering) {
+      state.openMark(superscript.create(customAttrs));
+    } else {
+      state.closeMark(superscript);
+    }
+  },
+
+  subscript(state, _, { entering }, customAttrs) {
+    const { subscript } = state.schema.marks;
+
+    if (entering) {
+      state.openMark(subscript.create(customAttrs));
+    } else {
+      state.closeMark(subscript);
+    }
+  },
+
+  underline(state, _, { entering }, customAttrs) {
+    const { underline } = state.schema.marks;
+
+    if (entering) {
+      state.openMark(underline.create(customAttrs));
+    } else {
+      state.closeMark(underline);
+    }
+  },
+
   code(state, node, _, customAttrs) {
     const { code } = state.schema.marks;
 

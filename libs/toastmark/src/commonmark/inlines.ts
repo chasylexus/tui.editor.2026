@@ -27,6 +27,9 @@ const C_COLON = 58;
 const C_SINGLEQUOTE = 39;
 const C_DOUBLEQUOTE = 34;
 const C_DOLLAR = 36;
+const C_EQUAL = 61;
+const C_PLUS = 43;
+const C_CARET = 94;
 
 // Some regexps used in inline parser:
 const ESCAPED_CHAR = `\\\\${ESCAPABLE}`;
@@ -61,7 +64,7 @@ const reSpaceAtEndOfLine = /^ *(?:\n|$)/;
 const reLinkLabel = /^\[(?:[^\\\[\]]|\\.){0,1000}\]/;
 
 // Matches a string of non-special characters.
-const reMain = /^[^\n`\[\]\\!<&*_'"~$]+/m;
+const reMain = /^[^\n`\[\]\\!<&*_'"~$=+^]+/m;
 
 type DelimiterCC =
   | typeof C_ASTERISK
@@ -268,6 +271,319 @@ export class InlineParser {
     const node = createNode('htmlInline', this.sourcepos(startpos, this.pos));
     node.literal = m;
     block.appendChild(node);
+    return true;
+  }
+
+  parseMarkInline(block: BlockNode) {
+    if (this.subject.slice(this.pos, this.pos + 2) !== '==') {
+      return false;
+    }
+
+    const closeIndex = this.subject.indexOf('==', this.pos + 2);
+    if (closeIndex === -1) {
+      return false;
+    }
+
+    const innerText = this.subject.slice(this.pos + 2, closeIndex);
+    if (!innerText || innerText.includes('\n')) {
+      return false;
+    }
+
+    const startpos = this.pos + 1;
+    const endpos = startpos + (closeIndex - this.pos) + 2 - 1;
+    const markNode = createNode('mark', this.sourcepos(startpos, endpos));
+
+    const innerStartPos = startpos + 2;
+    const innerEndPos = innerStartPos + innerText.length - 1;
+    const innerBlock = createNode(
+      'paragraph',
+      this.sourcepos(innerStartPos, innerEndPos)
+    ) as BlockNode;
+
+    innerBlock.stringContent = innerText;
+    innerBlock.lineOffsets = [0];
+
+    const inlineParser = new InlineParser(this.options);
+    inlineParser.refMap = this.refMap;
+    inlineParser.refLinkCandidateMap = this.refLinkCandidateMap;
+    inlineParser.refDefCandidateMap = this.refDefCandidateMap;
+    inlineParser.subject = innerText;
+    inlineParser.pos = 0;
+    inlineParser.delimiters = null;
+    inlineParser.brackets = null;
+    inlineParser.lineOffsets = [0];
+    inlineParser.lineIdx = 0;
+    inlineParser.linePosOffset =
+      this.linePosOffset + this.lineOffsets[this.lineIdx] + innerStartPos - 1;
+    inlineParser.lineStartNum = this.lineStartNum + this.lineIdx;
+
+    while (inlineParser.parseInline(innerBlock)) {}
+    inlineParser.processEmphasis(null);
+    inlineParser.mergeTextNodes(innerBlock.walker());
+
+    let child = innerBlock.firstChild;
+    while (child) {
+      const next = child.next;
+      child.unlink();
+      markNode.appendChild(child);
+      child = next;
+    }
+
+    block.appendChild(markNode);
+    this.pos = closeIndex + 2;
+    return true;
+  }
+
+  isInlineDollarAt(pos: number) {
+    if (this.subject[pos] !== '$') {
+      return false;
+    }
+
+    let backslashCount = 0;
+    for (let idx = pos - 1; idx >= 0 && this.subject[idx] === '\\'; idx -= 1) {
+      backslashCount += 1;
+    }
+    if (backslashCount % 2 === 1) {
+      return false;
+    }
+
+    if (this.subject[pos - 1] === '$' || this.subject[pos + 1] === '$') {
+      return false;
+    }
+
+    return true;
+  }
+
+  isInsideDollarInline() {
+    let delim = this.delimiters;
+
+    while (delim) {
+      if (delim.cc === C_DOLLAR && delim.canOpen) {
+        return true;
+      }
+      delim = delim.previous;
+    }
+
+    let left = -1;
+    for (let idx = this.pos - 1; idx >= 0; idx -= 1) {
+      const ch = this.subject[idx];
+      if (ch === '\n') {
+        break;
+      }
+      if (this.isInlineDollarAt(idx)) {
+        left = idx;
+        break;
+      }
+    }
+    if (left === -1) {
+      return false;
+    }
+
+    for (let idx = this.pos; idx < this.subject.length; idx += 1) {
+      const ch = this.subject[idx];
+      if (ch === '\n') {
+        break;
+      }
+      if (this.isInlineDollarAt(idx)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  parseSuperscriptInline(block: BlockNode) {
+    if (this.isInsideDollarInline()) {
+      return false;
+    }
+    if (this.subject.slice(this.pos, this.pos + 1) !== '^') {
+      return false;
+    }
+    if (this.subject.slice(this.pos + 1, this.pos + 2) === '^') {
+      return false;
+    }
+
+    const closeIndex = this.subject.indexOf('^', this.pos + 1);
+    if (closeIndex === -1) {
+      return false;
+    }
+
+    const innerText = this.subject.slice(this.pos + 1, closeIndex);
+    if (!innerText || innerText.includes('\n')) {
+      return false;
+    }
+
+    const startpos = this.pos + 1;
+    const endpos = startpos + (closeIndex - this.pos) + 1 - 1;
+    const superscriptNode = createNode('superscript', this.sourcepos(startpos, endpos));
+
+    const innerStartPos = startpos + 1;
+    const innerEndPos = innerStartPos + innerText.length - 1;
+    const innerBlock = createNode(
+      'paragraph',
+      this.sourcepos(innerStartPos, innerEndPos)
+    ) as BlockNode;
+
+    innerBlock.stringContent = innerText;
+    innerBlock.lineOffsets = [0];
+
+    const inlineParser = new InlineParser(this.options);
+    inlineParser.refMap = this.refMap;
+    inlineParser.refLinkCandidateMap = this.refLinkCandidateMap;
+    inlineParser.refDefCandidateMap = this.refDefCandidateMap;
+    inlineParser.subject = innerText;
+    inlineParser.pos = 0;
+    inlineParser.delimiters = null;
+    inlineParser.brackets = null;
+    inlineParser.lineOffsets = [0];
+    inlineParser.lineIdx = 0;
+    inlineParser.linePosOffset =
+      this.linePosOffset + this.lineOffsets[this.lineIdx] + innerStartPos - 1;
+    inlineParser.lineStartNum = this.lineStartNum + this.lineIdx;
+
+    while (inlineParser.parseInline(innerBlock)) {}
+    inlineParser.processEmphasis(null);
+    inlineParser.mergeTextNodes(innerBlock.walker());
+
+    let child = innerBlock.firstChild;
+    while (child) {
+      const next = child.next;
+      child.unlink();
+      superscriptNode.appendChild(child);
+      child = next;
+    }
+
+    block.appendChild(superscriptNode);
+    this.pos = closeIndex + 1;
+    return true;
+  }
+
+  parseSubscriptInline(block: BlockNode) {
+    if (this.isInsideDollarInline()) {
+      return false;
+    }
+    if (this.subject.slice(this.pos, this.pos + 1) !== '~') {
+      return false;
+    }
+    if (this.subject.slice(this.pos + 1, this.pos + 2) === '~') {
+      return false;
+    }
+
+    const closeIndex = this.subject.indexOf('~', this.pos + 1);
+    if (closeIndex === -1) {
+      return false;
+    }
+
+    const innerText = this.subject.slice(this.pos + 1, closeIndex);
+    if (!innerText || innerText.includes('\n')) {
+      return false;
+    }
+
+    const startpos = this.pos + 1;
+    const endpos = startpos + (closeIndex - this.pos) + 1 - 1;
+    const subscriptNode = createNode('subscript', this.sourcepos(startpos, endpos));
+
+    const innerStartPos = startpos + 1;
+    const innerEndPos = innerStartPos + innerText.length - 1;
+    const innerBlock = createNode(
+      'paragraph',
+      this.sourcepos(innerStartPos, innerEndPos)
+    ) as BlockNode;
+
+    innerBlock.stringContent = innerText;
+    innerBlock.lineOffsets = [0];
+
+    const inlineParser = new InlineParser(this.options);
+    inlineParser.refMap = this.refMap;
+    inlineParser.refLinkCandidateMap = this.refLinkCandidateMap;
+    inlineParser.refDefCandidateMap = this.refDefCandidateMap;
+    inlineParser.subject = innerText;
+    inlineParser.pos = 0;
+    inlineParser.delimiters = null;
+    inlineParser.brackets = null;
+    inlineParser.lineOffsets = [0];
+    inlineParser.lineIdx = 0;
+    inlineParser.linePosOffset =
+      this.linePosOffset + this.lineOffsets[this.lineIdx] + innerStartPos - 1;
+    inlineParser.lineStartNum = this.lineStartNum + this.lineIdx;
+
+    while (inlineParser.parseInline(innerBlock)) {}
+    inlineParser.processEmphasis(null);
+    inlineParser.mergeTextNodes(innerBlock.walker());
+
+    let child = innerBlock.firstChild;
+    while (child) {
+      const next = child.next;
+      child.unlink();
+      subscriptNode.appendChild(child);
+      child = next;
+    }
+
+    block.appendChild(subscriptNode);
+    this.pos = closeIndex + 1;
+    return true;
+  }
+
+  parseUnderlineInline(block: BlockNode) {
+    if (this.isInsideDollarInline()) {
+      return false;
+    }
+    if (this.subject.slice(this.pos, this.pos + 2) !== '++') {
+      return false;
+    }
+
+    const closeIndex = this.subject.indexOf('++', this.pos + 2);
+    if (closeIndex === -1) {
+      return false;
+    }
+
+    const innerText = this.subject.slice(this.pos + 2, closeIndex);
+    if (!innerText || innerText.includes('\n')) {
+      return false;
+    }
+
+    const startpos = this.pos + 1;
+    const endpos = startpos + (closeIndex - this.pos) + 2 - 1;
+    const underlineNode = createNode('underline', this.sourcepos(startpos, endpos));
+
+    const innerStartPos = startpos + 2;
+    const innerEndPos = innerStartPos + innerText.length - 1;
+    const innerBlock = createNode(
+      'paragraph',
+      this.sourcepos(innerStartPos, innerEndPos)
+    ) as BlockNode;
+
+    innerBlock.stringContent = innerText;
+    innerBlock.lineOffsets = [0];
+
+    const inlineParser = new InlineParser(this.options);
+    inlineParser.refMap = this.refMap;
+    inlineParser.refLinkCandidateMap = this.refLinkCandidateMap;
+    inlineParser.refDefCandidateMap = this.refDefCandidateMap;
+    inlineParser.subject = innerText;
+    inlineParser.pos = 0;
+    inlineParser.delimiters = null;
+    inlineParser.brackets = null;
+    inlineParser.lineOffsets = [0];
+    inlineParser.lineIdx = 0;
+    inlineParser.linePosOffset =
+      this.linePosOffset + this.lineOffsets[this.lineIdx] + innerStartPos - 1;
+    inlineParser.lineStartNum = this.lineStartNum + this.lineIdx;
+
+    while (inlineParser.parseInline(innerBlock)) {}
+    inlineParser.processEmphasis(null);
+    inlineParser.mergeTextNodes(innerBlock.walker());
+
+    let child = innerBlock.firstChild;
+    while (child) {
+      const next = child.next;
+      child.unlink();
+      underlineNode.appendChild(child);
+      child = next;
+    }
+
+    block.appendChild(underlineNode);
+    this.pos = closeIndex + 2;
     return true;
   }
 
@@ -1079,8 +1395,22 @@ export class InlineParser {
       case C_ASTERISK:
       case C_UNDERSCORE:
       case C_TILDE:
+        res = this.parseSubscriptInline(block);
+        if (!res && !this.isInsideDollarInline()) {
+          res = this.handleDelim(c, block);
+        }
+        break;
       case C_DOLLAR:
         res = this.handleDelim(c, block);
+        break;
+      case C_EQUAL:
+        res = this.parseMarkInline(block);
+        break;
+      case C_PLUS:
+        res = this.parseUnderlineInline(block);
+        break;
+      case C_CARET:
+        res = this.parseSuperscriptInline(block);
         break;
       case C_SINGLEQUOTE:
       case C_DOUBLEQUOTE:

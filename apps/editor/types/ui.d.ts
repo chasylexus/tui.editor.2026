@@ -123,6 +123,10 @@ interface ToolbarStateMap {
   strong: ToolbarItemState;
   emph: ToolbarItemState;
   strike: ToolbarItemState;
+  mark: ToolbarItemState;
+  superscript: ToolbarItemState;
+  subscript: ToolbarItemState;
+  underline: ToolbarItemState;
   heading: ToolbarItemState;
   thematicBreak: ToolbarItemState;
   blockQuote: ToolbarItemState;
