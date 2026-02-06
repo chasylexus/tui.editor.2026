@@ -4,7 +4,12 @@
  */
 import type { MdNode, PluginContext, PluginInfo } from '@toast-ui/editor';
 import type { HTMLToken } from '@toast-ui/toastmark';
-import { fixInlineMathBackslashes, getInlineMath, renderKatexBlock } from './utils/inlineMath';
+import {
+  fixInlineMathBackslashes,
+  getInlineMath,
+  normalizeInlineMathEscapes,
+  renderKatexBlock,
+} from './utils/inlineMath';
 import { createBlockLatexWysiwygPlugin } from './wysiwyg/blockLatexWysiwygPlugin';
 import { createInlineLatexWysiwygPlugin } from './wysiwyg/inlineLatexWysiwygPlugin';
 
@@ -44,9 +49,14 @@ export default function katexPlugin(
   const inlinePluginInfo = createInlineLatexWysiwygPlugin(context, inlineClassName);
   const blockPluginInfo = createBlockLatexWysiwygPlugin(context);
 
-  context.eventEmitter.listen('beforeConvertWysiwygToMarkdown', (markdownText) =>
-    fixInlineMathBackslashes(markdownText)
-  );
+  context.eventEmitter.listen('beforeConvertWysiwygToMarkdown', (markdownText) => {
+    // Example: "text $a\\_b$ text" -> "text $a_b$ text"
+    // Example: "text a\\_b" -> unchanged
+    // Example: "$$ a\\_b $$" -> unchanged
+    const normalized = normalizeInlineMathEscapes(markdownText);
+
+    return fixInlineMathBackslashes(normalized);
+  });
 
   const inlineWysiwygPlugins = inlinePluginInfo.wysiwygPlugins || [];
   const blockWysiwygPlugins = blockPluginInfo.wysiwygPlugins || [];

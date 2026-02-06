@@ -130,6 +130,124 @@ export function fixInlineMathBackslashes(markdown: string) {
   return out;
 }
 
+function isEscapedAt(text: string, index: number) {
+  let backslashCount = 0;
+
+  for (let i = index - 1; i >= 0 && text[i] === '\\'; i -= 1) {
+    backslashCount += 1;
+  }
+
+  return backslashCount % 2 === 1;
+}
+
+export function normalizeInlineMathEscapes(markdown: string) {
+  if (!markdown || !markdown.includes('$') || !markdown.includes('\\_')) return markdown;
+
+  let out = '';
+  let inFence = false;
+  let fenceChar = '';
+  let fenceLen = 0;
+  let inlineCodeLen = 0;
+  let lineStart = true;
+  let inDoubleMath = false;
+
+  for (let i = 0; i < markdown.length; i += 1) {
+    const ch = markdown[i];
+    const next = markdown[i + 1];
+
+    if (lineStart && !inDoubleMath && inlineCodeLen === 0) {
+      if ((ch === '`' || ch === '~') && next === ch && markdown[i + 2] === ch) {
+        let len = 3;
+
+        while (markdown[i + len] === ch) len += 1;
+
+        const marker = markdown.slice(i, i + len);
+
+        if (!inFence) {
+          inFence = true;
+          fenceChar = ch;
+          fenceLen = len;
+        } else if (ch === fenceChar && len >= fenceLen) {
+          inFence = false;
+          fenceChar = '';
+          fenceLen = 0;
+        }
+
+        out += marker;
+        i += len - 1;
+        continue;
+      }
+    }
+
+    if (!inFence && !inDoubleMath) {
+      if (ch === '`') {
+        let len = 1;
+
+        while (markdown[i + len] === '`') len += 1;
+
+        if (inlineCodeLen === 0) {
+          inlineCodeLen = len;
+        } else if (inlineCodeLen === len) {
+          inlineCodeLen = 0;
+        }
+
+        out += markdown.slice(i, i + len);
+        i += len - 1;
+        lineStart = false;
+        continue;
+      }
+    }
+
+    if (!inFence && inlineCodeLen === 0) {
+      if (ch === '$' && !isEscapedAt(markdown, i)) {
+        if (next === '$') {
+          inDoubleMath = !inDoubleMath;
+          out += '$$';
+          i += 1;
+          lineStart = false;
+          continue;
+        }
+
+        out += '$';
+        lineStart = false;
+
+        i += 1;
+        let inner = '';
+        let closed = false;
+
+        for (; i < markdown.length; i += 1) {
+          const innerCh = markdown[i];
+
+          if (innerCh === '$' && !isEscapedAt(markdown, i)) {
+            closed = true;
+            break;
+          }
+
+          inner += innerCh;
+        }
+
+        if (!closed) {
+          out += inner;
+          i -= 1;
+          continue;
+        }
+
+        if (inner.includes('\\_')) {
+          inner = inner.replaceAll('\\_', '_');
+        }
+
+        out += `${inner}$`;
+        continue;
+      }
+    }
+
+    out += ch;
+    lineStart = ch === '\n';
+  }
+
+  return out;
+}
+
 let latexPart = '';
 let ifEntering = false;
 let ifEven = true;
