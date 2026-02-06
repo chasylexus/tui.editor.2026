@@ -9,7 +9,16 @@ import { Emitter } from '@t/event';
 type ListType = 'bulletList' | 'orderedList' | 'taskList';
 
 const EXCEPT_TYPES = ['image', 'link', 'customBlock', 'frontMatter'];
-const MARK_TYPES = ['strong', 'strike', 'emph', 'code'];
+const MARK_TYPES = [
+  'strong',
+  'strike',
+  'mark',
+  'superscript',
+  'subscript',
+  'underline',
+  'emph',
+  'code',
+];
 const LIST_TYPES: ListType[] = ['bulletList', 'orderedList', 'taskList'];
 
 function getToolbarStateType(node: Node, parentNode: Node) {
@@ -37,15 +46,18 @@ function setListNodeToolbarState(type: ToolbarStateKeys, nodeTypeState: ToolbarS
 }
 
 function setMarkTypeStates(
+  selection: Selection,
   from: ResolvedPos,
   to: ResolvedPos,
   schema: Schema,
   toolbarState: ToolbarStateMap
 ) {
+  const storedMarks = selection.empty ? selection.$from.marks() : null;
+  const activeMarks = storedMarks || from.marksAcross(to) || [];
+
   MARK_TYPES.forEach((type) => {
     const mark = schema.marks[type];
-    const marksAtPos = from.marksAcross(to) || [];
-    const foundMark = !!mark.isInSet(marksAtPos);
+    const foundMark = !!mark.isInSet(activeMarks);
 
     if (foundMark) {
       toolbarState[type as ToolbarStateKeys] = { active: true };
@@ -73,7 +85,7 @@ function getToolbarState(selection: Selection, doc: Node, schema: Schema) {
       toolbarState.indent.disabled = false;
       toolbarState.outdent.disabled = false;
     } else if (type === 'paragraph' || type === 'text') {
-      setMarkTypeStates($from, $to, schema, toolbarState);
+      setMarkTypeStates(selection, $from, $to, schema, toolbarState);
     } else {
       toolbarState[type as ToolbarStateKeys] = { active: true };
     }

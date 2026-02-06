@@ -13,6 +13,10 @@ const defaultToolbarStateKeys: ToolbarStateKeys[] = [
   'strong',
   'emph',
   'strike',
+  'mark',
+  'superscript',
+  'subscript',
+  'underline',
   'heading',
   'thematicBreak',
   'blockQuote',
@@ -36,11 +40,7 @@ function getToolbarStateType(mdNode: MdNode) {
     return 'table';
   }
 
-  if (!includes(defaultToolbarStateKeys, type)) {
-    return null;
-  }
-
-  return type as ToolbarStateKeys;
+  return includes(defaultToolbarStateKeys, type) ? (type as ToolbarStateKeys) : null;
 }
 
 function getToolbarState(targetNode: MdNode) {
@@ -50,6 +50,7 @@ function getToolbarState(targetNode: MdNode) {
   } as ToolbarStateMap;
 
   let listEnabled = true;
+  const activeTypes = new Set<ToolbarStateKeys>();
 
   traverseParentNodes(targetNode, (mdNode) => {
     const type = getToolbarStateType(mdNode);
@@ -61,7 +62,7 @@ function getToolbarState(targetNode: MdNode) {
     if (type === 'bulletList' || type === 'orderedList') {
       // to apply the nearlist list state in the nested list
       if (listEnabled) {
-        toolbarState[type] = { active: true };
+        activeTypes.add(type);
 
         toolbarState.indent.disabled = false;
         toolbarState.outdent.disabled = false;
@@ -69,8 +70,12 @@ function getToolbarState(targetNode: MdNode) {
         listEnabled = false;
       }
     } else {
-      toolbarState[type as ToolbarStateKeys] = { active: true };
+      activeTypes.add(type);
     }
+  });
+
+  activeTypes.forEach((type) => {
+    toolbarState[type] = { active: true };
   });
 
   return toolbarState;

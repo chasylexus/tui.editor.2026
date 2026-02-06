@@ -45,6 +45,42 @@
   text-decoration: none;
 }
 
+.toastui-editor-md-mark {
+  background-color: #fff3bf;
+}
+
+.toastui-editor-md-mark.toastui-editor-md-delimiter {
+  background-color: transparent;
+}
+
+.toastui-editor-md-superscript {
+  vertical-align: super;
+  font-size: 0.75em;
+}
+
+.toastui-editor-md-superscript.toastui-editor-md-delimiter {
+  vertical-align: baseline;
+  font-size: 1em;
+}
+
+.toastui-editor-md-subscript {
+  vertical-align: sub;
+  font-size: 0.75em;
+}
+
+.toastui-editor-md-subscript.toastui-editor-md-delimiter {
+  vertical-align: baseline;
+  font-size: 1em;
+}
+
+.toastui-editor-md-underline {
+  text-decoration: underline;
+}
+
+.toastui-editor-md-underline.toastui-editor-md-delimiter {
+  text-decoration: none;
+}
+
 .toastui-editor-md-delimiter,
 .toastui-editor-md-thematic-break,
 .toastui-editor-md-link,

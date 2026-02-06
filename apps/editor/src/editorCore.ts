@@ -137,7 +137,7 @@ class ToastUIEditorCore {
         useCommandShortcut: true,
         usageStatistics: true,
         toolbarItems: [
-          ['heading', 'bold', 'italic', 'strike'],
+          ['heading', 'bold', 'italic', 'strike', 'mark', 'superscript', 'subscript', 'underline'],
           ['hr', 'quote'],
           ['ul', 'ol', 'task', 'indent', 'outdent'],
           ['table', 'image', 'link'],

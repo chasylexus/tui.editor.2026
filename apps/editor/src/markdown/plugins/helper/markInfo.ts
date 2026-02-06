@@ -39,6 +39,10 @@ const delimSize = {
   strong: 2,
   emph: 1,
   strike: 2,
+  mark: 2,
+  superscript: 1,
+  subscript: 1,
+  underline: 2,
 };
 
 type MarkType =
@@ -295,6 +299,10 @@ const markNodeFuncMap = {
   strong: emphasisAndStrikethrough,
   emph: emphasisAndStrikethrough,
   strike: emphasisAndStrikethrough,
+  mark: emphasisAndStrikethrough,
+  superscript: emphasisAndStrikethrough,
+  subscript: emphasisAndStrikethrough,
+  underline: emphasisAndStrikethrough,
   link,
   image,
   code,
