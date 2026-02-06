@@ -36,6 +36,28 @@
   background-color: #535662;
 }
 
+.toastui-editor-dark .toastui-inline-latex-tooltip {
+  background-color: #1f1f1f !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45) !important;
+  color: #f1f3f5 !important;
+}
+
+.toastui-editor-dark .toastui-inline-latex-tooltip .katex {
+  color: inherit;
+}
+
+.toastui-editor-dark .toastui-block-latex-preview {
+  background-color: #1f1f1f !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35) !important;
+  color: #f1f3f5 !important;
+}
+
+.toastui-editor-dark .toastui-block-latex-preview .katex {
+  color: inherit;
+}
+
 .toastui-editor-dark .toastui-editor-defaultUI-toolbar .scroll-sync::before {
   color: #8f939f;
 }
