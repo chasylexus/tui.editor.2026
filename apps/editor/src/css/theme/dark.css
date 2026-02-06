@@ -19,23 +19,6 @@
   border-color: #232428;
 }
 
-.toastui-editor-dark .toastui-editor-toolbar-icons.mark {
-  color: #eee;
-}
-
-.toastui-editor-dark .toastui-editor-toolbar-icons.superscript,
-.toastui-editor-dark .toastui-editor-toolbar-icons.subscript,
-.toastui-editor-dark .toastui-editor-toolbar-icons.underline {
-  color: #eee;
-}
-
-.toastui-editor-dark .toastui-editor-toolbar-icons.mark.active,
-.toastui-editor-dark .toastui-editor-toolbar-icons.superscript.active,
-.toastui-editor-dark .toastui-editor-toolbar-icons.subscript.active,
-.toastui-editor-dark .toastui-editor-toolbar-icons.underline.active {
-  color: #00a9ff;
-}
-
 .toastui-editor-dark .toastui-editor-toolbar-icons:not(:disabled):hover {
   background-color: #36383f;
   border-color: #36383f;
@@ -194,7 +177,7 @@
 }
 
 .toastui-editor-dark .toastui-editor-popup-add-table .toastui-editor-table-description {
-  color: #eee;
+  color: #eee
 }
 
 .toastui-editor-dark .toastui-editor-md-tab-container {
@@ -213,6 +196,7 @@
   background-color: #121212;
   color: #eee;
 }
+
 
 .toastui-editor-dark .toastui-editor-context-menu .menu-group {
   border-bottom-color: #303238;
@@ -254,11 +238,6 @@
 
 .toastui-editor-dark .toastui-editor-contents del {
   color: #777980;
-}
-
-.toastui-editor-dark .toastui-editor-contents mark {
-  background-color: #5c4b00;
-  color: #f8f9fa;
 }
 
 .toastui-editor-dark .toastui-editor-contents blockquote {
@@ -311,9 +290,7 @@
   border-color: #327491;
 }
 
-.toastui-editor-dark
-  .toastui-editor-custom-block.ProseMirror-selectednode
-  .toastui-editor-custom-block-view {
+.toastui-editor-dark .toastui-editor-custom-block.ProseMirror-selectednode .toastui-editor-custom-block-view {
   color: #fff;
   border-color: #327491;
 }
@@ -420,8 +397,7 @@
   color: #55575f;
 }
 
-.toastui-editor-dark
-  .toastui-editor-md-link.toastui-editor-md-link-url.toastui-editor-md-marked-text {
+.toastui-editor-dark .toastui-editor-md-link.toastui-editor-md-link-url.toastui-editor-md-marked-text {
   color: #777980;
 }
 
@@ -430,8 +406,7 @@
   color: #b3b5bc;
 }
 
-.toastui-editor-dark
-  .toastui-editor-md-link.toastui-editor-md-link-desc.toastui-editor-md-marked-text,
+.toastui-editor-dark .toastui-editor-md-link.toastui-editor-md-link-desc.toastui-editor-md-marked-text,
 .toastui-editor-dark .toastui-editor-md-list-item-style.toastui-editor-md-list-item-odd {
   color: #4b96e6;
 }
@@ -446,16 +421,6 @@
 
 .toastui-editor-dark .toastui-editor-md-code.toastui-editor-md-marked-text {
   color: #c1798b;
-}
-
-.toastui-editor-dark .toastui-editor-md-mark {
-  background-color: #5c4b00;
-  color: #f8f9fa;
-}
-
-.toastui-editor-dark .toastui-editor-md-mark.toastui-editor-md-delimiter {
-  background-color: transparent;
-  color: #777980;
 }
 
 .toastui-editor-dark .toastui-editor-md-code {

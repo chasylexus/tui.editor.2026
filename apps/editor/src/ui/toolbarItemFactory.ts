@@ -98,46 +98,6 @@ function createDefaultToolbarItemInfo(type: string) {
         state: 'strike',
       };
       break;
-    case 'mark':
-      info = {
-        name: 'mark',
-        className: 'mark',
-        command: 'mark',
-        tooltip: 'Mark',
-        state: 'mark',
-        text: 'M',
-      };
-      break;
-    case 'superscript':
-      info = {
-        name: 'superscript',
-        className: 'superscript',
-        command: 'superscript',
-        tooltip: 'Superscript',
-        state: 'superscript',
-        text: 'X²',
-      };
-      break;
-    case 'subscript':
-      info = {
-        name: 'subscript',
-        className: 'subscript',
-        command: 'subscript',
-        tooltip: 'Subscript',
-        state: 'subscript',
-        text: 'X₂',
-      };
-      break;
-    case 'underline':
-      info = {
-        name: 'underline',
-        className: 'underline',
-        command: 'underline',
-        tooltip: 'Underline',
-        state: 'underline',
-        text: 'U',
-      };
-      break;
     case 'hr':
       info = {
         name: 'hr',

@@ -31,10 +31,6 @@ export function isContainer(node: Node) {
     case 'emph':
     case 'strong':
     case 'strike':
-    case 'mark':
-    case 'superscript':
-    case 'subscript':
-    case 'underline':
     case 'link':
     case 'image':
     case 'table':

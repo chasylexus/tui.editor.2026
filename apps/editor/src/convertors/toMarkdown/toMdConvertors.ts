@@ -235,42 +235,6 @@ export const toMdConvertors: ToMdConvertorMap = {
     };
   },
 
-  mark({ node }, { entering }) {
-    const { rawHTML } = node.attrs;
-
-    return {
-      delim: '==',
-      rawHTML: entering ? getOpenRawHTML(rawHTML) : getCloseRawHTML(rawHTML),
-    };
-  },
-
-  superscript({ node }, { entering }) {
-    const { rawHTML } = node.attrs;
-
-    return {
-      delim: '^',
-      rawHTML: entering ? getOpenRawHTML(rawHTML) : getCloseRawHTML(rawHTML),
-    };
-  },
-
-  subscript({ node }, { entering }) {
-    const { rawHTML } = node.attrs;
-
-    return {
-      delim: '~',
-      rawHTML: entering ? getOpenRawHTML(rawHTML) : getCloseRawHTML(rawHTML),
-    };
-  },
-
-  underline({ node }, { entering }) {
-    const { rawHTML } = node.attrs;
-
-    return {
-      delim: '++',
-      rawHTML: entering ? getOpenRawHTML(rawHTML) : getCloseRawHTML(rawHTML),
-    };
-  },
-
   link({ node }, { entering }) {
     const { attrs } = node;
     const { title, rawHTML } = attrs;
@@ -347,26 +311,6 @@ const markTypeOptions: ToMdMarkTypeOptions = {
   },
 
   strike: {
-    mixable: true,
-    removedEnclosingWhitespace: true,
-  },
-
-  mark: {
-    mixable: true,
-    removedEnclosingWhitespace: true,
-  },
-
-  superscript: {
-    mixable: true,
-    removedEnclosingWhitespace: true,
-  },
-
-  subscript: {
-    mixable: true,
-    removedEnclosingWhitespace: true,
-  },
-
-  underline: {
     mixable: true,
     removedEnclosingWhitespace: true,
   },

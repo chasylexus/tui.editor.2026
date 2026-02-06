@@ -6,8 +6,6 @@
     <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
     <!-- Editor -->
     <link rel="stylesheet" href="../dist/cdn/toastui-editor.css" />
-    <!-- Dark theme -->
-    <link rel="stylesheet" href="../dist/cdn/theme/toastui-editor-dark.css" />
     <!-- Chart -->
     <link rel="stylesheet" href="https://uicdn.toast.com/chart/v4.3.4/toastui-chart.css" />
     <!-- Code Highlight -->
@@ -41,64 +39,6 @@
     <!-- KaTeX -->
     <link rel="stylesheet" href="/node_modules/katex/dist/katex.min.css" />
     <style>
-      body {
-        margin: 0;
-      }
-
-      body.dark {
-        background: #111;
-      }
-
-      .toastui-editor-toolbar-icons.theme-toggle-group {
-        background-image: none;
-        padding: 0 8px;
-        width: auto;
-      }
-
-      .theme-segmented {
-        display: inline-flex;
-        align-items: center;
-        gap: 0;
-        padding: 2px;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.06);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-      }
-
-      .theme-segmented-button {
-        appearance: none;
-        border: 0;
-        background: transparent;
-        color: #333;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 999px;
-        cursor: pointer;
-        transition: background 0.2s ease, color 0.2s ease;
-      }
-
-      .theme-segmented-button.is-active {
-        background: #fff;
-        color: #111;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-      }
-
-      .toastui-editor-dark .theme-segmented {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.18);
-      }
-
-      .toastui-editor-dark .theme-segmented-button {
-        color: #e5e7eb;
-      }
-
-      .toastui-editor-dark .theme-segmented-button.is-active {
-        background: #2b2b2b;
-        color: #fff;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-      }
-
       .toastui-editor-defaultUI-toolbar .export-toolbar-group {
         margin-left: auto;
       }
@@ -170,22 +110,12 @@
         maxHeight: 300
       };
 
-      const themeStorageKey = 'themeMode';
-      const media = window.matchMedia('(prefers-color-scheme: dark)');
-      const storedMode = localStorage.getItem(themeStorageKey);
-      const themeMode =
-        storedMode === 'light' || storedMode === 'dark' || storedMode === 'auto'
-          ? storedMode
-          : 'auto';
-      const initialTheme = themeMode === 'dark' || (themeMode === 'auto' && media.matches) ? 'dark' : 'light';
-
       const editor = new Editor({
         el: document.querySelector('#editor'),
         previewStyle: 'vertical',
         height: '500px',
         initialEditType: 'wysiwyg',
         initialValue: fullFeatured2026Content,
-        theme: initialTheme,
         plugins: [
           [chart, chartOptions],
           [codeSyntaxHighlight, { highlighter: Prism }],
@@ -194,94 +124,9 @@
           uml,
           mermaid,
           katex,
-          [exportPlugin, { toolbarGroupIndex: 99, toolbarItemIndex: 1 }]
+          [exportPlugin, { toolbarGroupIndex: 99, toolbarItemIndex: 0 }]
         ]
       });
-
-      const rootEl = document.querySelector('.toastui-editor-defaultUI');
-      const bodyEl = document.body;
-      let currentMode = themeMode;
-      const themeOptions = [
-        { mode: 'light', label: '☀', title: 'Light' },
-        { mode: 'auto', label: 'A', title: 'Auto' },
-        { mode: 'dark', label: '☾', title: 'Dark' }
-      ];
-
-      const themeGroup = document.createElement('div');
-
-      themeGroup.className = 'toastui-editor-toolbar-icons theme-toggle-group';
-      themeGroup.setAttribute('role', 'radiogroup');
-      themeGroup.setAttribute('aria-label', 'Theme');
-
-      const themeSegmented = document.createElement('div');
-
-      themeSegmented.className = 'theme-segmented';
-      themeGroup.appendChild(themeSegmented);
-
-      const themeButtons = themeOptions.map((option) => {
-        const button = document.createElement('button');
-
-        button.type = 'button';
-        button.className = 'theme-segmented-button';
-        button.setAttribute('role', 'radio');
-        button.setAttribute('aria-checked', 'false');
-        button.setAttribute('aria-label', option.title);
-        button.dataset.themeMode = option.mode;
-        button.textContent = option.label;
-        themeSegmented.appendChild(button);
-        return button;
-      });
-
-      const setButtonState = (mode) => {
-        themeButtons.forEach((button) => {
-          const isActive = button.dataset.themeMode === mode;
-
-          button.classList.toggle('is-active', isActive);
-          button.setAttribute('aria-checked', String(isActive));
-        });
-      };
-
-      const applyTheme = (mode, shouldPersist = true) => {
-        const useDark = mode === 'dark' || (mode === 'auto' && media.matches);
-
-        rootEl.classList.toggle('toastui-editor-dark', useDark);
-        bodyEl.classList.toggle('dark', useDark);
-        setButtonState(mode);
-        editor.eventEmitter.emit('change');
-        currentMode = mode;
-
-        if (shouldPersist) {
-          localStorage.setItem(themeStorageKey, mode);
-        }
-      };
-
-      themeButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-          applyTheme(button.dataset.themeMode);
-        });
-      });
-
-      editor.insertToolbarItem(
-        { groupIndex: 99, itemIndex: 0 },
-        {
-          el: themeGroup,
-          name: 'themeToggle',
-          tooltip: 'Theme'
-        }
-      );
-      const handleMediaChange = () => {
-        if (currentMode === 'auto') {
-          applyTheme('auto', false);
-        }
-      };
-
-      if (media.addEventListener) {
-        media.addEventListener('change', handleMediaChange);
-      } else {
-        media.addListener(handleMediaChange);
-      }
-
-      applyTheme(currentMode, false);
 
       const toolbarEl = document.querySelector('.toastui-editor-defaultUI-toolbar');
       const exportButton = toolbarEl && toolbarEl.querySelector('.export-button');

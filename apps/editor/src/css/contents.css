@@ -133,10 +133,6 @@ table.ProseMirror-selectednode {
   color: #999;
 }
 
-.toastui-editor-contents mark {
-  background-color: #fff3bf;
-}
-
 .toastui-editor-contents blockquote {
   margin: 14px 0;
   border-left: 4px solid #e5e5e5;

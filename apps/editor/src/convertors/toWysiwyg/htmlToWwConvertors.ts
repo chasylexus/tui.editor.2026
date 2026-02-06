@@ -27,22 +27,7 @@ export function isCustomHTMLInlineNode({ schema }: ToWwConvertorState, node: MdN
 }
 
 export function isInlineNode({ type }: MdNode) {
-  return includes(
-    [
-      'text',
-      'strong',
-      'emph',
-      'strike',
-      'mark',
-      'superscript',
-      'subscript',
-      'underline',
-      'image',
-      'link',
-      'code',
-    ],
-    type
-  );
+  return includes(['text', 'strong', 'emph', 'strike', 'image', 'link', 'code'], type);
 }
 
 function isSoftbreak(mdNode: MdNode | null) {
@@ -125,46 +110,6 @@ const convertors: HTMLToWwConvertorMap = {
       state.openMark(strike.create({ rawHTML: openTagName }));
     } else {
       state.closeMark(strike);
-    }
-  },
-
-  mark: (state, _, openTagName) => {
-    const { mark } = state.schema.marks;
-
-    if (openTagName) {
-      state.openMark(mark.create({ rawHTML: openTagName }));
-    } else {
-      state.closeMark(mark);
-    }
-  },
-
-  sup: (state, _, openTagName) => {
-    const { superscript } = state.schema.marks;
-
-    if (openTagName) {
-      state.openMark(superscript.create({ rawHTML: openTagName }));
-    } else {
-      state.closeMark(superscript);
-    }
-  },
-
-  sub: (state, _, openTagName) => {
-    const { subscript } = state.schema.marks;
-
-    if (openTagName) {
-      state.openMark(subscript.create({ rawHTML: openTagName }));
-    } else {
-      state.closeMark(subscript);
-    }
-  },
-
-  u: (state, _, openTagName) => {
-    const { underline } = state.schema.marks;
-
-    if (openTagName) {
-      state.openMark(underline.create({ rawHTML: openTagName }));
-    } else {
-      state.closeMark(underline);
     }
   },
 

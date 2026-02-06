@@ -21,10 +21,6 @@ import { ThematicBreak } from './nodes/thematicBreak';
 import { Strong } from './marks/strong';
 import { Emph } from './marks/emph';
 import { Strike } from './marks/strike';
-import { MarkText } from './marks/mark';
-import { Superscript } from './marks/superscript';
-import { Subscript } from './marks/subscript';
-import { Underline } from './marks/underline';
 import { Link } from './marks/link';
 import { Code } from './marks/code';
 import { CustomBlock } from './nodes/customBlock';
@@ -55,10 +51,6 @@ export function createSpecs(linkAttributes: LinkAttributes) {
     new Strong(),
     new Emph(),
     new Strike(),
-    new MarkText(),
-    new Superscript(),
-    new Subscript(),
-    new Underline(),
     new Link(linkAttributes),
     new Code(),
     new CustomBlock(),

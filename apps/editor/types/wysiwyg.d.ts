@@ -26,17 +26,7 @@ export type WwNodeType =
   | 'html'
   | 'htmlComment';
 
-export type WwMarkType =
-  | 'strong'
-  | 'emph'
-  | 'strike'
-  | 'mark'
-  | 'superscript'
-  | 'subscript'
-  | 'underline'
-  | 'link'
-  | 'code'
-  | 'html';
+export type WwMarkType = 'strong' | 'emph' | 'strike' | 'link' | 'code' | 'html';
 
 export interface CellSelection extends Selection {
   startCell: ResolvedPos;

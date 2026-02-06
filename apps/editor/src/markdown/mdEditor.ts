@@ -28,10 +28,6 @@ import { ListItem } from './marks/listItem';
 import { Strong } from './marks/strong';
 import { Strike } from './marks/strike';
 import { Emph } from './marks/emph';
-import { MarkText } from './marks/mark';
-import { Superscript } from './marks/superscript';
-import { Subscript } from './marks/subscript';
-import { Underline } from './marks/underline';
 import { Code } from './marks/code';
 import { Link } from './marks/link';
 import { Delimiter, TaskDelimiter, MarkedText, Meta, TableCell } from './marks/simpleMark';
@@ -159,10 +155,6 @@ export default class MdEditor extends EditorBase {
       new Strong(),
       new Strike(),
       new Emph(),
-      new MarkText(),
-      new Superscript(),
-      new Subscript(),
-      new Underline(),
       new Code(),
       new Link(),
       new Delimiter(),

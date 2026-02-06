@@ -56,34 +56,6 @@ export const baseConvertors: HTMLConvertorMap = {
     };
   },
 
-  mark(_, { entering }) {
-    return {
-      type: entering ? 'openTag' : 'closeTag',
-      tagName: 'mark',
-    };
-  },
-
-  superscript(_, { entering }) {
-    return {
-      type: entering ? 'openTag' : 'closeTag',
-      tagName: 'sup',
-    };
-  },
-
-  subscript(_, { entering }) {
-    return {
-      type: entering ? 'openTag' : 'closeTag',
-      tagName: 'sub',
-    };
-  },
-
-  underline(_, { entering }) {
-    return {
-      type: entering ? 'openTag' : 'closeTag',
-      tagName: 'u',
-    };
-  },
-
   paragraph(node, { entering }) {
     const grandparent = node.parent?.parent;
     if (grandparent && grandparent.type === 'list') {

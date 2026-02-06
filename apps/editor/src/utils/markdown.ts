@@ -53,10 +53,6 @@ export function isStyledInlineNode(mdNode: MdNode) {
 
   return (
     type === 'strike' ||
-    type === 'mark' ||
-    type === 'superscript' ||
-    type === 'subscript' ||
-    type === 'underline' ||
     type === 'strong' ||
     type === 'emph' ||
     type === 'code' ||
@@ -96,10 +92,6 @@ export function isInlineNode(mdNode: MdNode) {
     case 'emph':
     case 'strong':
     case 'strike':
-    case 'mark':
-    case 'superscript':
-    case 'subscript':
-    case 'underline':
     case 'link':
     case 'image':
     case 'htmlInline':
@@ -159,14 +151,6 @@ export function getInlineMarkdownText(mdNode: MdNode) {
       return `**${text}**`;
     case 'strike':
       return `~~${text}~~`;
-    case 'mark':
-      return `==${text}==`;
-    case 'superscript':
-      return `^${text}^`;
-    case 'subscript':
-      return `~${text}~`;
-    case 'underline':
-      return `++${text}++`;
     case 'code':
       return `\`${text}\``;
     case 'link':
@@ -192,10 +176,6 @@ export function isContainer(node: MdNode) {
     case 'emph':
     case 'strong':
     case 'strike':
-    case 'mark':
-    case 'superscript':
-    case 'subscript':
-    case 'underline':
     case 'link':
     case 'image':
     case 'table':
