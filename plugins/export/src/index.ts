@@ -13,6 +13,131 @@ export interface PluginOptions {
   toolbarItemIndex?: number;
 }
 
+interface MenuState {
+  openId: string | null;
+  listenerAttached?: boolean;
+}
+
+function getMenuState(): MenuState {
+  const win = window as any;
+
+  if (!win.__toastuiToolbarMenuState) {
+    win.__toastuiToolbarMenuState = { openId: null };
+  }
+
+  return win.__toastuiToolbarMenuState as MenuState;
+}
+
+function ensureMenuStateListener(state: MenuState) {
+  if (state.listenerAttached || typeof document === 'undefined') return;
+
+  document.addEventListener('mousedown', (event) => {
+    const target = event.target as HTMLElement;
+
+    if (
+      target.closest('.toastui-editor-popup') ||
+      target.closest('.toastui-editor-toolbar-item-wrapper')
+    ) {
+      return;
+    }
+
+    state.openId = null;
+  });
+
+  state.listenerAttached = true;
+}
+
+function createMenuItem(
+  label: string,
+  iconClassName: string,
+  onSelect: () => void,
+  closePopup: () => void
+) {
+  const item = document.createElement('li');
+  const icon = document.createElement('span');
+  const text = document.createElement('span');
+
+  item.className = 'menu-item';
+  item.setAttribute('role', 'menuitem');
+  item.tabIndex = 0;
+  icon.className = `export-menu-icon ${iconClassName}`;
+  text.textContent = label;
+  item.appendChild(icon);
+  item.appendChild(text);
+
+  const handleSelect = () => {
+    onSelect();
+    closePopup();
+  };
+
+  item.addEventListener('click', (event) => {
+    event.preventDefault();
+    handleSelect();
+  });
+  item.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleSelect();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closePopup();
+    }
+  });
+
+  return item;
+}
+
+function createMenuBody(items: HTMLElement[]) {
+  const list = document.createElement('ul');
+
+  list.className = 'menu-group';
+  list.setAttribute('role', 'menu');
+  items.forEach((item) => list.appendChild(item));
+
+  return list;
+}
+
+function createExportSplitButton(onMainClick: () => void) {
+  const container = document.createElement('div');
+  const mainButton = document.createElement('button');
+  const caretButton = document.createElement('button');
+  const icon = document.createElement('span');
+
+  container.className = 'export-split';
+  container.setAttribute('role', 'group');
+
+  mainButton.type = 'button';
+  mainButton.className = 'toastui-editor-toolbar-icons export-split-main';
+  mainButton.setAttribute('aria-label', 'Download HTML');
+
+  icon.className = 'export-split-icon';
+  mainButton.appendChild(icon);
+
+  caretButton.type = 'button';
+  caretButton.className = 'toastui-editor-toolbar-icons export-split-caret';
+  caretButton.setAttribute('aria-label', 'Export options');
+  caretButton.setAttribute('aria-haspopup', 'menu');
+  caretButton.textContent = '▾';
+
+  mainButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onMainClick();
+  });
+  mainButton.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      onMainClick();
+    }
+  });
+
+  container.appendChild(mainButton);
+  container.appendChild(caretButton);
+
+  return container;
+}
+
 function downloadText(filename: string, content: string, type = 'text/plain') {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -208,6 +333,9 @@ export default function exportPlugin(
   const toolbarGroupIndex = options.toolbarGroupIndex ?? 2;
   const toolbarItemIndex = options.toolbarItemIndex ?? 0;
   const instance = context.instance as any;
+  const menuState = getMenuState();
+
+  ensureMenuStateListener(menuState);
 
   const downloadMarkdown = () => {
     if (!instance.getMarkdown) return;
@@ -219,13 +347,11 @@ export default function exportPlugin(
 
   const downloadHtml = async () => {
     const wasMarkdownMode = instance.isMarkdownMode?.() ?? false;
-    let switchedMode = false;
     let htmlBody = '';
 
     try {
       if (!wasMarkdownMode) {
         instance.changeMode?.('markdown', true);
-        switchedMode = true;
         await waitForPreviewRender();
         await sleep(300);
       }
@@ -254,27 +380,67 @@ export default function exportPlugin(
     downloadText(htmlFileName, html, 'text/html');
   };
 
+  const closePopup = () => {
+    context.eventEmitter.emit('closePopup');
+    menuState.openId = null;
+  };
+  const exportMenu = createMenuBody([
+    createMenuItem('Download HTML', 'export-menu-icon-html', downloadHtml, closePopup),
+    createMenuItem('Download Markdown', 'export-menu-icon-markdown', downloadMarkdown, closePopup),
+  ]);
+  const exportSplit = createExportSplitButton(downloadHtml);
+  const caretButton = exportSplit.querySelector<HTMLButtonElement>('.export-split-caret');
+
+  const openExportMenu = () => {
+    const wrapper = exportSplit.closest(
+      '.toastui-editor-toolbar-item-wrapper'
+    ) as HTMLElement | null;
+
+    if (wrapper) {
+      wrapper.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }
+  };
+
+  if (caretButton) {
+    const toggleMenu = () => {
+      if (menuState.openId === 'export') {
+        closePopup();
+        return;
+      }
+
+      closePopup();
+      menuState.openId = 'export';
+      openExportMenu();
+    };
+
+    caretButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleMenu();
+    });
+    caretButton.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleMenu();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        closePopup();
+      }
+    });
+  }
   const toolbarItems = [
     {
       groupIndex: toolbarGroupIndex,
       itemIndex: toolbarItemIndex,
       item: {
-        name: 'downloadMarkdown',
-        tooltip: 'Download Markdown',
-        className: 'toastui-editor-toolbar-icons export-button export-markdown',
-        text: 'MD',
-        command: 'downloadMarkdown',
-      },
-    },
-    {
-      groupIndex: toolbarGroupIndex,
-      itemIndex: toolbarItemIndex + 1,
-      item: {
-        name: 'downloadHtml',
-        tooltip: 'Download HTML',
-        className: 'toastui-editor-toolbar-icons export-button export-html',
-        text: 'HTML',
-        command: 'downloadHtml',
+        name: 'exportSplit',
+        tooltip: 'Export',
+        el: exportSplit,
+        popup: {
+          body: exportMenu,
+          className: 'toastui-editor-popup-add-heading export-split-menu',
+        },
       },
     },
   ];
