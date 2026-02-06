@@ -41,8 +41,36 @@
     <!-- KaTeX -->
     <link rel="stylesheet" href="/node_modules/katex/dist/katex.min.css" />
     <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+      }
+
       body {
         margin: 0;
+      }
+
+      .page {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .code-html.tui-doc-contents {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      #editor {
+        flex: 1;
+        min-height: 0;
+      }
+
+      .toastui-editor-defaultUI {
+        height: 100%;
       }
 
       body.dark {
@@ -142,9 +170,11 @@
     </style>
   </head>
   <body>
-    <div class="code-html tui-doc-contents">
-      <!-- Editor -->
-      <div id="editor"></div>
+    <div id="app" class="page">
+      <div class="code-html tui-doc-contents">
+        <!-- Editor -->
+        <div id="editor"></div>
+      </div>
     </div>
     <!-- Added to check demo page in Internet Explorer -->
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
@@ -198,7 +228,7 @@
       const editor = new Editor({
         el: document.querySelector('#editor'),
         previewStyle: 'vertical',
-        height: '500px',
+        height: '100%',
         initialEditType: 'wysiwyg',
         initialValue: fullFeatured2026Content,
         theme: initialTheme,
