@@ -13,7 +13,6 @@ import { Context, EditorAllCommandMap } from '@t/spec';
 import SpecManager from './spec/specManager';
 import { createTextSelection } from './helper/manipulation';
 import { createNodesWithWidget, getWidgetRules } from './widget/rules';
-import { getDefaultCommands } from './commands/defaultCommands';
 import { placeholder } from './plugins/placeholder';
 import { addWidget } from './plugins/popupWidget';
 import { dropImage } from './plugins/dropImage';
@@ -150,28 +149,31 @@ export default abstract class EditorBase implements Base {
   }
 
   createKeymaps(useCommandShortcut: boolean) {
-    const { undo, redo } = getDefaultCommands();
     const allKeymaps = this.specs.keymaps(useCommandShortcut);
-    const withFocusCheck = (command: ReturnType<typeof undo>) => (
-      state: EditorState,
-      dispatch: any,
-      view?: EditorView
-    ) => {
-      if (!view || !view.hasFocus()) {
-        return false;
-      }
+    const execSnapshotCommand = (name: 'undo' | 'redo') => () => {
+      this.eventEmitter.emit('command', name);
+      return true;
+    };
+    const withFocusCheck = function (
+      command: (state: EditorState, dispatch: any, view?: EditorView) => boolean
+    ) {
+      return (state: EditorState, dispatch: any, view?: EditorView) => {
+        if (!view || !view.hasFocus()) {
+          return false;
+        }
 
-      const active = document.activeElement;
+        const active = document.activeElement;
 
-      if (active && active !== document.body && !view.dom.contains(active)) {
-        return false;
-      }
+        if (active && active !== document.body && !view.dom.contains(active)) {
+          return false;
+        }
 
-      return command(state, dispatch, view);
+        return command(state, dispatch, view);
+      };
     };
     const historyKeymap = {
-      'Mod-z': withFocusCheck(undo()),
-      'Shift-Mod-z': withFocusCheck(redo()),
+      'Mod-z': withFocusCheck(execSnapshotCommand('undo')),
+      'Shift-Mod-z': withFocusCheck(execSnapshotCommand('redo')),
     };
 
     return useCommandShortcut ? allKeymaps.concat(keymap(historyKeymap)) : allKeymaps;

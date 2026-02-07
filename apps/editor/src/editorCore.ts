@@ -312,6 +312,7 @@ class ToastUIEditorCore {
     this.scrollSync = new ScrollSync(this.mdEditor, this.preview, this.eventEmitter);
     this.addInitEvent();
     this.addInitCommand(mdCommands, wwCommands);
+    this.addSnapshotCommands();
     buildQuery(this);
 
     if (this.options.hooks) {
@@ -355,6 +356,22 @@ class ToastUIEditorCore {
     });
     addPluginCommands('markdown', mdCommands);
     addPluginCommands('wysiwyg', wwCommands);
+  }
+
+  private addSnapshotCommands() {
+    const undoCommand = () => {
+      this.undoBySnapshot();
+      return true;
+    };
+    const redoCommand = () => {
+      this.redoBySnapshot();
+      return true;
+    };
+
+    this.addCommand('markdown', 'undo', undoCommand);
+    this.addCommand('markdown', 'redo', redoCommand);
+    this.addCommand('wysiwyg', 'undo', undoCommand);
+    this.addCommand('wysiwyg', 'redo', redoCommand);
   }
 
   private getCurrentModeEditor() {
@@ -643,6 +660,28 @@ class ToastUIEditorCore {
     this.restoreSelection(selection, md);
     if (isNumber(scrollTop)) {
       this.getCurrentModeEditor().setScrollTop(scrollTop);
+    }
+  }
+
+  private undoBySnapshot() {
+    this.flushPendingWwSerialize();
+    const snapshot = this.snapshotHistory.undo();
+
+    if (snapshot) {
+      this.snapshotHistory.applySnapshot(snapshot, (next) => {
+        this.applyProgrammatic(next.md, next.selection, next.scrollTop);
+      });
+    }
+  }
+
+  private redoBySnapshot() {
+    this.flushPendingWwSerialize();
+    const snapshot = this.snapshotHistory.redo();
+
+    if (snapshot) {
+      this.snapshotHistory.applySnapshot(snapshot, (next) => {
+        this.applyProgrammatic(next.md, next.selection, next.scrollTop);
+      });
     }
   }
 
@@ -997,6 +1036,16 @@ class ToastUIEditorCore {
    */
   getSelection() {
     return this.getCurrentModeEditor().getSelection();
+  }
+
+  getSnapshotDebugInfo() {
+    return {
+      mode: this.mode,
+      canonicalMd: this.canonicalMd,
+      wwDirty: this.wwDirty,
+      snapshotSize: this.snapshotHistory.size(),
+      selection: this.getSelectionForSnapshot(this.canonicalMd),
+    };
   }
 
   /**

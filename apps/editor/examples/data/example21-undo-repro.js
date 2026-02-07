@@ -1,7 +1,6 @@
 const undoReproContent = '# Heading\n\nThis is the initial paragraph text.';
 
 function createLogger(editor, rootEl, name) {
-  const getMode = () => (editor.isMarkdownMode() ? 'markdown' : 'wysiwyg');
   const getFocusInfo = () => {
     const active = document.activeElement;
     return {
@@ -10,12 +9,20 @@ function createLogger(editor, rootEl, name) {
     };
   };
   const logState = (label) => {
-    const md = editor.getMarkdown();
+    const debug = editor.getSnapshotDebugInfo ? editor.getSnapshotDebugInfo() : {};
+    const md = debug.canonicalMd || editor.getMarkdown();
     const focus = getFocusInfo();
+    const mdHead = md.slice(0, 80);
+    const snapshotSize = debug.snapshotSize || { undo: 0, redo: 0 };
     // eslint-disable-next-line no-console
     console.log(`[${name}] ${label}`, {
-      mode: getMode(),
+      mode: debug.mode || (editor.isMarkdownMode() ? 'markdown' : 'wysiwyg'),
+      wwDirty: debug.wwDirty,
       markdownLength: md.length,
+      markdownHead: mdHead,
+      snapshotUndo: snapshotSize.undo,
+      snapshotRedo: snapshotSize.redo,
+      selection: debug.selection,
       activeElement: focus.activeTag,
       focusInEditor: focus.inEditor,
     });
@@ -26,6 +33,7 @@ function createLogger(editor, rootEl, name) {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') {
       lastUndoKeyAt = Date.now();
       logState('undo keydown');
+      requestAnimationFrame(() => logState('undo after'));
     }
   });
 
@@ -47,6 +55,9 @@ function createLogger(editor, rootEl, name) {
     },
     onKeydown() {
       logState('keydown');
+    },
+    onModeChange() {
+      logState('mode change');
     },
   };
 }
@@ -81,11 +92,13 @@ function createLogger(editor, rootEl, name) {
   editorA.on('focus', loggerA.onFocus);
   editorA.on('blur', loggerA.onBlur);
   editorA.on('keydown', loggerA.onKeydown);
+  editorA.on('changeMode', loggerA.onModeChange);
 
   editorB.on('change', loggerB.onChange);
   editorB.on('focus', loggerB.onFocus);
   editorB.on('blur', loggerB.onBlur);
   editorB.on('keydown', loggerB.onKeydown);
+  editorB.on('changeMode', loggerB.onModeChange);
 
   const outsideButton = document.getElementById('outside-button');
   outsideButton.addEventListener('click', () => {
