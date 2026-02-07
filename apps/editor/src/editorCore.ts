@@ -18,6 +18,8 @@ import {
   WidgetStyle,
 } from '@t/editor';
 import { PluginCommandMap, PluginInfoResult, CommandFn } from '@t/plugin';
+import { Pos, MdPos } from '@t/toastmark';
+import { ToastMark } from '@toast-ui/toastmark';
 
 import { sendHostName, sanitizeLinkAttribute, deepMergedCopy } from './utils/common';
 
@@ -32,8 +34,6 @@ import Convertor from './convertors/convertor';
 import Viewer from './viewer';
 import i18n, { I18n } from './i18n/i18n';
 import { getPluginInfo } from './helper/plugin';
-
-import { ToastMark } from '@toast-ui/toastmark';
 import { WwToDOMAdaptor } from './wysiwyg/adaptor/wwToDOMAdaptor';
 import { ScrollSync } from './markdown/scroll/scrollSync';
 import { addDefaultImageBlobHook } from './helper/image';
@@ -44,7 +44,7 @@ import { createHTMLSchemaMap } from './wysiwyg/nodes/html';
 import { getHTMLRenderConvertors } from './markdown/htmlRenderConvertors';
 import { buildQuery } from './queries/queryManager';
 import { getEditorToMdPos, getMdToEditorPos } from './markdown/helper/pos';
-import { Pos } from '@t/toastmark';
+import SnapshotHistory, { Snapshot, SnapshotSelection } from './history/snapshotHistory';
 
 /**
  * ToastUIEditorCore
@@ -119,6 +119,14 @@ class ToastUIEditorCore {
   private canonicalMd = '';
 
   private wwDirty = false;
+
+  private suppressSnapshot = false;
+
+  private snapshotHistory = new SnapshotHistory();
+
+  private wwSerializeTimer: number | null = null;
+
+  private readonly wwSerializeDelay = 300;
 
   eventEmitter: Emitter;
 
@@ -261,15 +269,21 @@ class ToastUIEditorCore {
 
     this.eventEmitter.listen('wwUserEdit', () => {
       this.wwDirty = true;
+      this.scheduleWwSerialize();
     });
     this.eventEmitter.listen('change', (editorType: EditorType) => {
       if (editorType === 'markdown') {
         this.canonicalMd = this.mdEditor.getMarkdown();
         this.wwDirty = false;
+        if (!this.suppressSnapshot) {
+          this.pushSnapshot(this.canonicalMd);
+        }
       }
     });
 
-    this.setMarkdown(this.options.initialValue, false, false, true);
+    this.runProgrammatic(() => {
+      this.setMarkdown(this.options.initialValue, false, false, true);
+    });
     this.canonicalMd = this.options.initialValue || '';
 
     if (this.options.placeholder) {
@@ -277,9 +291,12 @@ class ToastUIEditorCore {
     }
 
     if (!this.options.initialValue) {
-      this.setHTML(this.initialHTML, false, false, true);
+      this.runProgrammatic(() => {
+        this.setHTML(this.initialHTML, false, false, true);
+      });
       this.canonicalMd = this.mdEditor.getMarkdown();
     }
+    this.pushSnapshot(this.canonicalMd);
 
     this.commandManager = new CommandManager(
       this.eventEmitter,
@@ -502,16 +519,145 @@ class ToastUIEditorCore {
     }
   }
 
+  private runProgrammatic(task: () => void) {
+    this.suppressSnapshot = true;
+    try {
+      task();
+    } finally {
+      this.suppressSnapshot = false;
+    }
+  }
+
+  private scheduleWwSerialize() {
+    if (this.wwSerializeTimer) {
+      clearTimeout(this.wwSerializeTimer);
+    }
+
+    this.wwSerializeTimer = window.setTimeout(() => {
+      this.wwSerializeTimer = null;
+      this.flushSerializeAndMaybePush();
+    }, this.wwSerializeDelay);
+  }
+
+  private flushSerialize() {
+    const wwNode = this.wwEditor.getModel();
+
+    return this.convertor.toMarkdownText(wwNode);
+  }
+
+  private flushSerializeAndMaybePush() {
+    const nextMd = this.flushSerialize();
+
+    if (nextMd !== this.canonicalMd) {
+      this.canonicalMd = nextMd;
+      this.wwDirty = false;
+      this.pushSnapshot(nextMd);
+    }
+
+    return nextMd;
+  }
+
+  private flushPendingWwSerialize() {
+    if (this.wwSerializeTimer) {
+      clearTimeout(this.wwSerializeTimer);
+      this.wwSerializeTimer = null;
+    }
+
+    if (this.wwDirty) {
+      this.flushSerializeAndMaybePush();
+    }
+  }
+
+  private clampMdPos(md: string, pos: MdPos): MdPos {
+    const lines = md.split('\n');
+    const lineIndex = Math.min(Math.max(pos[0], 1), Math.max(lines.length, 1));
+    const lineText = lines[lineIndex - 1] ?? '';
+    const maxCh = Math.max(lineText.length + 1, 1);
+    const ch = Math.min(Math.max(pos[1], 1), maxCh);
+
+    return [lineIndex, ch];
+  }
+
+  private getSelectionForSnapshot(md: string): SnapshotSelection {
+    let anchor: MdPos;
+    let head: MdPos;
+
+    if (this.isMarkdownMode()) {
+      const selection = this.mdEditor.getSelection() as [MdPos, MdPos];
+
+      anchor = selection[0];
+      head = selection[1];
+    } else {
+      const [from, to] = this.wwEditor.getSelection();
+      const selection = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [MdPos, MdPos];
+
+      anchor = selection[0];
+      head = selection[1];
+    }
+
+    const clampedAnchor = this.clampMdPos(md, anchor);
+    const clampedHead = this.clampMdPos(md, head);
+
+    return {
+      anchor: clampedAnchor,
+      head: clampedHead,
+      collapsed: clampedAnchor[0] === clampedHead[0] && clampedAnchor[1] === clampedHead[1],
+    };
+  }
+
+  private createSnapshot(md: string): Snapshot {
+    const selection = this.getSelectionForSnapshot(md);
+
+    return {
+      md,
+      selection,
+      scrollTop: this.getCurrentModeEditor().getScrollTop(),
+      mode: this.mode,
+      time: Date.now(),
+    };
+  }
+
+  private pushSnapshot(md: string) {
+    this.snapshotHistory.push(this.createSnapshot(md));
+  }
+
+  private restoreSelection(selection: SnapshotSelection, md: string) {
+    const anchor = this.clampMdPos(md, selection.anchor);
+    const head = this.clampMdPos(md, selection.head);
+
+    if (this.isMarkdownMode()) {
+      this.mdEditor.setSelection(anchor, head);
+    } else {
+      const [from, to] = getMdToEditorPos(this.wwEditor.view.state.doc, anchor, head);
+
+      this.wwEditor.setSelection(from, to);
+    }
+  }
+
+  private applyProgrammatic(md: string, selection: SnapshotSelection, scrollTop?: number) {
+    this.canonicalMd = md;
+    this.wwDirty = false;
+    this.runProgrammatic(() => {
+      this.setMarkdown(md, false, false, true);
+    });
+    this.restoreSelection(selection, md);
+    if (isNumber(scrollTop)) {
+      this.getCurrentModeEditor().setScrollTop(scrollTop);
+    }
+  }
+
   /**
    * Get content to markdown
    * @returns {string} markdown text
    */
   getMarkdown() {
     if (this.isMarkdownMode()) {
-      return this.mdEditor.getMarkdown();
+      return this.canonicalMd;
     }
 
-    return this.convertor.toMarkdownText(this.wwEditor.getModel());
+    this.flushPendingWwSerialize();
+
+    return this.canonicalMd;
   }
 
   /**
@@ -751,20 +897,18 @@ class ToastUIEditorCore {
     this.mode = mode;
 
     if (this.isWysiwygMode()) {
-      this.wwDirty = false;
       const mdNode = this.toastMark.getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
-      this.wwEditor.setModel(wwNode!, false, false, true);
-    } else if (this.wwDirty) {
-      const wwNode = this.wwEditor.getModel();
-      const nextMd = this.convertor.toMarkdownText(wwNode);
-
-      this.canonicalMd = nextMd;
       this.wwDirty = false;
-      this.mdEditor.setMarkdown(nextMd, !withoutFocus, false, true);
+      this.runProgrammatic(() => {
+        this.wwEditor.setModel(wwNode!, false, false, true);
+      });
     } else {
-      this.mdEditor.setMarkdown(this.canonicalMd, !withoutFocus, false, true);
+      this.flushPendingWwSerialize();
+      this.runProgrammatic(() => {
+        this.mdEditor.setMarkdown(this.canonicalMd, !withoutFocus, false, true);
+      });
     }
 
     this.eventEmitter.emit('removePopupWidget');
@@ -829,8 +973,12 @@ class ToastUIEditorCore {
    * Reset TUIEditor
    */
   reset() {
-    this.wwEditor.setModel([]);
-    this.mdEditor.setMarkdown('');
+    this.runProgrammatic(() => {
+      this.wwEditor.setModel([], false, false, true);
+      this.mdEditor.setMarkdown('', false, false, true);
+    });
+    this.canonicalMd = '';
+    this.wwDirty = false;
   }
 
   /**

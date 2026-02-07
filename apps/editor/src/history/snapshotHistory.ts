@@ -41,6 +41,7 @@ export default class SnapshotHistory {
     }
 
     const current = this.undoStack.pop() as Snapshot;
+
     this.redoStack.push(current);
 
     return this.undoStack[this.undoStack.length - 1] || null;
@@ -52,6 +53,7 @@ export default class SnapshotHistory {
     }
 
     const next = this.redoStack.pop() as Snapshot;
+
     this.undoStack.push(next);
 
     return next;
