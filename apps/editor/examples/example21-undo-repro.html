@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>21. Undo/Redo Repro</title>
+    <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
+    <link rel="stylesheet" href="../dist/cdn/toastui-editor.css" />
+    <style>
+      .undo-repro {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .undo-repro .editor-block {
+        border: 1px solid #ddd;
+        padding: 12px;
+      }
+      .undo-repro .editor-block h3 {
+        margin: 0 0 8px;
+      }
+      .undo-repro .outside {
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="code-html tui-doc-contents undo-repro">
+      <div class="editor-block">
+        <h3>Editor A (useCommandShortcut: true)</h3>
+        <div id="editor-a"></div>
+      </div>
+      <div class="editor-block">
+        <h3>Editor B (useCommandShortcut: false)</h3>
+        <div id="editor-b"></div>
+      </div>
+      <div class="outside">
+        <button id="outside-button" type="button">Click outside editor</button>
+      </div>
+    </div>
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="./data/example21-undo-repro.js"></script>
+    <script src="../dist/cdn/toastui-editor-all.js"></script>
+  </body>
+</html>
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>21. Undo Repro</title>
+    <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
+    <link rel="stylesheet" href="../dist/cdn/toastui-editor.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+
+      .row {
+        display: flex;
+        gap: 16px;
+      }
+
+      .panel {
+        flex: 1;
+        min-width: 320px;
+      }
+
+      .panel h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+
+      .editor {
+        height: 300px;
+      }
+
+      .outside {
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px dashed #bbb;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <div class="panel">
+        <h3>Editor A (default shortcuts)</h3>
+        <div id="editor-a" class="editor"></div>
+      </div>
+      <div class="panel">
+        <h3>Editor B (useCommandShortcut=false)</h3>
+        <div id="editor-b" class="editor"></div>
+      </div>
+    </div>
+    <div class="outside" tabindex="0">
+      Click here to blur editors. Then press Ctrl/Cmd+Z to test.
+    </div>
+
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="./data/example21-undo-repro.js"></script>
+    <script src="../dist/cdn/toastui-editor-all.js"></script>
+    <script type="text/babel" class="code-js">
+      const { Editor } = toastui;
+
+      const editorA = new Editor({
+        el: document.querySelector('#editor-a'),
+        height: '300px',
+        initialEditType: 'markdown',
+        initialValue: undoReproContent
+      });
+
+      const editorB = new Editor({
+        el: document.querySelector('#editor-b'),
+        height: '300px',
+        initialEditType: 'markdown',
+        initialValue: undoReproContent,
+        useCommandShortcut: false
+      });
+
+      const getRoot = (editor) =>
+        editor.getEditorElements().wwEditor.closest('.toastui-editor-defaultUI');
+
+      const logState = (label, editor) => {
+        const root = getRoot(editor);
+        const active = document.activeElement;
+        const focused = Boolean(root && active && root.contains(active));
+        const mode = editor.isMarkdownMode() ? 'markdown' : 'wysiwyg';
+        const mdLen = editor.getMarkdown().length;
+
+        console.log(`[${label}]`, { mode, mdLen, focused, active: active && active.tagName });
+      };
+
+      const attachLogs = (name, editor) => {
+        let pendingUndo = false;
+
+        editor.on('change', () => {
+          if (pendingUndo) {
+            logState(`${name} undo-change`, editor);
+            pendingUndo = false;
+          }
+        });
+
+        document.addEventListener('keydown', (ev) => {
+          if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'z') {
+            pendingUndo = true;
+            logState(`${name} undo-keydown`, editor);
+          }
+        });
+      };
+
+      attachLogs('A', editorA);
+      attachLogs('B', editorB);
+
+      logState('A init', editorA);
+      logState('B init', editorB);
+    </script>
+  </body>
+</html>

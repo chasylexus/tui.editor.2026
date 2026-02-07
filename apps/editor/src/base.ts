@@ -83,11 +83,16 @@ export default abstract class EditorBase implements Base {
 
   get defaultPlugins() {
     const rules = this.createInputRules();
+    const filteredBaseKeymap = { ...baseKeymap };
+
+    delete filteredBaseKeymap['Mod-z'];
+    delete filteredBaseKeymap['Shift-Mod-z'];
+    delete filteredBaseKeymap['Mod-y'];
     const plugins = [
       ...this.keymaps,
       keymap({
         'Shift-Enter': baseKeymap.Enter,
-        ...baseKeymap,
+        ...filteredBaseKeymap,
       }),
       history(),
       placeholder(this.placeholder),
@@ -147,9 +152,26 @@ export default abstract class EditorBase implements Base {
   createKeymaps(useCommandShortcut: boolean) {
     const { undo, redo } = getDefaultCommands();
     const allKeymaps = this.specs.keymaps(useCommandShortcut);
+    const withFocusCheck = (command: ReturnType<typeof undo>) => (
+      state: EditorState,
+      dispatch: any,
+      view?: EditorView
+    ) => {
+      if (!view || !view.hasFocus()) {
+        return false;
+      }
+
+      const active = document.activeElement;
+
+      if (active && active !== document.body && !view.dom.contains(active)) {
+        return false;
+      }
+
+      return command(state, dispatch, view);
+    };
     const historyKeymap = {
-      'Mod-z': undo(),
-      'Shift-Mod-z': redo(),
+      'Mod-z': withFocusCheck(undo()),
+      'Shift-Mod-z': withFocusCheck(redo()),
     };
 
     return useCommandShortcut ? allKeymaps.concat(keymap(historyKeymap)) : allKeymaps;

@@ -345,14 +345,20 @@ export default class MdEditor extends EditorBase {
     return getEditorToMdPos(this.view.state.tr.doc, from, to);
   }
 
-  setMarkdown(markdown: string, cursorToEnd = true) {
+  setMarkdown(markdown: string, cursorToEnd = true, addToHistory = true) {
     const lineTexts = markdown.split(reLineEnding);
     const { tr, doc, schema } = this.view.state;
     const nodes = lineTexts.map((lineText) =>
       createParagraph(schema, createNodesWithWidget(lineText, schema))
     );
 
-    this.view.dispatch(tr.replaceWith(0, doc.content.size, nodes));
+    const nextTr = tr.replaceWith(0, doc.content.size, nodes);
+
+    if (!addToHistory) {
+      nextTr.setMeta('addToHistory', false);
+    }
+
+    this.view.dispatch(nextTr);
 
     if (cursorToEnd) {
       this.moveCursorToEnd(true);

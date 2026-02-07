@@ -255,14 +255,14 @@ class ToastUIEditorCore {
 
     this.setHeight(this.options.height);
 
-    this.setMarkdown(this.options.initialValue, false);
+    this.setMarkdown(this.options.initialValue, false, false);
 
     if (this.options.placeholder) {
       this.setPlaceholder(this.options.placeholder);
     }
 
     if (!this.options.initialValue) {
-      this.setHTML(this.initialHTML, false);
+      this.setHTML(this.initialHTML, false, false);
     }
 
     this.commandManager = new CommandManager(
@@ -451,14 +451,14 @@ class ToastUIEditorCore {
    * @param {string} markdown - markdown syntax text.
    * @param {boolean} [cursorToEnd=true] - move cursor to contents end
    */
-  setMarkdown(markdown = '', cursorToEnd = true) {
-    this.mdEditor.setMarkdown(markdown, cursorToEnd);
+  setMarkdown(markdown = '', cursorToEnd = true, addToHistory = true) {
+    this.mdEditor.setMarkdown(markdown, cursorToEnd, addToHistory);
 
     if (this.isWysiwygMode()) {
       const mdNode = this.toastMark.getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
-      this.wwEditor.setModel(wwNode!, cursorToEnd);
+      this.wwEditor.setModel(wwNode!, cursorToEnd, addToHistory);
     }
   }
 
@@ -467,7 +467,7 @@ class ToastUIEditorCore {
    * @param {string} html - html syntax text
    * @param {boolean} [cursorToEnd=true] - move cursor to contents end
    */
-  setHTML(html = '', cursorToEnd = true) {
+  setHTML(html = '', cursorToEnd = true, addToHistory = true) {
     const container = document.createElement('div');
 
     // the `br` tag should be replaced with empty block to separate between blocks
@@ -475,9 +475,9 @@ class ToastUIEditorCore {
     const wwNode = DOMParser.fromSchema(this.wwEditor.schema).parse(container);
 
     if (this.isMarkdownMode()) {
-      this.mdEditor.setMarkdown(this.convertor.toMarkdownText(wwNode), cursorToEnd);
+      this.mdEditor.setMarkdown(this.convertor.toMarkdownText(wwNode), cursorToEnd, addToHistory);
     } else {
-      this.wwEditor.setModel(wwNode, cursorToEnd);
+      this.wwEditor.setModel(wwNode, cursorToEnd, addToHistory);
     }
   }
 
@@ -503,7 +503,7 @@ class ToastUIEditorCore {
         const mdNode = this.toastMark.getRootNode();
         const wwNode = this.convertor.toWysiwygModel(mdNode);
 
-        this.wwEditor.setModel(wwNode!);
+        this.wwEditor.setModel(wwNode!, false);
       }
     });
     const html = removeProseMirrorHackNodes(this.wwEditor.view.dom.innerHTML);
@@ -733,7 +733,7 @@ class ToastUIEditorCore {
       const mdNode = this.toastMark.getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
-      this.wwEditor.setModel(wwNode!);
+      this.wwEditor.setModel(wwNode!, false);
     } else {
       const wwNode = this.wwEditor.getModel();
 

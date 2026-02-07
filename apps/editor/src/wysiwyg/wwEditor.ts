@@ -259,10 +259,16 @@ export default class WysiwygEditor extends EditorBase {
     return doc.textBetween(from, to, '\n');
   }
 
-  setModel(newDoc: ProsemirrorNode | [], cursorToEnd = false) {
+  setModel(newDoc: ProsemirrorNode | [], cursorToEnd = false, addToHistory = true) {
     const { tr, doc } = this.view.state;
 
-    this.view.dispatch(tr.replaceWith(0, doc.content.size, newDoc));
+    const nextTr = tr.replaceWith(0, doc.content.size, newDoc);
+
+    if (!addToHistory) {
+      nextTr.setMeta('addToHistory', false);
+    }
+
+    this.view.dispatch(nextTr);
 
     if (cursorToEnd) {
       this.moveCursorToEnd(true);
