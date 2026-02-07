@@ -39,6 +39,7 @@ const eventTypeList: EventTypes[] = [
   'blur',
   'keydown',
   'keyup',
+  'wwUserEdit',
 ];
 
 /**

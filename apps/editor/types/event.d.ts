@@ -53,4 +53,5 @@ export type EventTypes =
   | 'focus'
   | 'blur'
   | 'keydown'
-  | 'keyup';
+  | 'keyup'
+  | 'wwUserEdit';

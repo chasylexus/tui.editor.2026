@@ -345,7 +345,7 @@ export default class MdEditor extends EditorBase {
     return getEditorToMdPos(this.view.state.tr.doc, from, to);
   }
 
-  setMarkdown(markdown: string, cursorToEnd = true, addToHistory = true) {
+  setMarkdown(markdown: string, cursorToEnd = true, addToHistory = true, programmatic = false) {
     const lineTexts = markdown.split(reLineEnding);
     const { tr, doc, schema } = this.view.state;
     const nodes = lineTexts.map((lineText) =>
@@ -356,6 +356,9 @@ export default class MdEditor extends EditorBase {
 
     if (!addToHistory) {
       nextTr.setMeta('addToHistory', false);
+    }
+    if (programmatic) {
+      nextTr.setMeta('toastuiProgrammatic', true);
     }
 
     this.view.dispatch(nextTr);

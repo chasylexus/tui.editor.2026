@@ -157,6 +157,9 @@ export default class WysiwygEditor extends EditorBase {
         this.view.updateState(state);
         this.emitChangeEvent(tr.scrollIntoView());
         this.eventEmitter.emit('setFocusedNode', state.selection.$from.node(1));
+        if (tr.docChanged && !tr.getMeta('toastuiProgrammatic')) {
+          this.eventEmitter.emit('wwUserEdit');
+        }
       },
       transformPastedHTML: changePastedHTML,
       transformPasted: (slice: Slice) =>
@@ -259,13 +262,21 @@ export default class WysiwygEditor extends EditorBase {
     return doc.textBetween(from, to, '\n');
   }
 
-  setModel(newDoc: ProsemirrorNode | [], cursorToEnd = false, addToHistory = true) {
+  setModel(
+    newDoc: ProsemirrorNode | [],
+    cursorToEnd = false,
+    addToHistory = true,
+    programmatic = false
+  ) {
     const { tr, doc } = this.view.state;
 
     const nextTr = tr.replaceWith(0, doc.content.size, newDoc);
 
     if (!addToHistory) {
       nextTr.setMeta('addToHistory', false);
+    }
+    if (programmatic) {
+      nextTr.setMeta('toastuiProgrammatic', true);
     }
 
     this.view.dispatch(nextTr);

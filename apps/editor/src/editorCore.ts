@@ -116,6 +116,10 @@ class ToastUIEditorCore {
 
   private placeholder?: string;
 
+  private canonicalMd = '';
+
+  private wwDirty = false;
+
   eventEmitter: Emitter;
 
   protected options: Required<EditorOptions>;
@@ -255,14 +259,26 @@ class ToastUIEditorCore {
 
     this.setHeight(this.options.height);
 
-    this.setMarkdown(this.options.initialValue, false, false);
+    this.eventEmitter.listen('wwUserEdit', () => {
+      this.wwDirty = true;
+    });
+    this.eventEmitter.listen('change', (editorType: EditorType) => {
+      if (editorType === 'markdown') {
+        this.canonicalMd = this.mdEditor.getMarkdown();
+        this.wwDirty = false;
+      }
+    });
+
+    this.setMarkdown(this.options.initialValue, false, false, true);
+    this.canonicalMd = this.options.initialValue || '';
 
     if (this.options.placeholder) {
       this.setPlaceholder(this.options.placeholder);
     }
 
     if (!this.options.initialValue) {
-      this.setHTML(this.initialHTML, false, false);
+      this.setHTML(this.initialHTML, false, false, true);
+      this.canonicalMd = this.mdEditor.getMarkdown();
     }
 
     this.commandManager = new CommandManager(
@@ -451,14 +467,14 @@ class ToastUIEditorCore {
    * @param {string} markdown - markdown syntax text.
    * @param {boolean} [cursorToEnd=true] - move cursor to contents end
    */
-  setMarkdown(markdown = '', cursorToEnd = true, addToHistory = true) {
-    this.mdEditor.setMarkdown(markdown, cursorToEnd, addToHistory);
+  setMarkdown(markdown = '', cursorToEnd = true, addToHistory = true, programmatic = false) {
+    this.mdEditor.setMarkdown(markdown, cursorToEnd, addToHistory, programmatic);
 
     if (this.isWysiwygMode()) {
       const mdNode = this.toastMark.getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
-      this.wwEditor.setModel(wwNode!, cursorToEnd, addToHistory);
+      this.wwEditor.setModel(wwNode!, cursorToEnd, addToHistory, programmatic);
     }
   }
 
@@ -467,7 +483,7 @@ class ToastUIEditorCore {
    * @param {string} html - html syntax text
    * @param {boolean} [cursorToEnd=true] - move cursor to contents end
    */
-  setHTML(html = '', cursorToEnd = true, addToHistory = true) {
+  setHTML(html = '', cursorToEnd = true, addToHistory = true, programmatic = false) {
     const container = document.createElement('div');
 
     // the `br` tag should be replaced with empty block to separate between blocks
@@ -475,9 +491,14 @@ class ToastUIEditorCore {
     const wwNode = DOMParser.fromSchema(this.wwEditor.schema).parse(container);
 
     if (this.isMarkdownMode()) {
-      this.mdEditor.setMarkdown(this.convertor.toMarkdownText(wwNode), cursorToEnd, addToHistory);
+      this.mdEditor.setMarkdown(
+        this.convertor.toMarkdownText(wwNode),
+        cursorToEnd,
+        addToHistory,
+        programmatic
+      );
     } else {
-      this.wwEditor.setModel(wwNode, cursorToEnd, addToHistory);
+      this.wwEditor.setModel(wwNode, cursorToEnd, addToHistory, programmatic);
     }
   }
 
@@ -503,7 +524,7 @@ class ToastUIEditorCore {
         const mdNode = this.toastMark.getRootNode();
         const wwNode = this.convertor.toWysiwygModel(mdNode);
 
-        this.wwEditor.setModel(wwNode!, false);
+        this.wwEditor.setModel(wwNode!, false, false, true);
       }
     });
     const html = removeProseMirrorHackNodes(this.wwEditor.view.dom.innerHTML);
@@ -730,14 +751,20 @@ class ToastUIEditorCore {
     this.mode = mode;
 
     if (this.isWysiwygMode()) {
+      this.wwDirty = false;
       const mdNode = this.toastMark.getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
-      this.wwEditor.setModel(wwNode!, false);
-    } else {
+      this.wwEditor.setModel(wwNode!, false, false, true);
+    } else if (this.wwDirty) {
       const wwNode = this.wwEditor.getModel();
+      const nextMd = this.convertor.toMarkdownText(wwNode);
 
-      this.mdEditor.setMarkdown(this.convertor.toMarkdownText(wwNode), !withoutFocus);
+      this.canonicalMd = nextMd;
+      this.wwDirty = false;
+      this.mdEditor.setMarkdown(nextMd, !withoutFocus, false, true);
+    } else {
+      this.mdEditor.setMarkdown(this.canonicalMd, !withoutFocus, false, true);
     }
 
     this.eventEmitter.emit('removePopupWidget');
