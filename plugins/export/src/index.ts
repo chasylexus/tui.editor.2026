@@ -261,38 +261,13 @@ ${styles}
 `;
 }
 
-async function tryRenderMermaid(rootEl: HTMLElement | null) {
-  if (!rootEl) return;
-  const mermaidRef = (window as any).mermaid;
-
-  if (!mermaidRef?.run) return;
-
-  const nodes = Array.from(rootEl.querySelectorAll('.mermaid[data-mermaid="1"]')).filter(
-    (node) => (node as HTMLElement).dataset.mermaidRendered !== '1'
-  ) as HTMLElement[];
-
-  if (!nodes.length) return;
-
-  nodes.forEach((node) => {
-    node.dataset.mermaidRendered = '1';
-  });
-
-  try {
-    await mermaidRef.run({ nodes, suppressErrors: true });
-  } catch (e) {
-    nodes.forEach((node) => {
-      node.dataset.mermaidRendered = '0';
-    });
-  }
-}
-
-function getPreviewRoot(instance: any): HTMLElement | null {
+function getWysiwygRoot(instance: any): HTMLElement | null {
   const elements = instance.getEditorElements?.();
-  const previewRoot = elements?.mdPreview || null;
+  const wysiwygRoot = elements?.wwEditor || null;
 
-  if (!previewRoot) return null;
+  if (!wysiwygRoot) return null;
 
-  return previewRoot.querySelector<HTMLElement>('.toastui-editor-contents') || previewRoot;
+  return wysiwygRoot.querySelector<HTMLElement>('.toastui-editor-contents') || wysiwygRoot;
 }
 
 function nextFrame() {
@@ -307,16 +282,65 @@ function nextTick() {
   });
 }
 
-function sleep(ms: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), ms);
-  });
-}
-
-async function waitForPreviewRender() {
+async function waitForWysiwygRender() {
+  await Promise.resolve();
+  await nextFrame();
   await nextFrame();
   await nextTick();
-  await nextTick();
+}
+
+function hasDarkMermaidFill(rootEl: HTMLElement) {
+  const svg = rootEl.querySelector('.mermaid svg');
+
+  if (!svg) return false;
+
+  const rect = svg.querySelector('rect');
+
+  if (!rect) return false;
+
+  const attrFill = (rect.getAttribute('fill') || '').toLowerCase();
+  const styleFill = window.getComputedStyle(rect).fill.toLowerCase();
+
+  return (
+    attrFill === '#000' ||
+    attrFill === '#000000' ||
+    attrFill === 'black' ||
+    styleFill === 'rgb(0, 0, 0)' ||
+    styleFill === 'black'
+  );
+}
+
+function waitForMermaidLightRender(rootEl: HTMLElement | null, timeoutMs = 2000) {
+  if (!rootEl) return false;
+
+  const hasMermaid = Boolean(rootEl.querySelector('.mermaid'));
+
+  if (!hasMermaid) return true;
+
+  const start = performance.now();
+
+  return new Promise<boolean>((resolve) => {
+    const tick = () => {
+      const hasSvg = Boolean(rootEl.querySelector('.mermaid svg'));
+      const isDark = hasSvg && hasDarkMermaidFill(rootEl);
+
+      if (hasSvg && !isDark) {
+        resolve(true);
+        return;
+      }
+
+      if (performance.now() - start > timeoutMs) {
+        // eslint-disable-next-line no-console
+        console.warn('Mermaid export light render timed out');
+        resolve(false);
+        return;
+      }
+
+      requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
+  });
 }
 
 /**
@@ -347,30 +371,41 @@ export default function exportPlugin(
 
   const downloadHtml = async () => {
     const wasMarkdownMode = instance.isMarkdownMode?.() ?? false;
+    const prevTheme = instance.getTheme?.() ?? 'light';
     let htmlBody = '';
 
     try {
-      if (!wasMarkdownMode) {
-        instance.changeMode?.('markdown', true);
-        await waitForPreviewRender();
-        await sleep(300);
+      if (wasMarkdownMode) {
+        instance.changeMode?.('wysiwyg', true);
       }
 
-      const previewRoot = getPreviewRoot(instance);
+      if (instance.setTheme) {
+        instance.setTheme('light');
+      }
 
-      if (previewRoot && previewRoot.innerHTML.trim()) {
-        await tryRenderMermaid(previewRoot);
-        await waitForPreviewRender();
+      instance.eventEmitter?.emit?.('change');
+      await waitForWysiwygRender();
 
-        const clone = previewRoot.cloneNode(true) as HTMLElement;
+      const wysiwygRoot = getWysiwygRoot(instance);
 
-        inlineCanvases(previewRoot, clone);
+      await waitForMermaidLightRender(wysiwygRoot);
+
+      if (wysiwygRoot && wysiwygRoot.innerHTML.trim()) {
+        const clone = wysiwygRoot.cloneNode(true) as HTMLElement;
+
+        inlineCanvases(wysiwygRoot, clone);
         await inlineImagesIn(clone);
 
         htmlBody = clone.innerHTML;
       }
     } finally {
-      // Keep markdown mode after export when we switched from WYSIWYG.
+      if (instance.setTheme) {
+        instance.setTheme(prevTheme);
+      }
+
+      if (wasMarkdownMode) {
+        instance.changeMode?.('markdown', true);
+      }
     }
 
     if (!htmlBody) return;

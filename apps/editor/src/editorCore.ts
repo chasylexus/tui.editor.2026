@@ -697,6 +697,27 @@ class ToastUIEditorCore {
   }
 
   /**
+   * Get current theme
+   * @returns {string}
+   */
+  getTheme() {
+    return this.options.theme;
+  }
+
+  /**
+   * Change editor theme
+   * @param {string} theme - theme name
+   */
+  setTheme(theme: string) {
+    if (this.options.theme === theme) {
+      return;
+    }
+
+    this.options.theme = theme;
+    this.eventEmitter.emit('changeTheme', theme);
+  }
+
+  /**
    * Change editor's mode to given mode string
    * @param {string} mode - Editor mode name of want to change
    * @param {boolean} [withoutFocus] - Change mode without focus
