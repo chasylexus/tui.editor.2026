@@ -52,14 +52,19 @@ interface LineRange {
   endLine: number;
 }
 
-interface WwEditRange {
-  oldRange: [MdPos, MdPos];
-  newRange: [MdPos, MdPos];
+interface BlockRange {
+  startIndex: number;
+  endIndex: number;
 }
 
-interface WwLineRange {
-  oldRange: LineRange;
-  newRange: LineRange;
+interface WwEditRange {
+  oldRange: BlockRange;
+  newRange: BlockRange;
+}
+
+interface WwBlockRange {
+  oldRange: BlockRange;
+  newRange: BlockRange;
 }
 
 interface MdPatch {
@@ -149,9 +154,78 @@ class ToastUIEditorCore {
 
   private readonly wwSerializeDelay = 300;
 
-  private pendingWwRanges: WwLineRange[] = [];
+  private pendingWwRanges: WwBlockRange[] = [];
 
   private readonly toastMarkOptions: Record<string, unknown>;
+
+  private hashMd(text: string) {
+    let hash = 0;
+
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) | 0;
+    }
+
+    return `h${hash >>> 0}`;
+  }
+
+  private isSnapshotDebug() {
+    return typeof window !== 'undefined' && Boolean((window as any).__TOASTUI_SNAPSHOT_DEBUG__);
+  }
+
+  private tailText(text: string, limit = 80) {
+    if (text.length <= limit) {
+      return text;
+    }
+
+    return text.slice(text.length - limit);
+  }
+
+  private logSnapshotState(phase: string, extra?: Record<string, unknown>) {
+    if (!this.isSnapshotDebug()) {
+      return;
+    }
+
+    const canonical = this.canonicalMd;
+    const editorMd = this.mdEditor.getMarkdown();
+
+    // eslint-disable-next-line no-console
+    console.log({
+      phase,
+      mode: this.mode,
+      wwDirty: this.wwDirty,
+      canonicalLen: canonical.length,
+      canonicalTail80: this.tailText(canonical, 80),
+      editorLen: editorMd.length,
+      editorTail80: this.tailText(editorMd, 80),
+      hash: this.hashMd(canonical),
+      ...(extra || {}),
+    });
+  }
+
+  private logWwDirty(next: boolean, reason: string) {
+    if (!this.isSnapshotDebug()) {
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log({ phase: 'wwDirty', next, reason, mode: this.mode });
+  }
+
+  private logCanonicalChange(nextMd: string, reason: string) {
+    if (!this.isSnapshotDebug()) {
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log({
+      phase: 'canonicalMd',
+      reason,
+      prevLen: this.canonicalMd.length,
+      nextLen: nextMd.length,
+      prevTail: this.tailText(this.canonicalMd, 80),
+      nextTail: this.tailText(nextMd, 80),
+    });
+  }
 
   eventEmitter: Emitter;
 
@@ -294,6 +368,7 @@ class ToastUIEditorCore {
     this.setHeight(this.options.height);
 
     this.eventEmitter.listen('wwUserEdit', (range?: WwEditRange) => {
+      this.logWwDirty(true, 'wwUserEdit');
       this.wwDirty = true;
       if (range) {
         this.addWwEditRange(range);
@@ -302,8 +377,13 @@ class ToastUIEditorCore {
     });
     this.eventEmitter.listen('change', (editorType: EditorType) => {
       if (editorType === 'markdown') {
-        this.canonicalMd = this.mdEditor.getMarkdown();
+        const nextMd = this.mdEditor.getMarkdown();
+
+        this.logCanonicalChange(nextMd, 'md-change');
+        this.canonicalMd = nextMd;
+        this.logWwDirty(false, 'md-change');
         this.wwDirty = false;
+        this.logSnapshotState('md-change');
         if (!this.suppressSnapshot) {
           this.pushSnapshot(this.canonicalMd);
         }
@@ -591,15 +671,30 @@ class ToastUIEditorCore {
     }
 
     const toastMark = this.createToastMark(this.canonicalMd);
+    let shouldSerializeAll = false;
     const patches = this.pendingWwRanges
       .slice()
-      .sort((a, b) => a.oldRange.startLine - b.oldRange.startLine)
+      .sort((a, b) => a.oldRange.startIndex - b.oldRange.startIndex)
       .map((range) => {
-        const patchRange = this.getBlockRangeForLineRange(range.oldRange, toastMark);
-        const text = this.serializeWwLineRange(range.newRange);
+        const patchRange = this.getBlockLineRangeForIndexRange(range.oldRange, toastMark);
+        const text = this.serializeWwBlockRange(range.newRange);
 
-        return { range: patchRange, text };
-      });
+        if (!patchRange || text === null) {
+          shouldSerializeAll = true;
+        }
+
+        return patchRange ? { range: patchRange, text: text || '' } : null;
+      })
+      .filter((patch): patch is MdPatch => Boolean(patch));
+
+    if (shouldSerializeAll) {
+      const wwNode = this.wwEditor.getModel();
+
+      this.pendingWwRanges = [];
+
+      return this.convertor.toMarkdownText(wwNode);
+    }
+
     const nextMd = this.applyMdPatches(this.canonicalMd, patches);
 
     this.pendingWwRanges = [];
@@ -611,9 +706,11 @@ class ToastUIEditorCore {
     const nextMd = this.flushSerialize();
 
     if (nextMd !== this.canonicalMd) {
+      this.logCanonicalChange(nextMd, 'ww-flush-serialize');
       this.canonicalMd = nextMd;
       this.pushSnapshot(nextMd);
     }
+    this.logWwDirty(false, 'ww-flush-serialize');
     this.wwDirty = false;
 
     return nextMd;
@@ -642,31 +739,31 @@ class ToastUIEditorCore {
     return new ToastMark(markdown, this.toastMarkOptions);
   }
 
-  private toLineRange(range: [MdPos, MdPos]): LineRange {
-    const startLine = Math.min(range[0][0], range[1][0]);
-    const endLine = Math.max(range[0][0], range[1][0]);
-
-    return { startLine, endLine };
-  }
-
-  private rangesOverlapOrTouch(a: LineRange, b: LineRange) {
-    return a.startLine <= b.endLine + 1 && b.startLine <= a.endLine + 1;
-  }
-
-  private mergeLineRange(a: LineRange, b: LineRange): LineRange {
+  private normalizeBlockRange(range: BlockRange): BlockRange {
     return {
-      startLine: Math.min(a.startLine, b.startLine),
-      endLine: Math.max(a.endLine, b.endLine),
+      startIndex: Math.min(range.startIndex, range.endIndex),
+      endIndex: Math.max(range.startIndex, range.endIndex),
+    };
+  }
+
+  private rangesOverlapOrTouch(a: BlockRange, b: BlockRange) {
+    return a.startIndex <= b.endIndex + 1 && b.startIndex <= a.endIndex + 1;
+  }
+
+  private mergeLineRange(a: BlockRange, b: BlockRange): BlockRange {
+    return {
+      startIndex: Math.min(a.startIndex, b.startIndex),
+      endIndex: Math.max(a.endIndex, b.endIndex),
     };
   }
 
   private addWwEditRange(range: WwEditRange) {
-    let next: WwLineRange = {
-      oldRange: this.toLineRange(range.oldRange),
-      newRange: this.toLineRange(range.newRange),
+    let next: WwBlockRange = {
+      oldRange: this.normalizeBlockRange(range.oldRange),
+      newRange: this.normalizeBlockRange(range.newRange),
     };
 
-    const merged: WwLineRange[] = [];
+    const merged: WwBlockRange[] = [];
 
     this.pendingWwRanges.forEach((existing) => {
       if (
@@ -686,24 +783,32 @@ class ToastUIEditorCore {
     this.pendingWwRanges = merged;
   }
 
-  private getTopBlockNodeAtLine(toastMark: ToastMark, line: number) {
-    let node = toastMark.findFirstNodeAtLine(line);
+  private getMdBlockByIndex(root: MdNode, index: number) {
+    let node = root.firstChild as MdNode | null;
+    let cursor = 0;
 
-    while (node && node.parent && node.parent.type !== 'document') {
-      node = node.parent as MdNode;
+    while (node && cursor < index) {
+      node = node.next as MdNode | null;
+      cursor += 1;
     }
-    return node;
+
+    return node || null;
   }
 
-  private getBlockRangeForLineRange(range: LineRange, toastMark: ToastMark): LineRange {
-    const lineTexts = toastMark.getLineTexts();
-    const maxLine = Math.max(lineTexts.length, 1);
-    const startLine = Math.min(Math.max(range.startLine, 1), maxLine);
-    const endLine = Math.min(Math.max(range.endLine, startLine), maxLine);
-    const startNode = this.getTopBlockNodeAtLine(toastMark, startLine);
-    const endNode = this.getTopBlockNodeAtLine(toastMark, endLine);
-    const resolvedStartLine = startNode ? getMdStartLine(startNode) : startLine;
-    const resolvedEndLine = endNode ? getMdEndLine(endNode) : endLine;
+  private getBlockLineRangeForIndexRange(
+    range: BlockRange,
+    toastMark: ToastMark
+  ): LineRange | null {
+    const root = toastMark.getRootNode();
+    const startNode = this.getMdBlockByIndex(root, range.startIndex);
+    const endNode = this.getMdBlockByIndex(root, range.endIndex);
+
+    if (!startNode || !endNode) {
+      return null;
+    }
+
+    const resolvedStartLine = getMdStartLine(startNode);
+    const resolvedEndLine = getMdEndLine(endNode);
 
     return {
       startLine: resolvedStartLine,
@@ -711,18 +816,23 @@ class ToastUIEditorCore {
     };
   }
 
-  private serializeWwLineRange(range: LineRange) {
+  private serializeWwBlockRange(range: BlockRange) {
     const doc = this.wwEditor.getModel();
 
     if (doc.childCount === 0) {
       return '';
     }
 
-    const startIndex = Math.min(Math.max(range.startLine - 1, 0), doc.childCount - 1);
-    const endIndex = Math.min(Math.max(range.endLine - 1, startIndex), doc.childCount - 1);
+    const { startIndex, endIndex } = range;
+
+    if (startIndex < 0 || endIndex >= doc.childCount) {
+      return null;
+    }
+
+    const lastIndex = Math.max(endIndex, startIndex);
     const nodes = [];
 
-    for (let i = startIndex; i <= endIndex; i += 1) {
+    for (let i = startIndex; i <= lastIndex; i += 1) {
       nodes.push(doc.child(i));
     }
 
@@ -832,6 +942,8 @@ class ToastUIEditorCore {
 
   private applyProgrammatic(md: string, selection: SnapshotSelection, scrollTop?: number) {
     this.clearPendingWwEdits();
+    this.logCanonicalChange(md, 'snapshot-apply');
+    this.logWwDirty(false, 'snapshot-apply');
     this.canonicalMd = md;
     this.wwDirty = false;
     this.runProgrammatic(() => {
@@ -1116,20 +1228,42 @@ class ToastUIEditorCore {
     this.mode = mode;
 
     if (this.isWysiwygMode()) {
+      this.logSnapshotState('before-md-to-ww');
       const mdNode = this.toastMark.getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
+      this.logWwDirty(false, 'mode-switch-md-to-ww');
       this.wwDirty = false;
       this.clearPendingWwEdits();
       this.runProgrammatic(() => {
         this.wwEditor.setModel(wwNode!, false, false, true);
       });
     } else {
-      this.flushPendingWwSerialize();
-      this.clearPendingWwEdits();
+      this.logSnapshotState('before-ww-to-md');
+      if (this.wwDirty) {
+        this.logSnapshotState('wwDirty-true-path');
+        this.flushPendingWwSerialize();
+        this.clearPendingWwEdits();
+      } else {
+        this.logSnapshotState('wwDirty-false-path');
+      }
       this.runProgrammatic(() => {
         this.mdEditor.setMarkdown(this.canonicalMd, !withoutFocus, false, true);
       });
+      this.logSnapshotState('after-md-set');
+
+      const editorMd = this.mdEditor.getMarkdown();
+
+      if (editorMd !== this.canonicalMd) {
+        // eslint-disable-next-line no-console
+        console.log({
+          phase: 'after-md-set-mismatch',
+          canonicalHash: this.hashMd(this.canonicalMd),
+          editorHash: this.hashMd(editorMd),
+          canonicalTail120: this.tailText(this.canonicalMd, 120),
+          editorTail120: this.tailText(editorMd, 120),
+        });
+      }
     }
 
     this.eventEmitter.emit('removePopupWidget');
@@ -1199,6 +1333,8 @@ class ToastUIEditorCore {
       this.mdEditor.setMarkdown('', false, false, true);
     });
     this.clearPendingWwEdits();
+    this.logCanonicalChange('', 'reset');
+    this.logWwDirty(false, 'reset');
     this.canonicalMd = '';
     this.wwDirty = false;
   }

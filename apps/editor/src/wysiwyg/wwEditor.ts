@@ -8,7 +8,6 @@ import { getWwCommands } from '@/commands/wwCommands';
 
 import { createParagraph, createTextSelection } from '@/helper/manipulation';
 import { emitImageBlobHook, pasteImageOnly } from '@/helper/image';
-import { getEditorToMdPos } from '@/markdown/helper/pos';
 
 import { tableSelection } from './plugins/selection/tableSelection';
 import { tableContextMenu } from './plugins/tableContextMenu';
@@ -159,6 +158,15 @@ export default class WysiwygEditor extends EditorBase {
         this.view.updateState(state);
         this.emitChangeEvent(tr.scrollIntoView());
         this.eventEmitter.emit('setFocusedNode', state.selection.$from.node(1));
+        if (typeof window !== 'undefined' && (window as any).__TOASTUI_SNAPSHOT_DEBUG__) {
+          // eslint-disable-next-line no-console
+          console.log({
+            phase: 'ww-transaction',
+            docChanged: tr.docChanged,
+            programmatic: tr.getMeta('toastuiProgrammatic'),
+            willMarkDirty: tr.docChanged && !tr.getMeta('toastuiProgrammatic'),
+          });
+        }
         if (tr.docChanged && !tr.getMeta('toastuiProgrammatic')) {
           const nextDoc = state.doc;
           const diffStart = prevDoc.content.findDiffStart(nextDoc.content, 0);
@@ -171,8 +179,18 @@ export default class WysiwygEditor extends EditorBase {
             );
             const oldEnd = diffEnd ? diffEnd.a : diffStart;
             const newEnd = diffEnd ? diffEnd.b : diffStart;
-            const oldRange = getEditorToMdPos(prevDoc, diffStart, Math.max(diffStart, oldEnd));
-            const newRange = getEditorToMdPos(nextDoc, diffStart, Math.max(diffStart, newEnd));
+            const maxIndex = (doc: ProsemirrorNode) => Math.max(doc.childCount - 1, 0);
+            const getBlockRange = (doc: ProsemirrorNode, from: number, to: number) => {
+              const startIndex = Math.min(doc.resolve(from).index(0), maxIndex(doc));
+              const endIndex = Math.min(doc.resolve(to).index(0), maxIndex(doc));
+
+              return {
+                startIndex: Math.min(startIndex, endIndex),
+                endIndex: Math.max(startIndex, endIndex),
+              };
+            };
+            const oldRange = getBlockRange(prevDoc, diffStart, Math.max(diffStart, oldEnd));
+            const newRange = getBlockRange(nextDoc, diffStart, Math.max(diffStart, newEnd));
 
             this.eventEmitter.emit('wwUserEdit', { oldRange, newRange });
           } else {
