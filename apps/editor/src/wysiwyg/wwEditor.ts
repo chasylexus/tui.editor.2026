@@ -8,6 +8,7 @@ import { getWwCommands } from '@/commands/wwCommands';
 
 import { createParagraph, createTextSelection } from '@/helper/manipulation';
 import { emitImageBlobHook, pasteImageOnly } from '@/helper/image';
+import { getEditorToMdPos } from '@/markdown/helper/pos';
 
 import { tableSelection } from './plugins/selection/tableSelection';
 import { tableContextMenu } from './plugins/tableContextMenu';
@@ -152,13 +153,31 @@ export default class WysiwygEditor extends EditorBase {
         ...this.createPluginNodeViews(),
       },
       dispatchTransaction: (tr) => {
+        const prevDoc = this.view.state.doc;
         const { state } = this.view.state.applyTransaction(tr);
 
         this.view.updateState(state);
         this.emitChangeEvent(tr.scrollIntoView());
         this.eventEmitter.emit('setFocusedNode', state.selection.$from.node(1));
         if (tr.docChanged && !tr.getMeta('toastuiProgrammatic')) {
-          this.eventEmitter.emit('wwUserEdit');
+          const nextDoc = state.doc;
+          const diffStart = prevDoc.content.findDiffStart(nextDoc.content, 0);
+
+          if (diffStart !== null) {
+            const diffEnd = prevDoc.content.findDiffEnd(
+              nextDoc.content,
+              prevDoc.content.size,
+              nextDoc.content.size
+            );
+            const oldEnd = diffEnd ? diffEnd.a : diffStart;
+            const newEnd = diffEnd ? diffEnd.b : diffStart;
+            const oldRange = getEditorToMdPos(prevDoc, diffStart, Math.max(diffStart, oldEnd));
+            const newRange = getEditorToMdPos(nextDoc, diffStart, Math.max(diffStart, newEnd));
+
+            this.eventEmitter.emit('wwUserEdit', { oldRange, newRange });
+          } else {
+            this.eventEmitter.emit('wwUserEdit');
+          }
         }
       },
       transformPastedHTML: changePastedHTML,

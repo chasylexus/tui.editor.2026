@@ -19,7 +19,7 @@ import {
 } from '@t/editor';
 import { PluginCommandMap, PluginInfoResult, CommandFn } from '@t/plugin';
 import { Pos, MdPos } from '@t/toastmark';
-import { ToastMark } from '@toast-ui/toastmark';
+import { MdNode, ToastMark } from '@toast-ui/toastmark';
 
 import { sendHostName, sanitizeLinkAttribute, deepMergedCopy } from './utils/common';
 
@@ -44,7 +44,28 @@ import { createHTMLSchemaMap } from './wysiwyg/nodes/html';
 import { getHTMLRenderConvertors } from './markdown/htmlRenderConvertors';
 import { buildQuery } from './queries/queryManager';
 import { getEditorToMdPos, getMdToEditorPos } from './markdown/helper/pos';
+import { getMdEndLine, getMdStartLine } from './utils/markdown';
 import SnapshotHistory, { Snapshot, SnapshotSelection } from './history/snapshotHistory';
+
+interface LineRange {
+  startLine: number;
+  endLine: number;
+}
+
+interface WwEditRange {
+  oldRange: [MdPos, MdPos];
+  newRange: [MdPos, MdPos];
+}
+
+interface WwLineRange {
+  oldRange: LineRange;
+  newRange: LineRange;
+}
+
+interface MdPatch {
+  range: LineRange;
+  text: string;
+}
 
 /**
  * ToastUIEditorCore
@@ -127,6 +148,10 @@ class ToastUIEditorCore {
   private wwSerializeTimer: number | null = null;
 
   private readonly wwSerializeDelay = 300;
+
+  private pendingWwRanges: WwLineRange[] = [];
+
+  private readonly toastMarkOptions: Record<string, unknown>;
 
   eventEmitter: Emitter;
 
@@ -226,14 +251,15 @@ class ToastUIEditorCore {
       wwToDOMAdaptor
     );
 
-    this.toastMark = new ToastMark('', {
+    this.toastMarkOptions = {
       disallowedHtmlBlockTags: ['br', 'img'],
       extendedAutolinks,
       referenceDefinition,
       disallowDeepHeading: true,
       frontMatter,
       customParser: markdownParsers,
-    });
+    };
+    this.toastMark = new ToastMark('', this.toastMarkOptions);
 
     this.mdEditor = new MarkdownEditor(this.eventEmitter, {
       toastMark: this.toastMark,
@@ -267,8 +293,11 @@ class ToastUIEditorCore {
 
     this.setHeight(this.options.height);
 
-    this.eventEmitter.listen('wwUserEdit', () => {
+    this.eventEmitter.listen('wwUserEdit', (range?: WwEditRange) => {
       this.wwDirty = true;
+      if (range) {
+        this.addWwEditRange(range);
+      }
       this.scheduleWwSerialize();
     });
     this.eventEmitter.listen('change', (editorType: EditorType) => {
@@ -557,9 +586,25 @@ class ToastUIEditorCore {
   }
 
   private flushSerialize() {
-    const wwNode = this.wwEditor.getModel();
+    if (!this.pendingWwRanges.length) {
+      return this.canonicalMd;
+    }
 
-    return this.convertor.toMarkdownText(wwNode);
+    const toastMark = this.createToastMark(this.canonicalMd);
+    const patches = this.pendingWwRanges
+      .slice()
+      .sort((a, b) => a.oldRange.startLine - b.oldRange.startLine)
+      .map((range) => {
+        const patchRange = this.getBlockRangeForLineRange(range.oldRange, toastMark);
+        const text = this.serializeWwLineRange(range.newRange);
+
+        return { range: patchRange, text };
+      });
+    const nextMd = this.applyMdPatches(this.canonicalMd, patches);
+
+    this.pendingWwRanges = [];
+
+    return nextMd;
   }
 
   private flushSerializeAndMaybePush() {
@@ -567,9 +612,9 @@ class ToastUIEditorCore {
 
     if (nextMd !== this.canonicalMd) {
       this.canonicalMd = nextMd;
-      this.wwDirty = false;
       this.pushSnapshot(nextMd);
     }
+    this.wwDirty = false;
 
     return nextMd;
   }
@@ -583,6 +628,140 @@ class ToastUIEditorCore {
     if (this.wwDirty) {
       this.flushSerializeAndMaybePush();
     }
+  }
+
+  private clearPendingWwEdits() {
+    if (this.wwSerializeTimer) {
+      clearTimeout(this.wwSerializeTimer);
+      this.wwSerializeTimer = null;
+    }
+    this.pendingWwRanges = [];
+  }
+
+  private createToastMark(markdown: string) {
+    return new ToastMark(markdown, this.toastMarkOptions);
+  }
+
+  private toLineRange(range: [MdPos, MdPos]): LineRange {
+    const startLine = Math.min(range[0][0], range[1][0]);
+    const endLine = Math.max(range[0][0], range[1][0]);
+
+    return { startLine, endLine };
+  }
+
+  private rangesOverlapOrTouch(a: LineRange, b: LineRange) {
+    return a.startLine <= b.endLine + 1 && b.startLine <= a.endLine + 1;
+  }
+
+  private mergeLineRange(a: LineRange, b: LineRange): LineRange {
+    return {
+      startLine: Math.min(a.startLine, b.startLine),
+      endLine: Math.max(a.endLine, b.endLine),
+    };
+  }
+
+  private addWwEditRange(range: WwEditRange) {
+    let next: WwLineRange = {
+      oldRange: this.toLineRange(range.oldRange),
+      newRange: this.toLineRange(range.newRange),
+    };
+
+    const merged: WwLineRange[] = [];
+
+    this.pendingWwRanges.forEach((existing) => {
+      if (
+        this.rangesOverlapOrTouch(existing.oldRange, next.oldRange) ||
+        this.rangesOverlapOrTouch(existing.newRange, next.newRange)
+      ) {
+        next = {
+          oldRange: this.mergeLineRange(existing.oldRange, next.oldRange),
+          newRange: this.mergeLineRange(existing.newRange, next.newRange),
+        };
+      } else {
+        merged.push(existing);
+      }
+    });
+    merged.push(next);
+
+    this.pendingWwRanges = merged;
+  }
+
+  private getTopBlockNodeAtLine(toastMark: ToastMark, line: number) {
+    let node = toastMark.findFirstNodeAtLine(line);
+
+    while (node && node.parent && node.parent.type !== 'document') {
+      node = node.parent as MdNode;
+    }
+    return node;
+  }
+
+  private getBlockRangeForLineRange(range: LineRange, toastMark: ToastMark): LineRange {
+    const lineTexts = toastMark.getLineTexts();
+    const maxLine = Math.max(lineTexts.length, 1);
+    const startLine = Math.min(Math.max(range.startLine, 1), maxLine);
+    const endLine = Math.min(Math.max(range.endLine, startLine), maxLine);
+    const startNode = this.getTopBlockNodeAtLine(toastMark, startLine);
+    const endNode = this.getTopBlockNodeAtLine(toastMark, endLine);
+    const resolvedStartLine = startNode ? getMdStartLine(startNode) : startLine;
+    const resolvedEndLine = endNode ? getMdEndLine(endNode) : endLine;
+
+    return {
+      startLine: resolvedStartLine,
+      endLine: Math.max(resolvedEndLine, resolvedStartLine),
+    };
+  }
+
+  private serializeWwLineRange(range: LineRange) {
+    const doc = this.wwEditor.getModel();
+
+    if (doc.childCount === 0) {
+      return '';
+    }
+
+    const startIndex = Math.min(Math.max(range.startLine - 1, 0), doc.childCount - 1);
+    const endIndex = Math.min(Math.max(range.endLine - 1, startIndex), doc.childCount - 1);
+    const nodes = [];
+
+    for (let i = startIndex; i <= endIndex; i += 1) {
+      nodes.push(doc.child(i));
+    }
+
+    if (!nodes.length) {
+      return '';
+    }
+
+    const rangeDoc = this.wwEditor.getSchema().nodes.doc.create(null, nodes);
+
+    return this.convertor.toMarkdownText(rangeDoc);
+  }
+
+  private splitLines(text: string) {
+    if (text === '') {
+      return [];
+    }
+
+    return text.split('\n');
+  }
+
+  private applyMdPatches(md: string, patches: MdPatch[]) {
+    const lines = md.split('\n');
+    const ordered = patches.slice().sort((a, b) => a.range.startLine - b.range.startLine);
+    let lineOffset = 0;
+
+    ordered.forEach((patch) => {
+      const startIndex = patch.range.startLine - 1 + lineOffset;
+      const endIndex = patch.range.endLine - 1 + lineOffset;
+      const replacementLines = this.splitLines(patch.text);
+
+      lines.splice(startIndex, endIndex - startIndex + 1, ...replacementLines);
+      lineOffset += replacementLines.length - (endIndex - startIndex + 1);
+    });
+
+    if (!lines.length) {
+      return '';
+    }
+
+    return lines.join('\n');
   }
 
   private clampMdPos(md: string, pos: MdPos): MdPos {
@@ -652,6 +831,7 @@ class ToastUIEditorCore {
   }
 
   private applyProgrammatic(md: string, selection: SnapshotSelection, scrollTop?: number) {
+    this.clearPendingWwEdits();
     this.canonicalMd = md;
     this.wwDirty = false;
     this.runProgrammatic(() => {
@@ -940,11 +1120,13 @@ class ToastUIEditorCore {
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
       this.wwDirty = false;
+      this.clearPendingWwEdits();
       this.runProgrammatic(() => {
         this.wwEditor.setModel(wwNode!, false, false, true);
       });
     } else {
       this.flushPendingWwSerialize();
+      this.clearPendingWwEdits();
       this.runProgrammatic(() => {
         this.mdEditor.setMarkdown(this.canonicalMd, !withoutFocus, false, true);
       });
@@ -1016,6 +1198,7 @@ class ToastUIEditorCore {
       this.wwEditor.setModel([], false, false, true);
       this.mdEditor.setMarkdown('', false, false, true);
     });
+    this.clearPendingWwEdits();
     this.canonicalMd = '';
     this.wwDirty = false;
   }
