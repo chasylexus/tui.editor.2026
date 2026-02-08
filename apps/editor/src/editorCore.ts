@@ -1,4 +1,4 @@
-import { DOMParser } from 'prosemirror-model';
+import { DOMParser, Node as ProsemirrorNode } from 'prosemirror-model';
 import forEachOwnProperties from 'tui-code-snippet/collection/forEachOwnProperties';
 import extend from 'tui-code-snippet/object/extend';
 import css from 'tui-code-snippet/domUtil/css';
@@ -158,6 +158,8 @@ class ToastUIEditorCore {
 
   private readonly toastMarkOptions: Record<string, unknown>;
 
+  private wwBaselineDoc: ProsemirrorNode | null = null;
+
   private hashMd(text: string) {
     let hash = 0;
 
@@ -225,6 +227,18 @@ class ToastUIEditorCore {
       prevTail: this.tailText(this.canonicalMd, 80),
       nextTail: this.tailText(nextMd, 80),
     });
+  }
+
+  private setWwBaseline(reason: string) {
+    if (!this.isWysiwygMode()) {
+      return;
+    }
+
+    this.wwBaselineDoc = this.wwEditor.getModel();
+    if (this.isSnapshotDebug()) {
+      // eslint-disable-next-line no-console
+      console.log({ phase: 'ww-baseline-set', reason });
+    }
   }
 
   eventEmitter: Emitter;
@@ -670,6 +684,33 @@ class ToastUIEditorCore {
       return this.canonicalMd;
     }
 
+    const baseline = this.wwBaselineDoc;
+    const wwDoc = this.wwEditor.getModel();
+
+    if (baseline && wwDoc.eq(baseline)) {
+      if (this.isSnapshotDebug()) {
+        // eslint-disable-next-line no-console
+        console.log({
+          phase: 'ww-baseline-noop',
+          hasBaseline: true,
+          sameAsBaseline: true,
+          wwDirtyBefore: this.wwDirty,
+        });
+      }
+      this.clearPendingWwEdits();
+      this.logWwDirty(false, 'ww-baseline-noop');
+      this.wwDirty = false;
+      return this.canonicalMd;
+    }
+    if (this.isSnapshotDebug()) {
+      // eslint-disable-next-line no-console
+      console.log({
+        phase: 'ww-baseline-check',
+        hasBaseline: Boolean(baseline),
+        sameAsBaseline: baseline ? wwDoc.eq(baseline) : false,
+      });
+    }
+
     const toastMark = this.createToastMark(this.canonicalMd);
     let shouldSerializeAll = false;
     const patches = this.pendingWwRanges
@@ -712,6 +753,7 @@ class ToastUIEditorCore {
     }
     this.logWwDirty(false, 'ww-flush-serialize');
     this.wwDirty = false;
+    this.setWwBaseline('ww-flush-serialize');
 
     return nextMd;
   }
@@ -949,6 +991,7 @@ class ToastUIEditorCore {
     this.runProgrammatic(() => {
       this.setMarkdown(md, false, false, true);
     });
+    this.setWwBaseline('snapshot-apply');
     this.restoreSelection(selection, md);
     if (isNumber(scrollTop)) {
       this.getCurrentModeEditor().setScrollTop(scrollTop);
@@ -1238,6 +1281,7 @@ class ToastUIEditorCore {
       this.runProgrammatic(() => {
         this.wwEditor.setModel(wwNode!, false, false, true);
       });
+      this.setWwBaseline('mode-switch-md-to-ww');
     } else {
       this.logSnapshotState('before-ww-to-md');
       if (this.wwDirty) {
@@ -1337,6 +1381,7 @@ class ToastUIEditorCore {
     this.logWwDirty(false, 'reset');
     this.canonicalMd = '';
     this.wwDirty = false;
+    this.wwBaselineDoc = null;
   }
 
   /**
