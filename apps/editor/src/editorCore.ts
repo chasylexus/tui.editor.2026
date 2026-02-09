@@ -72,6 +72,12 @@ interface MdPatch {
   text: string;
 }
 
+interface MdBlockSlice {
+  content: string;
+  separator: string;
+  type: string;
+}
+
 /**
  * ToastUIEditorCore
  * @param {Object} options Option object
@@ -160,6 +166,8 @@ class ToastUIEditorCore {
 
   private wwBaselineDoc: ProsemirrorNode | null = null;
 
+  private baselineCanonicalMd: string | null = null;
+
   private hashMd(text: string) {
     let hash = 0;
 
@@ -210,7 +218,7 @@ class ToastUIEditorCore {
     }
 
     // eslint-disable-next-line no-console
-    console.log({ phase: 'wwDirty', next, reason, mode: this.mode });
+    console.log({ phase: 'wwDirty', next, reason, mode: this.mode, stack: new Error().stack });
   }
 
   private logCanonicalChange(nextMd: string, reason: string) {
@@ -238,6 +246,14 @@ class ToastUIEditorCore {
     if (this.isSnapshotDebug()) {
       // eslint-disable-next-line no-console
       console.log({ phase: 'ww-baseline-set', reason });
+    }
+  }
+
+  private setBaselineCanonicalMd(reason: string) {
+    this.baselineCanonicalMd = this.canonicalMd;
+    if (this.isSnapshotDebug()) {
+      // eslint-disable-next-line no-console
+      console.log({ phase: 'baseline-canonical-set', reason });
     }
   }
 
@@ -420,6 +436,10 @@ class ToastUIEditorCore {
       this.canonicalMd = this.mdEditor.getMarkdown();
     }
     this.pushSnapshot(this.canonicalMd);
+    if (this.isWysiwygMode()) {
+      this.setWwBaseline('init');
+      this.setBaselineCanonicalMd('init');
+    }
 
     this.commandManager = new CommandManager(
       this.eventEmitter,
@@ -671,12 +691,24 @@ class ToastUIEditorCore {
   private scheduleWwSerialize() {
     if (this.wwSerializeTimer) {
       clearTimeout(this.wwSerializeTimer);
+      if (this.isSnapshotDebug()) {
+        // eslint-disable-next-line no-console
+        console.log({ phase: 'ww-flush-cancel' });
+      }
     }
 
     this.wwSerializeTimer = window.setTimeout(() => {
       this.wwSerializeTimer = null;
+      if (this.isSnapshotDebug()) {
+        // eslint-disable-next-line no-console
+        console.log({ phase: 'ww-flush-fired' });
+      }
       this.flushSerializeAndMaybePush();
     }, this.wwSerializeDelay);
+    if (this.isSnapshotDebug()) {
+      // eslint-disable-next-line no-console
+      console.log({ phase: 'ww-flush-scheduled', delay: this.wwSerializeDelay });
+    }
   }
 
   private flushSerialize() {
@@ -684,59 +716,125 @@ class ToastUIEditorCore {
       return this.canonicalMd;
     }
 
-    const baseline = this.wwBaselineDoc;
+    const baselineDoc = this.wwBaselineDoc;
+    const baselineMd = this.baselineCanonicalMd;
     const wwDoc = this.wwEditor.getModel();
 
-    if (baseline && wwDoc.eq(baseline)) {
+    if (baselineDoc && wwDoc.eq(baselineDoc)) {
       if (this.isSnapshotDebug()) {
         // eslint-disable-next-line no-console
         console.log({
           phase: 'ww-baseline-noop',
-          hasBaseline: true,
-          sameAsBaseline: true,
           wwDirtyBefore: this.wwDirty,
+          hasBaseline: true,
         });
       }
       this.clearPendingWwEdits();
+      if (baselineMd !== null && this.canonicalMd !== baselineMd) {
+        this.logCanonicalChange(baselineMd, 'ww-baseline-noop');
+        this.canonicalMd = baselineMd;
+      }
       this.logWwDirty(false, 'ww-baseline-noop');
       this.wwDirty = false;
       return this.canonicalMd;
     }
-    if (this.isSnapshotDebug()) {
-      // eslint-disable-next-line no-console
-      console.log({
-        phase: 'ww-baseline-check',
-        hasBaseline: Boolean(baseline),
-        sameAsBaseline: baseline ? wwDoc.eq(baseline) : false,
+
+    let shouldSerializeAll = false;
+    const mdBlocks = this.buildMdBlockSlices(this.canonicalMd);
+    const sortedRanges = this.pendingWwRanges
+      .slice()
+      .sort((a, b) => a.oldRange.startIndex - b.oldRange.startIndex);
+    const nextBlocks = mdBlocks ? mdBlocks.slice() : null;
+
+    if (!mdBlocks || !nextBlocks) {
+      shouldSerializeAll = true;
+    } else {
+      sortedRanges.forEach((range) => {
+        const oldCount = range.oldRange.endIndex - range.oldRange.startIndex + 1;
+        const newCount = range.newRange.endIndex - range.newRange.startIndex + 1;
+
+        if (oldCount !== newCount) {
+          shouldSerializeAll = true;
+          return;
+        }
+
+        for (let i = 0; i < oldCount; i += 1) {
+          const oldIndex = range.oldRange.startIndex + i;
+          const newIndex = range.newRange.startIndex + i;
+          const newBlock = this.serializeWwBlock(newIndex);
+
+          if (!newBlock || !nextBlocks[oldIndex]) {
+            shouldSerializeAll = true;
+            return;
+          }
+
+          const oldSlice = nextBlocks[oldIndex];
+          const nextContent = this.patchParagraphSoftBreaks(
+            oldSlice,
+            newBlock,
+            this.isSnapshotDebug()
+          );
+
+          nextBlocks[oldIndex] = {
+            content: nextContent,
+            separator: oldSlice.separator,
+            type: oldSlice.type,
+          };
+        }
       });
     }
 
-    const toastMark = this.createToastMark(this.canonicalMd);
-    let shouldSerializeAll = false;
-    const patches = this.pendingWwRanges
-      .slice()
-      .sort((a, b) => a.oldRange.startIndex - b.oldRange.startIndex)
-      .map((range) => {
-        const patchRange = this.getBlockLineRangeForIndexRange(range.oldRange, toastMark);
-        const text = this.serializeWwBlockRange(range.newRange);
-
-        if (!patchRange || text === null) {
-          shouldSerializeAll = true;
-        }
-
-        return patchRange ? { range: patchRange, text: text || '' } : null;
-      })
-      .filter((patch): patch is MdPatch => Boolean(patch));
+    let nextMd = nextBlocks ? this.joinMdBlocks(nextBlocks) : this.canonicalMd;
 
     if (shouldSerializeAll) {
-      const wwNode = this.wwEditor.getModel();
-
-      this.pendingWwRanges = [];
-
-      return this.convertor.toMarkdownText(wwNode);
+      nextMd = this.convertor.toMarkdownText(wwDoc);
     }
 
-    const nextMd = this.applyMdPatches(this.canonicalMd, patches);
+    if (baselineMd && nextMd === baselineMd) {
+      if (this.isSnapshotDebug()) {
+        // eslint-disable-next-line no-console
+        console.log({
+          phase: 'baseline-md-noop',
+          wwDirtyBefore: this.wwDirty,
+        });
+      }
+      this.clearPendingWwEdits();
+      this.logWwDirty(false, 'baseline-md-noop');
+      this.wwDirty = false;
+      return this.canonicalMd;
+    }
+
+    if (this.isSnapshotDebug()) {
+      const [debugRange] = sortedRanges;
+      const baselineDocForDebug = this.wwBaselineDoc;
+
+      if (debugRange && nextBlocks && mdBlocks) {
+        const baseIndex = debugRange.oldRange.startIndex;
+        const currIndex = debugRange.newRange.startIndex;
+        const baseNode =
+          baselineDocForDebug && baseIndex >= 0 && baseIndex < baselineDocForDebug.childCount
+            ? baselineDocForDebug.child(baseIndex)
+            : null;
+        const currNode =
+          currIndex >= 0 && currIndex < wwDoc.childCount ? wwDoc.child(currIndex) : null;
+        const oldLens = this.getBlockLenInfo(mdBlocks, debugRange);
+        const newLens = this.getBlockLenInfo(nextBlocks, debugRange);
+        const outsideHash = this.getOutsideBlocksHash(mdBlocks, nextBlocks, debugRange);
+
+        // eslint-disable-next-line no-console
+        console.log({
+          phase: 'patch-debug',
+          baselineEq: baselineDocForDebug ? wwDoc.eq(baselineDocForDebug) : false,
+          changedWWBlockRange: debugRange,
+          computedMdBlockRange: debugRange.oldRange,
+          oldLens,
+          newLens,
+          outsideHash,
+          baselineBlockJson: baseNode ? baseNode.toJSON() : null,
+          currentBlockJson: currNode ? currNode.toJSON() : null,
+        });
+      }
+    }
 
     this.pendingWwRanges = [];
 
@@ -744,6 +842,10 @@ class ToastUIEditorCore {
   }
 
   private flushSerializeAndMaybePush() {
+    if (this.isSnapshotDebug()) {
+      // eslint-disable-next-line no-console
+      console.log({ phase: 'ww-flush-start', wwDirty: this.wwDirty });
+    }
     const nextMd = this.flushSerialize();
 
     if (nextMd !== this.canonicalMd) {
@@ -753,7 +855,6 @@ class ToastUIEditorCore {
     }
     this.logWwDirty(false, 'ww-flush-serialize');
     this.wwDirty = false;
-    this.setWwBaseline('ww-flush-serialize');
 
     return nextMd;
   }
@@ -895,6 +996,288 @@ class ToastUIEditorCore {
     return text.split('\n');
   }
 
+  private getRootBlocks(toastMark: ToastMark) {
+    const root = toastMark.getRootNode();
+    const blocks: MdNode[] = [];
+    let node = root.firstChild as MdNode | null;
+
+    while (node) {
+      blocks.push(node);
+      node = node.next as MdNode | null;
+    }
+
+    return blocks;
+  }
+
+  private getLineOffsets(lineTexts: string[]) {
+    const offsets = [];
+    let acc = 0;
+
+    for (let i = 0; i < lineTexts.length; i += 1) {
+      offsets.push(acc);
+      acc += lineTexts[i].length + 1;
+    }
+
+    return offsets;
+  }
+
+  private getOffsetForPos(lineOffsets: number[], line: number, ch: number) {
+    const lineIndex = Math.max(line - 1, 0);
+    const base = lineOffsets[lineIndex] ?? 0;
+    const col = Math.max(ch - 1, 0);
+
+    return base + col;
+  }
+
+  private buildMdBlockSlices(md: string): MdBlockSlice[] | null {
+    const toastMark = this.createToastMark(md);
+    const lineTexts = toastMark.getLineTexts();
+    const lineOffsets = this.getLineOffsets(lineTexts);
+    const blocks = this.getRootBlocks(toastMark);
+
+    if (!blocks.length) {
+      return [{ content: md, separator: '' }];
+    }
+
+    const slices: MdBlockSlice[] = [];
+    const startOffsets = blocks.map((block) => {
+      const startPos = block.sourcepos && block.sourcepos[0];
+
+      if (!startPos) {
+        return null;
+      }
+
+      return this.getOffsetForPos(lineOffsets, startPos[0], startPos[1]);
+    });
+    const endOffsets = blocks.map((block) => {
+      const endPos = block.sourcepos && block.sourcepos[1];
+
+      if (!endPos) {
+        return null;
+      }
+
+      return Math.min(this.getOffsetForPos(lineOffsets, endPos[0], endPos[1]) + 1, md.length);
+    });
+
+    if (
+      startOffsets.some((offset) => offset === null) ||
+      endOffsets.some((offset) => offset === null)
+    ) {
+      return null;
+    }
+
+    for (let i = 0; i < blocks.length; i += 1) {
+      const startOffset = startOffsets[i] as number;
+      const endOffset = endOffsets[i] as number;
+      const nextStart = i + 1 < startOffsets.length ? (startOffsets[i + 1] as number) : md.length;
+
+      if (startOffset > nextStart) {
+        return null;
+      }
+
+      const content = md.slice(startOffset, endOffset);
+      const separator = md.slice(endOffset, nextStart);
+      const { type } = blocks[i];
+
+      slices.push({ content, separator, type });
+    }
+
+    return slices;
+  }
+
+  private joinMdBlocks(blocks: MdBlockSlice[]) {
+    return blocks.map((block) => `${block.content}${block.separator}`).join('');
+  }
+
+  private normalizeBlockText(text: string) {
+    return text.replace(/\s+/g, ' ');
+  }
+
+  private buildNormalizedMapping(text: string) {
+    const mapping: number[] = [];
+    let normalized = '';
+    let inWhitespace = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      const isWs = /\s/.test(ch);
+
+      if (isWs) {
+        if (!inWhitespace) {
+          normalized += ' ';
+          mapping.push(i);
+          inWhitespace = true;
+        }
+      } else {
+        normalized += ch;
+        mapping.push(i);
+        inWhitespace = false;
+      }
+    }
+
+    return { normalized, mapping };
+  }
+
+  private getNormIndexToSrcIndex(mapping: number[], normIndex: number, textLength: number) {
+    if (normIndex <= 0) {
+      return 0;
+    }
+    if (normIndex >= mapping.length) {
+      return textLength;
+    }
+
+    return mapping[normIndex];
+  }
+
+  private computeCommonAffix(oldText: string, newText: string) {
+    const oldLen = oldText.length;
+    const newLen = newText.length;
+    let prefixLen = 0;
+
+    while (prefixLen < oldLen && prefixLen < newLen && oldText[prefixLen] === newText[prefixLen]) {
+      prefixLen += 1;
+    }
+
+    let suffixLen = 0;
+
+    while (
+      suffixLen < oldLen - prefixLen &&
+      suffixLen < newLen - prefixLen &&
+      oldText[oldLen - 1 - suffixLen] === newText[newLen - 1 - suffixLen]
+    ) {
+      suffixLen += 1;
+    }
+
+    return { prefixLen, suffixLen };
+  }
+
+  private patchParagraphSoftBreaks(oldSlice: MdBlockSlice, newSerialized: string, debug: boolean) {
+    if (oldSlice.type !== 'paragraph' || !oldSlice.content.includes('\n')) {
+      return newSerialized;
+    }
+
+    const oldNormData = this.buildNormalizedMapping(oldSlice.content);
+    const newNorm = this.normalizeBlockText(newSerialized);
+    const oldNorm = oldNormData.normalized;
+    const { prefixLen, suffixLen } = this.computeCommonAffix(oldNorm, newNorm);
+    const oldMidStart = prefixLen;
+    const oldMidEnd = oldNorm.length - suffixLen;
+    const newMidStart = prefixLen;
+    const newMidEnd = newNorm.length - suffixLen;
+
+    if (oldMidStart > oldMidEnd || newMidStart > newMidEnd) {
+      if (debug) {
+        // eslint-disable-next-line no-console
+        console.log({ phase: 'softbreak-patch', preserveApplied: false, reason: 'invalid-span' });
+      }
+      return newSerialized;
+    }
+
+    const startIdx = this.getNormIndexToSrcIndex(
+      oldNormData.mapping,
+      oldMidStart,
+      oldSlice.content.length
+    );
+    const endIdx =
+      oldMidEnd <= oldMidStart
+        ? startIdx
+        : this.getNormIndexToSrcIndex(oldNormData.mapping, oldMidEnd, oldSlice.content.length);
+
+    if (startIdx > endIdx) {
+      if (debug) {
+        // eslint-disable-next-line no-console
+        console.log({ phase: 'softbreak-patch', preserveApplied: false, reason: 'index-order' });
+      }
+      return newSerialized;
+    }
+
+    const replacement = newNorm.slice(newMidStart, newMidEnd);
+    const patched =
+      oldSlice.content.slice(0, startIdx) + replacement + oldSlice.content.slice(endIdx);
+
+    if (debug) {
+      // eslint-disable-next-line no-console
+      console.log({
+        phase: 'softbreak-patch',
+        oldBlock: oldSlice.content.slice(0, 200),
+        newSerialized: newSerialized.slice(0, 200),
+        oldNorm: oldNorm.slice(0, 200),
+        newNorm: newNorm.slice(0, 200),
+        prefixLen,
+        suffixLen,
+        oldSpan: [oldMidStart, oldMidEnd],
+        newSpan: [newMidStart, newMidEnd],
+        preserveApplied: true,
+      });
+    }
+
+    return patched;
+  }
+
+  private serializeWwBlock(index: number) {
+    const doc = this.wwEditor.getModel();
+
+    if (index < 0 || index >= doc.childCount) {
+      return null;
+    }
+
+    const node = doc.child(index);
+    const rangeDoc = this.wwEditor.getSchema().nodes.doc.create(null, [node]);
+
+    return this.convertor.toMarkdownText(rangeDoc);
+  }
+
+  private getBlockLenInfo(blocks: MdBlockSlice[], range: WwBlockRange) {
+    const info = [];
+
+    for (let i = range.oldRange.startIndex; i <= range.oldRange.endIndex; i += 1) {
+      const block = blocks[i];
+
+      info.push(block ? block.content.length : null);
+    }
+    return info;
+  }
+
+  private hashBlocks(blocks: MdBlockSlice[], start: number, end: number) {
+    let hash = 0;
+
+    for (let i = start; i <= end; i += 1) {
+      const block = blocks[i];
+
+      if (block) {
+        hash = (hash * 31 + this.hashMd(block.content).charCodeAt(1)) | 0;
+      }
+    }
+    return hash >>> 0;
+  }
+
+  private getOutsideBlocksHash(
+    beforeBlocks: MdBlockSlice[],
+    afterBlocks: MdBlockSlice[],
+    range: WwBlockRange
+  ) {
+    const beforeLeftHash =
+      range.oldRange.startIndex > 0
+        ? this.hashBlocks(beforeBlocks, 0, range.oldRange.startIndex - 1)
+        : 0;
+    const beforeRightHash =
+      range.oldRange.endIndex + 1 < beforeBlocks.length
+        ? this.hashBlocks(beforeBlocks, range.oldRange.endIndex + 1, beforeBlocks.length - 1)
+        : 0;
+    const nextBefore = beforeLeftHash ^ beforeRightHash;
+    const afterLeftHash =
+      range.oldRange.startIndex > 0
+        ? this.hashBlocks(afterBlocks, 0, range.oldRange.startIndex - 1)
+        : 0;
+    const afterRightHash =
+      range.oldRange.endIndex + 1 < afterBlocks.length
+        ? this.hashBlocks(afterBlocks, range.oldRange.endIndex + 1, afterBlocks.length - 1)
+        : 0;
+    const nextAfter = afterLeftHash ^ afterRightHash;
+
+    return { before: nextBefore, after: nextAfter };
+  }
+
   private applyMdPatches(md: string, patches: MdPatch[]) {
     const lines = md.split('\n');
     const ordered = patches.slice().sort((a, b) => a.range.startLine - b.range.startLine);
@@ -992,6 +1375,7 @@ class ToastUIEditorCore {
       this.setMarkdown(md, false, false, true);
     });
     this.setWwBaseline('snapshot-apply');
+    this.setBaselineCanonicalMd('snapshot-apply');
     this.restoreSelection(selection, md);
     if (isNumber(scrollTop)) {
       this.getCurrentModeEditor().setScrollTop(scrollTop);
@@ -1282,6 +1666,7 @@ class ToastUIEditorCore {
         this.wwEditor.setModel(wwNode!, false, false, true);
       });
       this.setWwBaseline('mode-switch-md-to-ww');
+      this.setBaselineCanonicalMd('mode-switch-md-to-ww');
     } else {
       this.logSnapshotState('before-ww-to-md');
       if (this.wwDirty) {
@@ -1382,6 +1767,7 @@ class ToastUIEditorCore {
     this.canonicalMd = '';
     this.wwDirty = false;
     this.wwBaselineDoc = null;
+    this.baselineCanonicalMd = null;
   }
 
   /**
