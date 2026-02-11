@@ -177,7 +177,6 @@ export default class WysiwygEditor extends EditorBase {
               prevDoc.content.size,
               nextDoc.content.size
             );
-            const oldEnd = diffEnd ? diffEnd.a : diffStart;
             const newEnd = diffEnd ? diffEnd.b : diffStart;
             const maxIndex = (doc: ProsemirrorNode) => Math.max(doc.childCount - 1, 0);
             const getBlockRange = (doc: ProsemirrorNode, from: number, to: number) => {
@@ -189,12 +188,52 @@ export default class WysiwygEditor extends EditorBase {
                 endIndex: Math.max(startIndex, endIndex),
               };
             };
-            const oldRange = getBlockRange(prevDoc, diffStart, Math.max(diffStart, oldEnd));
             const newRange = getBlockRange(nextDoc, diffStart, Math.max(diffStart, newEnd));
+            const mdBlockIds: number[] = [];
+            let hasMissingId = false;
 
-            this.eventEmitter.emit('wwUserEdit', { oldRange, newRange });
+            for (let i = newRange.startIndex; i <= newRange.endIndex; i += 1) {
+              const node = nextDoc.child(i);
+              const mdBlockId = node.attrs && node.attrs.mdBlockId;
+
+              if (typeof mdBlockId !== 'number') {
+                hasMissingId = true;
+              } else if (!mdBlockIds.includes(mdBlockId)) {
+                mdBlockIds.push(mdBlockId);
+              }
+            }
+
+            if (typeof window !== 'undefined' && (window as any).__TOASTUI_SNAPSHOT_DEBUG__) {
+              const wwBlockCounts = mdBlockIds.map((id) => {
+                let c = 0;
+
+                for (let j = 0; j < nextDoc.childCount; j += 1) {
+                  if (nextDoc.child(j).attrs?.mdBlockId === id) c += 1;
+                }
+
+                return c;
+              });
+
+              // eslint-disable-next-line no-console
+              console.log({
+                phase: 'ww-user-edit',
+                affectedWwBlockIndices: {
+                  startIndex: newRange.startIndex,
+                  endIndex: newRange.endIndex,
+                },
+                derivedMdBlockIds: mdBlockIds,
+                wwBlockCountsPerId: wwBlockCounts,
+                hasMissingId,
+              });
+            }
+
+            this.eventEmitter.emit('wwUserEdit', { mdBlockIds, wwRange: newRange, hasMissingId });
           } else {
-            this.eventEmitter.emit('wwUserEdit');
+            this.eventEmitter.emit('wwUserEdit', {
+              mdBlockIds: [],
+              wwRange: { startIndex: 0, endIndex: Math.max(nextDoc.childCount - 1, 0) },
+              hasMissingId: true,
+            });
           }
         }
       },

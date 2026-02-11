@@ -24,6 +24,10 @@ export default class ToWwConvertorState {
 
   private marks: Mark[];
 
+  private mdBlockIdSeq = 0;
+
+  private currentMdBlockId: number | null = null;
+
   constructor(schema: Schema, convertors: ToWwConvertorMap) {
     this.schema = schema;
     this.convertors = convertors;
@@ -65,7 +69,8 @@ export default class ToWwConvertorState {
   }
 
   addNode(type: NodeType, attrs: Attrs, content: Node[]) {
-    const node = type.createAndFill(attrs, content, this.marks);
+    const nextAttrs = this.applyMdBlockId(type, attrs);
+    const node = type.createAndFill(nextAttrs, content, this.marks);
 
     if (node) {
       this.push(node);
@@ -77,7 +82,9 @@ export default class ToWwConvertorState {
   }
 
   openNode(type: NodeType, attrs: Attrs) {
-    this.stack.push({ type, attrs, content: [] });
+    const nextAttrs = this.applyMdBlockId(type, attrs);
+
+    this.stack.push({ type, attrs: nextAttrs, content: [] });
   }
 
   closeNode() {
@@ -124,8 +131,15 @@ export default class ToWwConvertorState {
     while (event) {
       const { node, entering } = event;
       const convertor = this.convertors[node.type];
+      const isRootBlock = node.parent?.type === 'document';
 
       let skipped = false;
+
+      // One MD root block → same mdBlockId for ALL WW blocks created until we leave this root (e.g. softbreak paragraphs).
+      if (isRootBlock && entering) {
+        this.currentMdBlockId = this.mdBlockIdSeq;
+        this.mdBlockIdSeq += 1;
+      }
 
       if (convertor) {
         const context = {
@@ -159,8 +173,20 @@ export default class ToWwConvertorState {
         walker.next();
       }
 
+      if (isRootBlock && !entering) {
+        this.currentMdBlockId = null;
+      }
+
       event = walker.next();
     }
+  }
+
+  /** Assign mdBlockId to block nodes so one MD block and all its expanded WW blocks share the same id. */
+  private applyMdBlockId(type: NodeType, attrs: Attrs) {
+    if (this.currentMdBlockId === null || !type.isBlock) {
+      return attrs;
+    }
+    return { ...(attrs || {}), mdBlockId: this.currentMdBlockId };
   }
 
   convertNode(mdNode: MdNode, infoForPosSync?: InfoForPosSync) {

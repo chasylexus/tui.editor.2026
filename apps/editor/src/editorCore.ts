@@ -44,7 +44,6 @@ import { createHTMLSchemaMap } from './wysiwyg/nodes/html';
 import { getHTMLRenderConvertors } from './markdown/htmlRenderConvertors';
 import { buildQuery } from './queries/queryManager';
 import { getEditorToMdPos, getMdToEditorPos } from './markdown/helper/pos';
-import { getMdEndLine, getMdStartLine } from './utils/markdown';
 import SnapshotHistory, { Snapshot, SnapshotSelection } from './history/snapshotHistory';
 
 interface LineRange {
@@ -58,13 +57,9 @@ interface BlockRange {
 }
 
 interface WwEditRange {
-  oldRange: BlockRange;
-  newRange: BlockRange;
-}
-
-interface WwBlockRange {
-  oldRange: BlockRange;
-  newRange: BlockRange;
+  mdBlockIds: number[];
+  wwRange: BlockRange;
+  hasMissingId?: boolean;
 }
 
 interface MdPatch {
@@ -160,7 +155,11 @@ class ToastUIEditorCore {
 
   private readonly wwSerializeDelay = 300;
 
-  private pendingWwRanges: WwBlockRange[] = [];
+  private pendingMdBlockIds: Set<number> = new Set();
+
+  private pendingWwRange: BlockRange | null = null;
+
+  private pendingWwInvalidMapping = false;
 
   private readonly toastMarkOptions: Record<string, unknown>;
 
@@ -712,7 +711,7 @@ class ToastUIEditorCore {
   }
 
   private flushSerialize() {
-    if (!this.pendingWwRanges.length) {
+    if (!this.pendingMdBlockIds.size && !this.pendingWwInvalidMapping) {
       return this.canonicalMd;
     }
 
@@ -739,48 +738,37 @@ class ToastUIEditorCore {
       return this.canonicalMd;
     }
 
-    let shouldSerializeAll = false;
+    let shouldSerializeAll = this.pendingWwInvalidMapping;
     const mdBlocks = this.buildMdBlockSlices(this.canonicalMd);
-    const sortedRanges = this.pendingWwRanges
-      .slice()
-      .sort((a, b) => a.oldRange.startIndex - b.oldRange.startIndex);
     const nextBlocks = mdBlocks ? mdBlocks.slice() : null;
+    const mdBlockIds = Array.from(this.pendingMdBlockIds).sort((a, b) => a - b);
 
     if (!mdBlocks || !nextBlocks) {
       shouldSerializeAll = true;
     } else {
-      sortedRanges.forEach((range) => {
-        const oldCount = range.oldRange.endIndex - range.oldRange.startIndex + 1;
-        const newCount = range.newRange.endIndex - range.newRange.startIndex + 1;
-
-        if (oldCount !== newCount) {
+      mdBlockIds.forEach((mdBlockId) => {
+        if (mdBlockId < 0 || mdBlockId >= nextBlocks.length) {
           shouldSerializeAll = true;
           return;
         }
 
-        for (let i = 0; i < oldCount; i += 1) {
-          const oldIndex = range.oldRange.startIndex + i;
-          const newIndex = range.newRange.startIndex + i;
-          const newBlock = this.serializeWwBlock(newIndex);
+        const newBlock = this.serializeWwBlocksById(mdBlockId);
 
-          if (!newBlock || !nextBlocks[oldIndex]) {
-            shouldSerializeAll = true;
-            return;
-          }
-
-          const oldSlice = nextBlocks[oldIndex];
-          const nextContent = this.patchParagraphSoftBreaks(
-            oldSlice,
-            newBlock,
-            this.isSnapshotDebug()
-          );
-
-          nextBlocks[oldIndex] = {
-            content: nextContent,
-            separator: oldSlice.separator,
-            type: oldSlice.type,
-          };
+        if (!newBlock) {
+          shouldSerializeAll = true;
+          return;
         }
+
+        const oldSlice = nextBlocks[mdBlockId];
+        // Replace exact mdBlockId slice with full serialized content. No heuristics: all WW blocks
+        // with this mdBlockId were serialized together, so newBlock is the full slice (avoids tail loss).
+        const nextContent = newBlock;
+
+        nextBlocks[mdBlockId] = {
+          content: nextContent,
+          separator: oldSlice.separator,
+          type: oldSlice.type,
+        };
       });
     }
 
@@ -804,39 +792,43 @@ class ToastUIEditorCore {
       return this.canonicalMd;
     }
 
-    if (this.isSnapshotDebug()) {
-      const [debugRange] = sortedRanges;
-      const baselineDocForDebug = this.wwBaselineDoc;
+    if (this.isSnapshotDebug() && mdBlocks && nextBlocks) {
+      const oldLens = this.getBlockLenInfo(mdBlocks, mdBlockIds);
+      const newLens = this.getBlockLenInfo(nextBlocks, mdBlockIds);
+      const outsideHash = this.getOutsideBlocksHash(mdBlocks, nextBlocks, mdBlockIds);
+      const wwBlockCounts = mdBlockIds.map((id) => this.getWwBlockCountById(id));
+      const sliceInfo = mdBlockIds.map((id) => {
+        const oldSlice = mdBlocks[id];
+        const newSlice = nextBlocks[id];
 
-      if (debugRange && nextBlocks && mdBlocks) {
-        const baseIndex = debugRange.oldRange.startIndex;
-        const currIndex = debugRange.newRange.startIndex;
-        const baseNode =
-          baselineDocForDebug && baseIndex >= 0 && baseIndex < baselineDocForDebug.childCount
-            ? baselineDocForDebug.child(baseIndex)
-            : null;
-        const currNode =
-          currIndex >= 0 && currIndex < wwDoc.childCount ? wwDoc.child(currIndex) : null;
-        const oldLens = this.getBlockLenInfo(mdBlocks, debugRange);
-        const newLens = this.getBlockLenInfo(nextBlocks, debugRange);
-        const outsideHash = this.getOutsideBlocksHash(mdBlocks, nextBlocks, debugRange);
+        return {
+          mdBlockId: id,
+          oldSliceLen: oldSlice ? oldSlice.content.length : null,
+          newSliceLen: newSlice ? newSlice.content.length : null,
+          wwBlocksCaptured: this.getWwBlockCountById(id),
+          tailPreserved:
+            !oldSlice?.content.includes('\n') ||
+            (!!newSlice && newSlice.content.length >= oldSlice.content.length),
+        };
+      });
 
-        // eslint-disable-next-line no-console
-        console.log({
-          phase: 'patch-debug',
-          baselineEq: baselineDocForDebug ? wwDoc.eq(baselineDocForDebug) : false,
-          changedWWBlockRange: debugRange,
-          computedMdBlockRange: debugRange.oldRange,
-          oldLens,
-          newLens,
-          outsideHash,
-          baselineBlockJson: baseNode ? baseNode.toJSON() : null,
-          currentBlockJson: currNode ? currNode.toJSON() : null,
-        });
-      }
+      // eslint-disable-next-line no-console
+      console.log({
+        phase: 'patch-debug',
+        affectedWwBlockIndices: this.pendingWwRange,
+        derivedMdBlockIds: mdBlockIds,
+        wwBlockCountsPerId: wwBlockCounts,
+        oldLens,
+        newLens,
+        sliceInfo,
+        outsideHash,
+        tailPreserved: sliceInfo.every((s) => s.tailPreserved !== false),
+      });
     }
 
-    this.pendingWwRanges = [];
+    this.pendingMdBlockIds.clear();
+    this.pendingWwInvalidMapping = false;
+    this.pendingWwRange = null;
 
     return nextMd;
   }
@@ -875,117 +867,21 @@ class ToastUIEditorCore {
       clearTimeout(this.wwSerializeTimer);
       this.wwSerializeTimer = null;
     }
-    this.pendingWwRanges = [];
+    this.pendingMdBlockIds.clear();
+    this.pendingWwInvalidMapping = false;
+    this.pendingWwRange = null;
   }
 
   private createToastMark(markdown: string) {
     return new ToastMark(markdown, this.toastMarkOptions);
   }
 
-  private normalizeBlockRange(range: BlockRange): BlockRange {
-    return {
-      startIndex: Math.min(range.startIndex, range.endIndex),
-      endIndex: Math.max(range.startIndex, range.endIndex),
-    };
-  }
-
-  private rangesOverlapOrTouch(a: BlockRange, b: BlockRange) {
-    return a.startIndex <= b.endIndex + 1 && b.startIndex <= a.endIndex + 1;
-  }
-
-  private mergeLineRange(a: BlockRange, b: BlockRange): BlockRange {
-    return {
-      startIndex: Math.min(a.startIndex, b.startIndex),
-      endIndex: Math.max(a.endIndex, b.endIndex),
-    };
-  }
-
   private addWwEditRange(range: WwEditRange) {
-    let next: WwBlockRange = {
-      oldRange: this.normalizeBlockRange(range.oldRange),
-      newRange: this.normalizeBlockRange(range.newRange),
-    };
-
-    const merged: WwBlockRange[] = [];
-
-    this.pendingWwRanges.forEach((existing) => {
-      if (
-        this.rangesOverlapOrTouch(existing.oldRange, next.oldRange) ||
-        this.rangesOverlapOrTouch(existing.newRange, next.newRange)
-      ) {
-        next = {
-          oldRange: this.mergeLineRange(existing.oldRange, next.oldRange),
-          newRange: this.mergeLineRange(existing.newRange, next.newRange),
-        };
-      } else {
-        merged.push(existing);
-      }
-    });
-    merged.push(next);
-
-    this.pendingWwRanges = merged;
-  }
-
-  private getMdBlockByIndex(root: MdNode, index: number) {
-    let node = root.firstChild as MdNode | null;
-    let cursor = 0;
-
-    while (node && cursor < index) {
-      node = node.next as MdNode | null;
-      cursor += 1;
+    if (range.hasMissingId) {
+      this.pendingWwInvalidMapping = true;
     }
-
-    return node || null;
-  }
-
-  private getBlockLineRangeForIndexRange(
-    range: BlockRange,
-    toastMark: ToastMark
-  ): LineRange | null {
-    const root = toastMark.getRootNode();
-    const startNode = this.getMdBlockByIndex(root, range.startIndex);
-    const endNode = this.getMdBlockByIndex(root, range.endIndex);
-
-    if (!startNode || !endNode) {
-      return null;
-    }
-
-    const resolvedStartLine = getMdStartLine(startNode);
-    const resolvedEndLine = getMdEndLine(endNode);
-
-    return {
-      startLine: resolvedStartLine,
-      endLine: Math.max(resolvedEndLine, resolvedStartLine),
-    };
-  }
-
-  private serializeWwBlockRange(range: BlockRange) {
-    const doc = this.wwEditor.getModel();
-
-    if (doc.childCount === 0) {
-      return '';
-    }
-
-    const { startIndex, endIndex } = range;
-
-    if (startIndex < 0 || endIndex >= doc.childCount) {
-      return null;
-    }
-
-    const lastIndex = Math.max(endIndex, startIndex);
-    const nodes = [];
-
-    for (let i = startIndex; i <= lastIndex; i += 1) {
-      nodes.push(doc.child(i));
-    }
-
-    if (!nodes.length) {
-      return '';
-    }
-
-    const rangeDoc = this.wwEditor.getSchema().nodes.doc.create(null, nodes);
-
-    return this.convertor.toMarkdownText(rangeDoc);
+    range.mdBlockIds.forEach((id) => this.pendingMdBlockIds.add(id));
+    this.pendingWwRange = range.wwRange;
   }
 
   private splitLines(text: string) {
@@ -1214,28 +1110,46 @@ class ToastUIEditorCore {
     return patched;
   }
 
-  private serializeWwBlock(index: number) {
+  private serializeWwBlocksById(mdBlockId: number) {
     const doc = this.wwEditor.getModel();
+    const nodes: ProsemirrorNode[] = [];
 
-    if (index < 0 || index >= doc.childCount) {
+    for (let i = 0; i < doc.childCount; i += 1) {
+      const node = doc.child(i);
+      const nodeId = node.attrs && node.attrs.mdBlockId;
+
+      if (nodeId === mdBlockId) {
+        nodes.push(node);
+      }
+    }
+
+    if (!nodes.length) {
       return null;
     }
 
-    const node = doc.child(index);
-    const rangeDoc = this.wwEditor.getSchema().nodes.doc.create(null, [node]);
+    const rangeDoc = this.wwEditor.getSchema().nodes.doc.create(null, nodes);
 
     return this.convertor.toMarkdownText(rangeDoc);
   }
 
-  private getBlockLenInfo(blocks: MdBlockSlice[], range: WwBlockRange) {
-    const info = [];
+  private getWwBlockCountById(mdBlockId: number) {
+    const doc = this.wwEditor.getModel();
+    let count = 0;
 
-    for (let i = range.oldRange.startIndex; i <= range.oldRange.endIndex; i += 1) {
-      const block = blocks[i];
+    for (let i = 0; i < doc.childCount; i += 1) {
+      const node = doc.child(i);
+      const nodeId = node.attrs && node.attrs.mdBlockId;
 
-      info.push(block ? block.content.length : null);
+      if (nodeId === mdBlockId) {
+        count += 1;
+      }
     }
-    return info;
+
+    return count;
+  }
+
+  private getBlockLenInfo(blocks: MdBlockSlice[], ids: number[]) {
+    return ids.map((id) => (blocks[id] ? blocks[id].content.length : null));
   }
 
   private hashBlocks(blocks: MdBlockSlice[], start: number, end: number) {
@@ -1254,28 +1168,25 @@ class ToastUIEditorCore {
   private getOutsideBlocksHash(
     beforeBlocks: MdBlockSlice[],
     afterBlocks: MdBlockSlice[],
-    range: WwBlockRange
+    ids: number[]
   ) {
-    const beforeLeftHash =
-      range.oldRange.startIndex > 0
-        ? this.hashBlocks(beforeBlocks, 0, range.oldRange.startIndex - 1)
-        : 0;
-    const beforeRightHash =
-      range.oldRange.endIndex + 1 < beforeBlocks.length
-        ? this.hashBlocks(beforeBlocks, range.oldRange.endIndex + 1, beforeBlocks.length - 1)
-        : 0;
-    const nextBefore = beforeLeftHash ^ beforeRightHash;
-    const afterLeftHash =
-      range.oldRange.startIndex > 0
-        ? this.hashBlocks(afterBlocks, 0, range.oldRange.startIndex - 1)
-        : 0;
-    const afterRightHash =
-      range.oldRange.endIndex + 1 < afterBlocks.length
-        ? this.hashBlocks(afterBlocks, range.oldRange.endIndex + 1, afterBlocks.length - 1)
-        : 0;
-    const nextAfter = afterLeftHash ^ afterRightHash;
+    const idSet = new Set(ids);
+    let beforeHash = 0;
+    let afterHash = 0;
 
-    return { before: nextBefore, after: nextAfter };
+    for (let i = 0; i < beforeBlocks.length; i += 1) {
+      if (!idSet.has(i)) {
+        beforeHash = (beforeHash * 31 + this.hashMd(beforeBlocks[i].content).charCodeAt(1)) | 0;
+      }
+    }
+
+    for (let i = 0; i < afterBlocks.length; i += 1) {
+      if (!idSet.has(i)) {
+        afterHash = (afterHash * 31 + this.hashMd(afterBlocks[i].content).charCodeAt(1)) | 0;
+      }
+    }
+
+    return { before: beforeHash >>> 0, after: afterHash >>> 0 };
   }
 
   private applyMdPatches(md: string, patches: MdPatch[]) {
