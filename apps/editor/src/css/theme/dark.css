@@ -316,8 +316,32 @@
   background-color: #121212;
 }
 
-.toastui-editor-dark .toastui-editor-ww-code-block-language input {
+.toastui-editor-dark .toastui-editor-ww-code-block-label {
+  color: #aaa;
+}
+
+.toastui-editor-dark .toastui-editor-ww-code-block-lang-input,
+.toastui-editor-dark .toastui-editor-ww-code-block-line-input {
   color: #fff;
+  border-color: #393b42;
+  background-color: #232428;
+}
+
+.toastui-editor-dark .toastui-editor-ww-code-block-lang-input:focus,
+.toastui-editor-dark .toastui-editor-ww-code-block-line-input:focus {
+  border-color: #4b96e6;
+}
+
+.toastui-editor-dark .toastui-editor-ww-code-block-gutter {
+  color: #555;
+  background: #1a1b1e;
+  border-right-color: #393b42;
+}
+
+.toastui-editor-dark .toastui-editor-contents pre.line-numbers::before {
+  color: #555;
+  background: #1a1b1e;
+  border-right-color: #393b42;
 }
 
 .toastui-editor-dark .toastui-editor-contents .toastui-editor-ww-code-block:after {

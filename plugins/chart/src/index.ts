@@ -67,6 +67,7 @@ const chart = {
   pie: Chart.pieChart,
 };
 const chartMap: Record<string, ChartInstance> = {};
+let darkModeOverride: boolean | null = null;
 
 const DARK_CHART_THEME = {
   chart: { backgroundColor: '#1a1a1a' },
@@ -331,8 +332,9 @@ function doRenderChart(
       const { data, options } = parsedInfo || {};
       const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer);
       const chartType = chartOptions.editorChart.type!;
+      const dark = darkModeOverride !== null ? darkModeOverride : isDarkMode(chartContainer);
 
-      if (isDarkMode(chartContainer)) {
+      if (dark) {
         (chartOptions as any).theme = DARK_CHART_THEME;
       }
 
@@ -373,7 +375,13 @@ function renderChart(
   }
 }
 
-function reRenderAllCharts(usageStatistics: boolean, pluginOptions: PluginOptions) {
+function reRenderAllCharts(
+  usageStatistics: boolean,
+  pluginOptions: PluginOptions,
+  forceDark?: boolean
+) {
+  darkModeOverride = typeof forceDark === 'boolean' ? forceDark : null;
+
   const containers = document.querySelectorAll<HTMLElement>('[data-chart-id][data-chart-text]');
 
   containers.forEach((container) => {
@@ -390,6 +398,8 @@ function reRenderAllCharts(usageStatistics: boolean, pluginOptions: PluginOption
 
     doRenderChart(id, text, usageStatistics, pluginOptions, container);
   });
+
+  darkModeOverride = null;
 }
 
 function generateId() {
@@ -419,8 +429,8 @@ function clearTimer() {
 export default function chartPlugin(context: PluginContext, options: PluginOptions): PluginInfo {
   const { usageStatistics = true } = context;
 
-  context.eventEmitter.listen('changeTheme', () => {
-    reRenderAllCharts(usageStatistics, options);
+  context.eventEmitter.listen('changeTheme', (theme: string) => {
+    reRenderAllCharts(usageStatistics, options, theme === 'dark');
   });
 
   return {

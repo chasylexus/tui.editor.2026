@@ -73,9 +73,14 @@ export const toMdConvertors: ToMdConvertorMap = {
 
   codeBlock({ node }) {
     const { attrs, textContent } = node as ProsemirrorNode;
+    let info = attrs.language || '';
+
+    if (attrs.lineNumber !== null) {
+      info += attrs.lineNumber === 1 ? '=' : `=${attrs.lineNumber}`;
+    }
 
     return {
-      delim: [`\`\`\`${attrs.language || ''}`, '```'],
+      delim: [`\`\`\`${info}`, '```'],
       rawHTML: getPairRawHTML(attrs.rawHTML),
       text: textContent,
     };

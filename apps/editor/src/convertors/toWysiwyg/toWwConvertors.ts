@@ -83,8 +83,16 @@ const toWwConvertors: ToWwConvertorMap = {
   codeBlock(state, node, customAttrs) {
     const { codeBlock } = state.schema.nodes;
     const { info, literal } = node as CodeBlockMdNode;
+    const match = info ? info.match(/^(.+?)=(\d*)$/) : null;
+    let language: string | null = info || null;
+    let lineNumber: number | null = null;
 
-    state.openNode(codeBlock, { language: info, ...customAttrs });
+    if (match) {
+      language = match[1] || null;
+      lineNumber = match[2] ? Number(match[2]) : 1;
+    }
+
+    state.openNode(codeBlock, { language, lineNumber, ...customAttrs });
     state.addText(getTextWithoutTrailingNewline(literal || ''));
     state.closeNode();
   },

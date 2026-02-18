@@ -241,6 +241,57 @@ function collectInlineStyles() {
   return cssText;
 }
 
+function inlineTokenStyles(original: HTMLElement, clone: HTMLElement) {
+  const origTokens = Array.from(original.querySelectorAll('[class*="token"]'));
+  const cloneTokens = Array.from(clone.querySelectorAll('[class*="token"]'));
+
+  origTokens.forEach((origEl, idx) => {
+    const cloneEl = cloneTokens[idx] as HTMLElement | undefined;
+
+    if (!cloneEl) return;
+
+    const cs = getComputedStyle(origEl);
+
+    if (cs.color) {
+      cloneEl.style.color = cs.color;
+    }
+
+    if (cs.fontWeight && cs.fontWeight !== 'normal' && cs.fontWeight !== '400') {
+      cloneEl.style.fontWeight = cs.fontWeight;
+    }
+
+    if (cs.fontStyle && cs.fontStyle !== 'normal') {
+      cloneEl.style.fontStyle = cs.fontStyle;
+    }
+  });
+}
+
+function fixLineNumberInputs(original: HTMLElement, clone: HTMLElement) {
+  const origInputs = Array.from(
+    original.querySelectorAll<HTMLInputElement>('.toastui-editor-line-number-input')
+  );
+  const cloneInputs = Array.from(
+    clone.querySelectorAll<HTMLInputElement>('.toastui-editor-line-number-input')
+  );
+
+  origInputs.forEach((origEl, idx) => {
+    const cloneEl = cloneInputs[idx];
+
+    if (!cloneEl) return;
+
+    const val = origEl.value || 'off';
+    const span = document.createElement('span');
+
+    span.className = cloneEl.className;
+    span.textContent = val;
+    span.style.display = 'inline-block';
+    span.style.textAlign = 'center';
+    span.style.minWidth = '42px';
+
+    cloneEl.replaceWith(span);
+  });
+}
+
 function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
   const styles = collectInlineStyles();
   const darkClass = isDark ? ' toastui-editor-dark' : '';
@@ -260,6 +311,17 @@ ${styles}
     <div class="${darkClass.trim()}" style="max-width:960px;margin:0 auto;padding:24px 32px">
       <div class="toastui-editor-contents">${bodyHtml}</div>
     </div>
+    <script>
+    document.querySelectorAll('.toastui-editor-code-block-copy').forEach(function(b){
+      b.addEventListener('click',function(){
+        var w=b.closest('.toastui-editor-ww-code-block-highlighting');
+        var c=w&&w.querySelector('code');
+        if(c){navigator.clipboard.writeText(c.textContent).then(function(){
+          b.classList.add('copied');setTimeout(function(){b.classList.remove('copied')},1500);
+        })}
+      });
+    });
+    ${'<'}/script>
   </body>
 </html>
 `;
@@ -356,6 +418,8 @@ export default function exportPlugin(
         const clone = wysiwygRoot.cloneNode(true) as HTMLElement;
 
         inlineCanvases(wysiwygRoot, clone);
+        inlineTokenStyles(wysiwygRoot, clone);
+        fixLineNumberInputs(wysiwygRoot, clone);
         await inlineImagesIn(clone);
 
         htmlBody = clone.innerHTML;

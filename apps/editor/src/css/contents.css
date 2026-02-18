@@ -178,6 +178,7 @@ table.ProseMirror-selectednode {
   margin: 2px 0 8px;
   padding: 18px;
   background-color: #f4f7f8;
+  text-shadow: none;
 }
 
 .toastui-editor-contents code {
@@ -437,25 +438,116 @@ table.ProseMirror-selectednode {
 
 .toastui-editor-ww-code-block-language {
   position: fixed;
-  display: inline-block;
-  width: 100px;
-  height: 27px;
-  right: 35px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
   border: 1px solid #ccc;
   border-radius: 2px;
   background-color: #fff;
   z-index: 30;
+  white-space: nowrap;
 }
 
-.toastui-editor-ww-code-block-language input {
+.toastui-editor-ww-code-block-label {
+  font-size: 12px;
+  color: #555;
+  user-select: none;
+}
+
+.toastui-editor-ww-code-block-lang-input {
   box-sizing: border-box;
   margin: 0;
-  padding: 0 10px;
-  height: 100%;
-  width: 100%;
+  padding: 2px 6px;
+  height: 24px;
+  width: 90px;
   background-color: transparent;
-  border: none;
+  border: 1px solid #ddd;
+  border-radius: 2px;
   outline: none;
+  font-size: 13px;
+}
+
+.toastui-editor-ww-code-block-line-input {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 2px 6px;
+  height: 24px;
+  width: 50px;
+  background-color: transparent;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  outline: none;
+  font-size: 13px;
+}
+
+.toastui-editor-ww-code-block-lang-input:focus,
+.toastui-editor-ww-code-block-line-input:focus {
+  border-color: #4b96e6;
+}
+
+.toastui-editor-ww-code-block.has-line-numbers {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.toastui-editor-ww-code-block.has-line-numbers pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.toastui-editor-ww-code-block-gutter {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 16px 10px 16px 10px;
+  text-align: right;
+  white-space: pre;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 13px;
+  line-height: 160%;
+  color: #999;
+  background: #f4f5f6;
+  border-right: 1px solid #dadde0;
+  border-radius: 4px 0 0 4px;
+  user-select: none;
+  cursor: default;
+}
+
+.toastui-editor-contents pre.line-numbers {
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.toastui-editor-contents pre.line-numbers::before {
+  content: attr(data-line-numbers);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 18px 10px 18px 10px;
+  text-align: right;
+  white-space: pre;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 13px;
+  line-height: 160%;
+  color: #999;
+  background: #f4f5f6;
+  border-right: 1px solid #dadde0;
+  user-select: none;
+}
+
+.toastui-editor-contents pre.line-numbers code {
+  flex: 1;
+  min-width: 0;
+  padding: 18px;
+  overflow-x: auto;
+  line-height: 160%;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 13px;
+  white-space: pre;
 }
 
 .toastui-editor-contents-placeholder::before {

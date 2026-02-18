@@ -116,8 +116,8 @@ export default function umlPlugin(context: PluginContext, options: PluginOptions
     };
   }
 
-  context.eventEmitter.listen('changeTheme', () => {
-    const dark = isDarkTheme();
+  context.eventEmitter.listen('changeTheme', (theme: string) => {
+    const dark = theme === 'dark';
     const { previewRoot, wysiwygRoot } = getEditorRoots();
 
     updateUmlImagesIn(previewRoot, rendererURL, dark);

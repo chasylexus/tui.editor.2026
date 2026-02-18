@@ -156,8 +156,12 @@ function makeMermaidScheduler(
 ) {
   let scheduled = false;
   let lastEffectiveTheme: 'default' | 'dark' | null = null;
+  let pendingThemeOverride: 'default' | 'dark' | null = null;
 
-  const schedule = () => {
+  const schedule = (overrideTheme?: 'default' | 'dark') => {
+    if (overrideTheme) {
+      pendingThemeOverride = overrideTheme;
+    }
     if (scheduled || exportInProgress) return;
     scheduled = true;
 
@@ -167,11 +171,20 @@ function makeMermaidScheduler(
       if (exportInProgress) return;
 
       const { previewRoot, wysiwygRoot } = getRoots();
-      const themeRoot =
-        previewRoot?.closest('.toastui-editor-defaultUI') ||
-        wysiwygRoot?.closest('.toastui-editor-defaultUI');
-      const isDark = themeRoot?.classList.contains('toastui-editor-dark') || false;
-      const theme = isDark ? 'dark' : 'default';
+      let theme: 'default' | 'dark';
+
+      if (pendingThemeOverride) {
+        theme = pendingThemeOverride;
+        pendingThemeOverride = null;
+      } else {
+        const themeRoot =
+          previewRoot?.closest('.toastui-editor-defaultUI') ||
+          wysiwygRoot?.closest('.toastui-editor-defaultUI');
+        const isDark = themeRoot?.classList.contains('toastui-editor-dark') || false;
+
+        theme = isDark ? 'dark' : 'default';
+      }
+
       const didReinitialize = ensureInitialized(theme);
       const forceRerender = theme !== lastEffectiveTheme || didReinitialize;
 
@@ -229,6 +242,9 @@ export default function mermaidPlugin(
   context.eventEmitter.listen('changeMode', () => scheduler.schedule());
   context.eventEmitter.listen('load', () => scheduler.schedule());
   context.eventEmitter.listen('loadUI', () => scheduler.schedule());
+  context.eventEmitter.listen('changeTheme', (theme: string) => {
+    scheduler.schedule(theme === 'dark' ? 'dark' : 'default');
+  });
 
   // Render mermaid with light theme for HTML export (bypasses async scheduler).
   // The export plugin sets opts.promises to collect async work it must await.

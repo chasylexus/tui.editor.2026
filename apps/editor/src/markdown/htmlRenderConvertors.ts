@@ -87,15 +87,43 @@ const baseConvertors: HTMLConvertorMap = {
     const infoWords = info ? info.split(/\s+/) : [];
     const preClasses = [];
     const codeAttrs: TokenAttrs = {};
+    const preAttrs: TokenAttrs = {};
+    let lineNumber: number | null = null;
 
     if (fenceLength > 3) {
       codeAttrs['data-backticks'] = fenceLength;
     }
     if (infoWords.length > 0 && infoWords[0].length > 0) {
-      const [lang] = infoWords;
+      const [raw] = infoWords;
+      const lineNumMatch = raw.match(/^(.+?)=(\d*)$/);
+      let lang = raw;
+
+      if (lineNumMatch) {
+        lang = lineNumMatch[1];
+        lineNumber = lineNumMatch[2] ? Number(lineNumMatch[2]) : 1;
+      }
 
       preClasses.push(`lang-${lang}`);
       codeAttrs['data-language'] = lang;
+    }
+
+    if (lineNumber !== null) {
+      preClasses.push('line-numbers');
+      const lineCount = (node.literal || '').replace(/\n$/, '').split('\n').length;
+      const nums: string[] = [];
+
+      for (let i = 0; i < lineCount; i += 1) {
+        nums.push(String(lineNumber + i));
+      }
+      preAttrs['data-line-numbers'] = nums.join('\n');
+
+      return [
+        { type: 'openTag', tagName: 'pre', classNames: preClasses, attributes: preAttrs },
+        { type: 'openTag', tagName: 'code', attributes: codeAttrs },
+        { type: 'text', content: node.literal! },
+        { type: 'closeTag', tagName: 'code' },
+        { type: 'closeTag', tagName: 'pre' },
+      ];
     }
 
     return [

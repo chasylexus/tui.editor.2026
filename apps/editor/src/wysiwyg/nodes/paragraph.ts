@@ -253,6 +253,7 @@ export class Paragraph extends NodeSchema {
         trFromCommand.setNodeMarkup(codeBlockPos, null, {
           ...cbNode.attrs,
           language: 'python',
+          lineNumber: 1,
         });
 
         dispatch(trFromCommand.scrollIntoView());

@@ -19,6 +19,7 @@ export class CodeBlock extends NodeSchema {
       group: 'block',
       attrs: {
         language: { default: null },
+        lineNumber: { default: null },
         rawHTML: { default: null },
         ...getDefaultCustomAttrs(),
       },
@@ -33,18 +34,27 @@ export class CodeBlock extends NodeSchema {
             const rawHTML = (dom as HTMLElement).getAttribute('data-raw-html');
             const child = (dom as HTMLElement).firstElementChild;
 
+            const lineNumAttr = child?.getAttribute('data-line-number');
+
             return {
               language: child?.getAttribute('data-language') || null,
+              lineNumber: lineNumAttr ? Number(lineNumAttr) : null,
               ...(rawHTML && { rawHTML }),
             };
           },
         },
       ],
       toDOM({ attrs }: ProsemirrorNode): DOMOutputSpec {
-        return [
-          attrs.rawHTML || 'pre',
-          ['code', { 'data-language': attrs.language, ...getCustomAttrs(attrs) }, 0],
-        ];
+        const codeAttrs: Record<string, any> = {
+          'data-language': attrs.language,
+          ...getCustomAttrs(attrs),
+        };
+
+        if (attrs.lineNumber !== null) {
+          codeAttrs['data-line-number'] = String(attrs.lineNumber);
+        }
+
+        return [attrs.rawHTML || 'pre', ['code', codeAttrs, 0]];
       },
     };
   }
