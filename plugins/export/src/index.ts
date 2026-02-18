@@ -289,60 +289,6 @@ async function waitForWysiwygRender() {
   await nextTick();
 }
 
-function hasDarkMermaidFill(rootEl: HTMLElement) {
-  const svg = rootEl.querySelector('.mermaid svg');
-
-  if (!svg) return false;
-
-  const rect = svg.querySelector('rect');
-
-  if (!rect) return false;
-
-  const attrFill = (rect.getAttribute('fill') || '').toLowerCase();
-  const styleFill = window.getComputedStyle(rect).fill.toLowerCase();
-
-  return (
-    attrFill === '#000' ||
-    attrFill === '#000000' ||
-    attrFill === 'black' ||
-    styleFill === 'rgb(0, 0, 0)' ||
-    styleFill === 'black'
-  );
-}
-
-function waitForMermaidLightRender(rootEl: HTMLElement | null, timeoutMs = 2000) {
-  if (!rootEl) return false;
-
-  const hasMermaid = Boolean(rootEl.querySelector('.mermaid'));
-
-  if (!hasMermaid) return true;
-
-  const start = performance.now();
-
-  return new Promise<boolean>((resolve) => {
-    const tick = () => {
-      const hasSvg = Boolean(rootEl.querySelector('.mermaid svg'));
-      const isDark = hasSvg && hasDarkMermaidFill(rootEl);
-
-      if (hasSvg && !isDark) {
-        resolve(true);
-        return;
-      }
-
-      if (performance.now() - start > timeoutMs) {
-        // eslint-disable-next-line no-console
-        console.warn('Mermaid export light render timed out');
-        resolve(false);
-        return;
-      }
-
-      requestAnimationFrame(tick);
-    };
-
-    requestAnimationFrame(tick);
-  });
-}
-
 /**
  * Export plugin
  * @param {Object} context - plugin context for communicating with editor
@@ -383,12 +329,23 @@ export default function exportPlugin(
         instance.setTheme('light');
       }
 
-      instance.eventEmitter?.emit?.('change');
       await waitForWysiwygRender();
 
-      const wysiwygRoot = getWysiwygRoot(instance);
+      // Let plugins re-render for export (e.g. mermaid with light theme).
+      // Each plugin pushes its async work into opts.promises.
+      const exportOpts: Record<string, unknown> = { promises: [] };
 
-      await waitForMermaidLightRender(wysiwygRoot);
+      instance.eventEmitter?.emit?.('beforeExportHtml', exportOpts);
+
+      const promises = exportOpts.promises as Promise<unknown>[];
+
+      if (promises.length) {
+        await Promise.all(promises);
+      }
+
+      await nextFrame();
+
+      const wysiwygRoot = getWysiwygRoot(instance);
 
       if (wysiwygRoot && wysiwygRoot.innerHTML.trim()) {
         const clone = wysiwygRoot.cloneNode(true) as HTMLElement;
@@ -402,6 +359,8 @@ export default function exportPlugin(
       if (instance.setTheme) {
         instance.setTheme(prevTheme);
       }
+
+      instance.eventEmitter?.emit?.('afterExportHtml');
 
       if (wasMarkdownMode) {
         instance.changeMode?.('markdown', true);

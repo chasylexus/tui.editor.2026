@@ -14,6 +14,7 @@ const DEFAULT_CLASS_NAME = 'toastui-mermaid';
 let initialized = false;
 let lastTheme: 'default' | 'dark' | null = null;
 let styleInjected = false;
+let exportInProgress = false;
 
 function escapeHtml(s: string) {
   return String(s)
@@ -157,11 +158,13 @@ function makeMermaidScheduler(
   let lastEffectiveTheme: 'default' | 'dark' | null = null;
 
   const schedule = () => {
-    if (scheduled) return;
+    if (scheduled || exportInProgress) return;
     scheduled = true;
 
     requestAnimationFrame(async () => {
       scheduled = false;
+
+      if (exportInProgress) return;
 
       const { previewRoot, wysiwygRoot } = getRoots();
       const themeRoot =
@@ -226,6 +229,30 @@ export default function mermaidPlugin(
   context.eventEmitter.listen('changeMode', () => scheduler.schedule());
   context.eventEmitter.listen('load', () => scheduler.schedule());
   context.eventEmitter.listen('loadUI', () => scheduler.schedule());
+
+  // Render mermaid with light theme for HTML export (bypasses async scheduler).
+  // The export plugin sets opts.promises to collect async work it must await.
+  context.eventEmitter.listen('beforeExportHtml', (opts: any) => {
+    exportInProgress = true;
+    ensureInitialized('default');
+
+    const { previewRoot, wysiwygRoot } = getRoots();
+    const promises: Promise<void>[] = [];
+
+    if (previewRoot) promises.push(renderMermaidIn(previewRoot, true));
+    if (wysiwygRoot) promises.push(renderMermaidIn(wysiwygRoot, true));
+
+    if (promises.length) {
+      opts.promises = opts.promises || [];
+      opts.promises.push(Promise.all(promises));
+    }
+  });
+
+  context.eventEmitter.listen('afterExportHtml', () => {
+    exportInProgress = false;
+    lastTheme = null;
+    scheduler.schedule();
+  });
 
   scheduler.schedule();
 

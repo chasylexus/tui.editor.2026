@@ -40,6 +40,8 @@ const eventTypeList: EventTypes[] = [
   'keydown',
   'keyup',
   'wwUserEdit',
+  'beforeExportHtml',
+  'afterExportHtml',
 ];
 
 /**
