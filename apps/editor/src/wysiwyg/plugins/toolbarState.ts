@@ -1,4 +1,4 @@
-import { Node, ResolvedPos, Schema } from 'prosemirror-model';
+import { Mark, Node, Schema } from 'prosemirror-model';
 import { Plugin, Selection } from 'prosemirror-state';
 
 import { includes } from '@/utils/common';
@@ -46,15 +46,10 @@ function setListNodeToolbarState(type: ToolbarStateKeys, nodeTypeState: ToolbarS
 }
 
 function setMarkTypeStates(
-  selection: Selection,
-  from: ResolvedPos,
-  to: ResolvedPos,
+  activeMarks: readonly Mark[],
   schema: Schema,
   toolbarState: ToolbarStateMap
 ) {
-  const storedMarks = selection.empty ? selection.$from.marks() : null;
-  const activeMarks = storedMarks || from.marksAcross(to) || [];
-
   MARK_TYPES.forEach((type) => {
     const mark = schema.marks[type];
     const foundMark = !!mark.isInSet(activeMarks);
@@ -65,12 +60,28 @@ function setMarkTypeStates(
   });
 }
 
-function getToolbarState(selection: Selection, doc: Node, schema: Schema) {
+function getToolbarState(
+  selection: Selection,
+  doc: Node,
+  schema: Schema,
+  storedMarks: readonly Mark[] | null
+) {
   const { $from, $to, from, to } = selection;
   const toolbarState = {
     indent: { active: false, disabled: true },
     outdent: { active: false, disabled: true },
   } as ToolbarStateMap;
+
+  // state.storedMarks is explicitly set by the code mark boundary handler
+  // and is the source of truth for whether the cursor is inside or outside
+  // a non-inclusive mark.  When null, fall back to position-based marks.
+  let activeMarks: readonly Mark[];
+
+  if (selection.empty) {
+    activeMarks = storedMarks ?? $from.marks();
+  } else {
+    activeMarks = $from.marksAcross($to) || [];
+  }
 
   doc.nodesBetween(from, to, (node, _, parentNode) => {
     const type = getToolbarStateType(node, parentNode!);
@@ -85,7 +96,7 @@ function getToolbarState(selection: Selection, doc: Node, schema: Schema) {
       toolbarState.indent.disabled = false;
       toolbarState.outdent.disabled = false;
     } else if (type === 'paragraph' || type === 'text') {
-      setMarkTypeStates(selection, $from, $to, schema, toolbarState);
+      setMarkTypeStates(activeMarks, schema, toolbarState);
     } else {
       toolbarState[type as ToolbarStateKeys] = { active: true };
     }
@@ -98,10 +109,10 @@ export function toolbarStateHighlight(eventEmitter: Emitter) {
     view() {
       return {
         update(view) {
-          const { selection, doc, schema } = view.state;
+          const { selection, doc, schema, storedMarks } = view.state;
 
           eventEmitter.emit('changeToolbarState', {
-            toolbarState: getToolbarState(selection, doc, schema),
+            toolbarState: getToolbarState(selection, doc, schema, storedMarks),
           });
         },
       };
