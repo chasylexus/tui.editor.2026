@@ -52,6 +52,7 @@ interface PluginNodeViews {
 }
 
 const CONTENTS_CLASS_NAME = cls('contents');
+const BACKTICK = '`';
 
 export default class WysiwygEditor extends EditorBase {
   private toDOMAdaptor: ToDOMAdaptor;
@@ -97,6 +98,46 @@ export default class WysiwygEditor extends EditorBase {
       schema: this.schema,
       eventEmitter: this.eventEmitter,
     };
+  }
+
+  private convertBacktickPairToInlineCode(
+    view: EditorView,
+    from: number,
+    to: number,
+    text: string
+  ) {
+    const { state } = view;
+    const { doc, schema } = state;
+    const { paragraph } = schema.nodes;
+    const { code } = schema.marks;
+
+    if (
+      !code ||
+      !text ||
+      text.includes(BACKTICK) ||
+      from !== to ||
+      from === 0 ||
+      doc.resolve(from).parent.type !== paragraph
+    ) {
+      return false;
+    }
+
+    const leftBacktick = doc.textBetween(from - 1, from, '', '');
+    const rightBacktick = doc.textBetween(to, to + 1, '', '');
+
+    if (leftBacktick !== BACKTICK || rightBacktick !== BACKTICK) {
+      return false;
+    }
+
+    const codeMark = code.create();
+    const nextTr = state.tr.replaceWith(from - 1, to + 1, schema.text(text, [codeMark]));
+
+    nextTr
+      .setSelection(createTextSelection(nextTr, from - 1 + text.length))
+      .setStoredMarks([codeMark]);
+    view.dispatch(nextTr.scrollIntoView());
+
+    return true;
   }
 
   createSchema(htmlSchemaMap?: HTMLSchemaMap) {
@@ -241,6 +282,8 @@ export default class WysiwygEditor extends EditorBase {
       transformPasted: (slice: Slice) =>
         changePastedSlice(slice, this.schema, isInTableNode(this.view.state.selection.$from)),
       handlePaste: (view: EditorView, _: ClipboardEvent, slice: Slice) => pasteToTable(view, slice),
+      handleTextInput: (view, from, to, text) =>
+        this.convertBacktickPairToInlineCode(view, from, to, text),
       handleKeyDown: (_, ev) => {
         this.eventEmitter.emit('keydown', this.editorType, ev);
         return false;
@@ -362,11 +405,12 @@ export default class WysiwygEditor extends EditorBase {
     }
   }
 
-  setSelection(start: number, end = start) {
+  setSelection(start: number, end = start, scrollIntoView = true) {
     const { tr } = this.view.state;
     const selection = createTextSelection(tr, start, end);
+    const nextTr = tr.setSelection(selection);
 
-    this.view.dispatch(tr.setSelection(selection).scrollIntoView());
+    this.view.dispatch(scrollIntoView ? nextTr.scrollIntoView() : nextTr);
   }
 
   addWidget(node: Node, style: WidgetStyle, pos?: number) {
