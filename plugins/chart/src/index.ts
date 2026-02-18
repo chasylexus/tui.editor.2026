@@ -68,6 +68,32 @@ const chart = {
 };
 const chartMap: Record<string, ChartInstance> = {};
 
+const DARK_CHART_THEME = {
+  chart: { backgroundColor: '#1a1a1a' },
+  title: { color: '#e0e0e0' },
+  xAxis: {
+    title: { color: '#9ca3af' },
+    label: { color: '#9ca3af' },
+    color: '#4b5563',
+  },
+  yAxis: {
+    title: { color: '#9ca3af' },
+    label: { color: '#9ca3af' },
+    color: '#4b5563',
+  },
+  legend: { label: { color: '#d1d5db' } },
+  plot: {
+    lineColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#1a1a1a',
+  },
+  tooltip: {
+    background: '#2a2a2a',
+    borderColor: '#4b5563',
+    header: { color: '#e0e0e0' },
+    body: { color: '#d1d5db' },
+  },
+};
+
 type ChartType = keyof typeof chart;
 export type ChartOptions = BaseOptions & { editorChart: { type?: ChartType; url?: string } };
 type ChartInstance = BarChart | ColumnChart | AreaChart | LineChart | PieChart;
@@ -273,6 +299,12 @@ export function setDefaultOptions(
   return chartOptions;
 }
 
+function isDarkMode(el: HTMLElement): boolean {
+  const root = el.closest('.toastui-editor-defaultUI');
+
+  return !!root?.classList.contains('toastui-editor-dark');
+}
+
 function destroyChart() {
   Object.keys(chartMap).forEach((id) => {
     const container = document.querySelector<HTMLElement>(`[data-chart-id=${id}]`);
@@ -283,6 +315,46 @@ function destroyChart() {
       delete chartMap[id];
     }
   });
+}
+
+function doRenderChart(
+  id: string,
+  text: string,
+  usageStatistics: boolean,
+  pluginOptions: PluginOptions,
+  chartContainer: HTMLElement
+) {
+  chartContainer.setAttribute('data-chart-text', encodeURIComponent(text));
+
+  try {
+    parse(text, (parsedInfo) => {
+      const { data, options } = parsedInfo || {};
+      const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer);
+      const chartType = chartOptions.editorChart.type!;
+
+      if (isDarkMode(chartContainer)) {
+        (chartOptions as any).theme = DARK_CHART_THEME;
+      }
+
+      if (
+        !data ||
+        (CATEGORY_CHART_TYPES.indexOf(chartType) > -1 &&
+          data.categories.length !== data.series[0].data.length)
+      ) {
+        chartContainer.innerHTML = 'invalid chart data';
+      } else if (SUPPORTED_CHART_TYPES.indexOf(chartType) < 0) {
+        chartContainer.innerHTML = `invalid chart type. type: bar, column, line, area, pie`;
+      } else {
+        const toastuiChart = chart[chartType];
+
+        chartOptions.usageStatistics = usageStatistics;
+        // @ts-ignore
+        chartMap[id] = toastuiChart({ el: chartContainer, data, options: chartOptions });
+      }
+    });
+  } catch (e) {
+    chartContainer.innerHTML = 'invalid chart data';
+  }
 }
 
 function renderChart(
@@ -297,32 +369,27 @@ function renderChart(
   destroyChart();
 
   if (chartContainer) {
-    try {
-      parse(text, (parsedInfo) => {
-        const { data, options } = parsedInfo || {};
-        const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer);
-        const chartType = chartOptions.editorChart.type!;
-
-        if (
-          !data ||
-          (CATEGORY_CHART_TYPES.indexOf(chartType) > -1 &&
-            data.categories.length !== data.series[0].data.length)
-        ) {
-          chartContainer.innerHTML = 'invalid chart data';
-        } else if (SUPPORTED_CHART_TYPES.indexOf(chartType) < 0) {
-          chartContainer.innerHTML = `invalid chart type. type: bar, column, line, area, pie`;
-        } else {
-          const toastuiChart = chart[chartType];
-
-          chartOptions.usageStatistics = usageStatistics;
-          // @ts-ignore
-          chartMap[id] = toastuiChart({ el: chartContainer, data, options: chartOptions });
-        }
-      });
-    } catch (e) {
-      chartContainer.innerHTML = 'invalid chart data';
-    }
+    doRenderChart(id, text, usageStatistics, pluginOptions, chartContainer);
   }
+}
+
+function reRenderAllCharts(usageStatistics: boolean, pluginOptions: PluginOptions) {
+  const containers = document.querySelectorAll<HTMLElement>('[data-chart-id][data-chart-text]');
+
+  containers.forEach((container) => {
+    const id = container.getAttribute('data-chart-id')!;
+
+    if (chartMap[id]) {
+      chartMap[id].destroy();
+      delete chartMap[id];
+    }
+
+    container.innerHTML = '';
+
+    const text = decodeURIComponent(container.getAttribute('data-chart-text')!);
+
+    doRenderChart(id, text, usageStatistics, pluginOptions, container);
+  });
 }
 
 function generateId() {
@@ -349,10 +416,13 @@ function clearTimer() {
  * @param {number|string} [options.width='auto'] - default width
  * @param {number|string} [options.height='auto'] - default height
  */
-export default function chartPlugin(
-  { usageStatistics = true }: PluginContext,
-  options: PluginOptions
-): PluginInfo {
+export default function chartPlugin(context: PluginContext, options: PluginOptions): PluginInfo {
+  const { usageStatistics = true } = context;
+
+  context.eventEmitter.listen('changeTheme', () => {
+    reRenderAllCharts(usageStatistics, options);
+  });
+
   return {
     toHTMLRenderers: {
       chart(node: MdNode) {
