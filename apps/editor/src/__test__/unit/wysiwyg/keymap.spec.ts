@@ -844,6 +844,70 @@ describe('keymap', () => {
       expect(wwe.getHTML()).toBe('<p>foo-</p>');
     });
 
+    it('should create bullet list from + marker', () => {
+      setContent('<p>+</p>');
+      wwe.setSelection(2, 2);
+
+      const changed = forceKeymapFn('paragraph', 'makeBulletListByMarker');
+
+      expect(changed).toBe(true);
+      expect(wwe.getHTML()).toBe(oneLineTrim`
+        <ul>
+          <li><p><br></p></li>
+        </ul>
+      `);
+    });
+
+    it('should create bullet list from * marker', () => {
+      setContent('<p>*</p>');
+      wwe.setSelection(2, 2);
+
+      const changed = forceKeymapFn('paragraph', 'makeBulletListByMarker');
+
+      expect(changed).toBe(true);
+      expect(wwe.getHTML()).toBe(oneLineTrim`
+        <ul>
+          <li><p><br></p></li>
+        </ul>
+      `);
+    });
+
+    it('should preserve - as bulletChar attribute', () => {
+      setContent('<p>-</p>');
+      wwe.setSelection(2, 2);
+
+      forceKeymapFn('paragraph', 'makeBulletListByMarker');
+
+      const bulletList = wwe.view.state.doc.firstChild;
+
+      expect(bulletList!.type.name).toBe('bulletList');
+      expect(bulletList!.attrs.bulletChar).toBe('-');
+    });
+
+    it('should preserve + as bulletChar attribute', () => {
+      setContent('<p>+</p>');
+      wwe.setSelection(2, 2);
+
+      forceKeymapFn('paragraph', 'makeBulletListByMarker');
+
+      const bulletList = wwe.view.state.doc.firstChild;
+
+      expect(bulletList!.type.name).toBe('bulletList');
+      expect(bulletList!.attrs.bulletChar).toBe('+');
+    });
+
+    it('should preserve * as bulletChar attribute', () => {
+      setContent('<p>*</p>');
+      wwe.setSelection(2, 2);
+
+      forceKeymapFn('paragraph', 'makeBulletListByMarker');
+
+      const bulletList = wwe.view.state.doc.firstChild;
+
+      expect(bulletList!.type.name).toBe('bulletList');
+      expect(bulletList!.attrs.bulletChar).toBe('*');
+    });
+
     it('should insert paired backticks and place cursor between them', () => {
       setContent('<p><br></p>');
       wwe.setSelection(1, 1);

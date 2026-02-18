@@ -244,6 +244,21 @@ export default class WysiwygEditor extends EditorBase {
               }
             }
 
+            // Also scan prevDoc in the affected range to catch mdBlockIds
+            // of blocks that were deleted by this edit. Without this, the
+            // incremental patch leaves deleted blocks' content in canonicalMd.
+            const prevEnd = diffEnd ? diffEnd.a : prevDoc.content.size;
+            const prevRange = getBlockRange(prevDoc, diffStart, Math.max(diffStart, prevEnd));
+
+            for (let i = prevRange.startIndex; i <= prevRange.endIndex; i += 1) {
+              const node = prevDoc.child(i);
+              const mdBlockId = node.attrs && node.attrs.mdBlockId;
+
+              if (typeof mdBlockId === 'number' && !mdBlockIds.includes(mdBlockId)) {
+                mdBlockIds.push(mdBlockId);
+              }
+            }
+
             if (typeof window !== 'undefined' && (window as any).__TOASTUI_SNAPSHOT_DEBUG__) {
               const wwBlockCounts = mdBlockIds.map((id) => {
                 let c = 0;

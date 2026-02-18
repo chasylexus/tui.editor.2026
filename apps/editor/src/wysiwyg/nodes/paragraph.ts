@@ -7,7 +7,7 @@ import { createTextSelection } from '@/helper/manipulation';
 import { changeList } from '@/wysiwyg/command/list';
 import { getDefaultCustomAttrs, getCustomAttrs } from '@/wysiwyg/helper/node';
 
-const BULLET_LIST_MARKER = '-';
+const BULLET_LIST_MARKERS = new Set(['-', '+', '*']);
 const BACKTICK = '`';
 const EMPTY_INLINE_CODE_MARKER = '``';
 
@@ -39,17 +39,13 @@ export class Paragraph extends NodeSchema {
       const { paragraph, bulletList } = schema.nodes;
       const bulletListCommand = changeList(bulletList);
 
-      if (
-        !empty ||
-        $from.parent.type !== paragraph ||
-        $from.parentOffset !== BULLET_LIST_MARKER.length
-      ) {
+      if (!empty || $from.parent.type !== paragraph || $from.parentOffset !== 1) {
         return false;
       }
 
-      const text = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+      const marker = $from.parent.textBetween(0, $from.parent.content.size, '', '');
 
-      if (text !== BULLET_LIST_MARKER || !dispatch) {
+      if (!BULLET_LIST_MARKERS.has(marker) || !dispatch) {
         return false;
       }
 
@@ -80,14 +76,25 @@ export class Paragraph extends NodeSchema {
 
       if (
         trFromCommand.selection.$from.parent.type === paragraph &&
-        trFromCommand.selection.$from.parentOffset === BULLET_LIST_MARKER.length &&
-        currentText === BULLET_LIST_MARKER
+        trFromCommand.selection.$from.parentOffset === 1 &&
+        BULLET_LIST_MARKERS.has(currentText)
       ) {
-        const markerStart = from - BULLET_LIST_MARKER.length;
-
         trFromCommand
-          .delete(markerStart, from)
-          .setSelection(createTextSelection(trFromCommand, markerStart));
+          .delete(from - 1, from)
+          .setSelection(createTextSelection(trFromCommand, from - 1));
+      }
+
+      // Preserve the typed marker character as the bulletChar attribute
+      const $pos = trFromCommand.selection.$from;
+
+      for (let d = $pos.depth; d > 0; d -= 1) {
+        if ($pos.node(d).type === bulletList) {
+          trFromCommand.setNodeMarkup($pos.before(d), null, {
+            ...$pos.node(d).attrs,
+            bulletChar: marker,
+          });
+          break;
+        }
       }
 
       dispatch(trFromCommand.scrollIntoView());
