@@ -234,7 +234,9 @@ export default function mermaidPlugin(
   // The export plugin sets opts.promises to collect async work it must await.
   context.eventEmitter.listen('beforeExportHtml', (opts: any) => {
     exportInProgress = true;
-    ensureInitialized('default');
+    const theme = opts?.theme === 'dark' ? 'dark' : 'default';
+
+    ensureInitialized(theme);
 
     const { previewRoot, wysiwygRoot } = getRoots();
     const promises: Promise<void>[] = [];

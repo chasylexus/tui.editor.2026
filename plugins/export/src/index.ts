@@ -241,8 +241,10 @@ function collectInlineStyles() {
   return cssText;
 }
 
-function buildStandaloneHtml(bodyHtml: string) {
+function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
   const styles = collectInlineStyles();
+  const darkClass = isDark ? ' toastui-editor-dark' : '';
+  const bgStyle = isDark ? 'background:#121212;' : '';
 
   return `<!doctype html>
 <html>
@@ -254,8 +256,10 @@ function buildStandaloneHtml(bodyHtml: string) {
 ${styles}
     </style>
   </head>
-  <body>
-    <div class="toastui-editor-contents">${bodyHtml}</div>
+  <body style="margin:0;${bgStyle}">
+    <div class="${darkClass.trim()}" style="max-width:960px;margin:0 auto;padding:24px 32px">
+      <div class="toastui-editor-contents">${bodyHtml}</div>
+    </div>
   </body>
 </html>
 `;
@@ -317,7 +321,8 @@ export default function exportPlugin(
 
   const downloadHtml = async () => {
     const wasMarkdownMode = instance.isMarkdownMode?.() ?? false;
-    const prevTheme = instance.getTheme?.() ?? 'light';
+    const currentTheme = instance.getTheme?.() ?? 'light';
+    const isDark = currentTheme === 'dark';
     let htmlBody = '';
 
     try {
@@ -325,15 +330,15 @@ export default function exportPlugin(
         instance.changeMode?.('wysiwyg', true);
       }
 
-      if (instance.setTheme) {
-        instance.setTheme('light');
-      }
-
       await waitForWysiwygRender();
 
-      // Let plugins re-render for export (e.g. mermaid with light theme).
-      // Each plugin pushes its async work into opts.promises.
-      const exportOpts: Record<string, unknown> = { promises: [] };
+      // Let plugins prepare for export. Each plugin can push async work
+      // into opts.promises. The theme field tells plugins which theme the
+      // exported HTML will use so they can render accordingly.
+      const exportOpts: Record<string, unknown> = {
+        promises: [],
+        theme: isDark ? 'dark' : 'default',
+      };
 
       instance.eventEmitter?.emit?.('beforeExportHtml', exportOpts);
 
@@ -356,10 +361,6 @@ export default function exportPlugin(
         htmlBody = clone.innerHTML;
       }
     } finally {
-      if (instance.setTheme) {
-        instance.setTheme(prevTheme);
-      }
-
       instance.eventEmitter?.emit?.('afterExportHtml');
 
       if (wasMarkdownMode) {
@@ -369,7 +370,7 @@ export default function exportPlugin(
 
     if (!htmlBody) return;
 
-    const html = buildStandaloneHtml(htmlBody);
+    const html = buildStandaloneHtml(htmlBody, isDark);
 
     downloadText(htmlFileName, html, 'text/html');
   };
