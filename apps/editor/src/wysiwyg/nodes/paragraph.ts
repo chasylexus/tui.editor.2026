@@ -10,6 +10,7 @@ import { getDefaultCustomAttrs, getCustomAttrs } from '@/wysiwyg/helper/node';
 const BULLET_LIST_MARKERS = new Set(['-', '+', '*']);
 const BACKTICK = '`';
 const EMPTY_INLINE_CODE_MARKER = '``';
+const ORDERED_LIST_RE = /^(\d+)\.$/;
 
 export class Paragraph extends NodeSchema {
   get name() {
@@ -92,6 +93,76 @@ export class Paragraph extends NodeSchema {
           trFromCommand.setNodeMarkup($pos.before(d), null, {
             ...$pos.node(d).attrs,
             bulletChar: marker,
+          });
+          break;
+        }
+      }
+
+      dispatch(trFromCommand.scrollIntoView());
+
+      return true;
+    };
+  }
+
+  private makeOrderedListByNumber(): Command {
+    return (state, dispatch) => {
+      const {
+        selection: { $from, empty },
+        schema,
+      } = state;
+      const { paragraph, orderedList } = schema.nodes;
+      const orderedListCommand = changeList(orderedList);
+
+      if (!empty || $from.parent.type !== paragraph) {
+        return false;
+      }
+
+      const text = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+      const match = text.match(ORDERED_LIST_RE);
+
+      if (!match || !dispatch) {
+        return false;
+      }
+
+      const runOrderedListCommand = (): { commandResult: boolean; tr: Transaction | null } => {
+        let tr: Transaction | null = null;
+        const commandResult = orderedListCommand(state, (nextTr) => {
+          tr = nextTr;
+        });
+
+        return { commandResult, tr };
+      };
+      const { commandResult, tr } = runOrderedListCommand();
+
+      if (!commandResult || !tr) {
+        return false;
+      }
+      const trFromCommand = tr;
+
+      const {
+        selection: { from },
+      } = trFromCommand;
+      const currentText = trFromCommand.selection.$from.parent.textBetween(
+        0,
+        trFromCommand.selection.$from.parent.content.size,
+        '',
+        ''
+      );
+      const currentMatch = currentText.match(ORDERED_LIST_RE);
+
+      if (trFromCommand.selection.$from.parent.type === paragraph && currentMatch) {
+        trFromCommand
+          .delete(from - currentText.length, from)
+          .setSelection(createTextSelection(trFromCommand, from - currentText.length));
+      }
+
+      const $pos = trFromCommand.selection.$from;
+
+      for (let d = $pos.depth; d > 0; d -= 1) {
+        if ($pos.node(d).type === orderedList) {
+          trFromCommand.setNodeMarkup($pos.before(d), null, {
+            ...$pos.node(d).attrs,
+            order: 1,
           });
           break;
         }
@@ -193,8 +264,14 @@ export class Paragraph extends NodeSchema {
   }
 
   keymaps() {
+    const bulletListCommand = this.makeBulletListByMarker();
+    const orderedListCommand = this.makeOrderedListByNumber();
+
+    const handleSpace: Command = (state, dispatch, view) =>
+      orderedListCommand(state, dispatch, view) || bulletListCommand(state, dispatch, view);
+
     return {
-      Space: this.makeBulletListByMarker(),
+      Space: handleSpace,
       '`': this.makeCodeByBacktick(),
     };
   }
