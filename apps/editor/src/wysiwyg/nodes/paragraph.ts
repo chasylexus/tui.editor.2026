@@ -247,6 +247,14 @@ export class Paragraph extends NodeSchema {
             .setSelection(createTextSelection(trFromCommand, markerStart));
         }
 
+        const cbNode = trFromCommand.selection.$from.parent;
+        const codeBlockPos = trFromCommand.selection.$from.before();
+
+        trFromCommand.setNodeMarkup(codeBlockPos, null, {
+          ...cbNode.attrs,
+          language: 'python',
+        });
+
         dispatch(trFromCommand.scrollIntoView());
 
         return true;
