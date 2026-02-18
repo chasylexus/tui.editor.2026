@@ -80,9 +80,7 @@ export const nodeTypeWriters: ToMdNodeTypeWriterMap = {
       const nextParaNode = nextNode && nextNode.type.name === 'paragraph';
       const emptyNode = node.childCount === 0;
 
-      if (emptyNode && prevEmptyNode) {
-        state.write('<br>\n');
-      } else if (emptyNode && !prevEmptyNode && !firstChildNode) {
+      if (emptyNode && !firstChildNode) {
         if (parent?.type.name === 'listItem') {
           const prevDelim = state.getDelim();
 
@@ -91,8 +89,11 @@ export const nodeTypeWriters: ToMdNodeTypeWriterMap = {
 
           state.setDelim(prevDelim);
           state.write('\n');
-        } else {
+        } else if (prevEmptyNode) {
           state.write('<br>\n');
+        } else {
+          // Prefer markdown blank lines for a single WYSIWYG-entered empty paragraph.
+          state.write('\n');
         }
       } else {
         state.convertInline(node);

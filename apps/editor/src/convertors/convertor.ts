@@ -55,12 +55,14 @@ export default class Convertor {
   }
 
   toWysiwygModel(mdNode: MdNode) {
+    this.mappedPosWhenConverting = null;
     const state = new ToWwConvertorState(this.schema, this.toWwConvertors);
 
     return state.convertNode(mdNode, this.getInfoForPosSync());
   }
 
   toMarkdownText(wwNode: ProsemirrorNode) {
+    this.mappedPosWhenConverting = null;
     const state = new ToMdConvertorState(this.toMdConvertors);
     let markdownText = state.convertNode(wwNode, this.getInfoForPosSync());
 

@@ -74,9 +74,19 @@ export function getStartPosListPerLine(doc: ProsemirrorNode, endIndex: number) {
 }
 
 export function getMdToEditorPos(doc: ProsemirrorNode, startPos: MdPos, endPos: MdPos) {
-  const startPosListPerLine = getStartPosListPerLine(doc, endPos[0]);
-  const startIndex = startPos[0] - 1;
-  const endIndex = endPos[0] - 1;
+  const clampPosByDoc = (pos: MdPos): MdPos => {
+    const line = Math.min(Math.max(pos[0], 1), Math.max(doc.childCount, 1));
+    const lineNode = doc.child(line - 1);
+    const maxCh = Math.max(lineNode.content.size + 1, 1);
+    const ch = Math.min(Math.max(pos[1], 1), maxCh);
+
+    return [line, ch];
+  };
+  const clampedStartPos = clampPosByDoc(startPos);
+  const clampedEndPos = clampPosByDoc(endPos);
+  const startPosListPerLine = getStartPosListPerLine(doc, clampedEndPos[0]);
+  const startIndex = clampedStartPos[0] - 1;
+  const endIndex = clampedEndPos[0] - 1;
   const startNode = doc.child(startIndex);
   const endNode = doc.child(endIndex);
 
@@ -85,8 +95,8 @@ export function getMdToEditorPos(doc: ProsemirrorNode, startPos: MdPos, endPos: 
   let to = startPosListPerLine[endIndex];
 
   // calculate the position corresponding to the character offset of the line
-  from += startPos[1] + getWidgetNodePos(startNode, startPos[1] - 1);
-  to += endPos[1] + getWidgetNodePos(endNode, endPos[1] - 1);
+  from += clampedStartPos[1] + getWidgetNodePos(startNode, clampedStartPos[1] - 1);
+  to += clampedEndPos[1] + getWidgetNodePos(endNode, clampedEndPos[1] - 1);
 
   return [from, Math.min(to, doc.content.size)];
 }

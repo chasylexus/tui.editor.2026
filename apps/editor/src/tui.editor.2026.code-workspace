@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../toastui-latex"
+		}
+	],
+	"settings": {
+		"chatgpt.openOnStartup": true
+	}
+}

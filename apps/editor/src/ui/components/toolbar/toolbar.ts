@@ -290,7 +290,9 @@ export class Toolbar extends Component<Props, State> {
       const newState = this.classifyToolbarItems() as State;
 
       if (changedStyle || (previewStyle === 'tab' && editorType === 'markdown')) {
-        eventEmitter.emit('changePreviewTabWrite');
+        // Do not force editor focus on mode/style driven tab activation.
+        // User-initiated write-tab clicks still emit without this flag.
+        eventEmitter.emit('changePreviewTabWrite', true);
         newState.activeTab = 'write';
       }
       this.setState(newState);

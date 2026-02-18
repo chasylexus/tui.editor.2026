@@ -932,7 +932,7 @@ class ToastUIEditorCore {
     const blocks = this.getRootBlocks(toastMark);
 
     if (!blocks.length) {
-      return [{ content: md, separator: '' }];
+      return [{ content: md, separator: '', type: 'paragraph' }];
     }
 
     const slices: MdBlockSlice[] = [];
@@ -1563,6 +1563,24 @@ class ToastUIEditorCore {
       return;
     }
 
+    const prevMode = this.mode;
+    let mappedMdSelection: [MdPos, MdPos] | null = null;
+    let mappedWwSelection: [MdPos, MdPos] | null = null;
+
+    if (prevMode === 'wysiwyg' && mode === 'markdown') {
+      const [from, to] = this.wwEditor.getSelection();
+
+      mappedMdSelection = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [
+        MdPos,
+        MdPos
+      ];
+    } else if (prevMode === 'markdown' && mode === 'wysiwyg') {
+      const sourceMd = this.mdEditor.getMarkdown();
+      const [anchor, head] = this.mdEditor.getSelection() as [MdPos, MdPos];
+
+      mappedWwSelection = [this.clampMdPos(sourceMd, anchor), this.clampMdPos(sourceMd, head)];
+    }
+
     this.mode = mode;
 
     if (this.isWysiwygMode()) {
@@ -1588,7 +1606,7 @@ class ToastUIEditorCore {
         this.logSnapshotState('wwDirty-false-path');
       }
       this.runProgrammatic(() => {
-        this.mdEditor.setMarkdown(this.canonicalMd, !withoutFocus, false, true);
+        this.mdEditor.setMarkdown(this.canonicalMd, false, false, true);
       });
       this.logSnapshotState('after-md-set');
 
@@ -1612,12 +1630,29 @@ class ToastUIEditorCore {
     if (!withoutFocus) {
       const pos = this.convertor.getMappedPos();
 
-      this.focus();
+      if (this.isWysiwygMode() && mappedWwSelection) {
+        const [from, to] = getMdToEditorPos(
+          this.wwEditor.view.state.doc,
+          mappedWwSelection[0],
+          mappedWwSelection[1]
+        );
 
-      if (this.isWysiwygMode() && isNumber(pos)) {
-        this.wwEditor.setSelection(pos);
-      } else if (Array.isArray(pos)) {
-        this.mdEditor.setSelection(pos);
+        this.wwEditor.setSelection(from, to, false);
+      } else if (this.isWysiwygMode() && isNumber(pos)) {
+        this.wwEditor.setSelection(pos, pos, false);
+      } else if (!this.isWysiwygMode() && mappedMdSelection) {
+        const anchor = this.clampMdPos(this.canonicalMd, mappedMdSelection[0]);
+        const head = this.clampMdPos(this.canonicalMd, mappedMdSelection[1]);
+
+        this.mdEditor.setSelection(anchor, head, false);
+      } else if (!this.isWysiwygMode() && Array.isArray(pos)) {
+        this.mdEditor.setSelection(pos, pos, false);
+      }
+
+      if (this.isWysiwygMode()) {
+        this.wwEditor.view.focus();
+      } else {
+        this.mdEditor.view.focus();
       }
     }
   }

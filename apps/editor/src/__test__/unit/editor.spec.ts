@@ -10,6 +10,7 @@ import * as commonUtil from '@/utils/common';
 import { createHTMLrenderer } from './markdown/util';
 import { cls } from '@/utils/dom';
 import * as imageHelper from '@/helper/image';
+import { getEditorToMdPos, getMdToEditorPos } from '@/markdown/helper/pos';
 
 const HEADING_CLS = `${cls('md-heading')} ${cls('md-heading1')}`;
 const DELIM_CLS = cls('md-delimiter');
@@ -165,6 +166,85 @@ describe('editor', () => {
       expect(editor.isWysiwygMode()).toBe(true);
     });
 
+    it('should not move cursor to end when changing mode from wysiwyg to markdown', () => {
+      editor.setMarkdown('line1\nline2');
+      editor.changeMode('wysiwyg');
+      editor.setSelection(3, 3);
+
+      const moveCursorToEndSpy = jest.spyOn((editor as any).mdEditor, 'moveCursorToEnd');
+
+      editor.changeMode('markdown');
+
+      expect(moveCursorToEndSpy).not.toHaveBeenCalled();
+    });
+
+    it('should preserve mapped selection when changing mode from wysiwyg to markdown', () => {
+      editor.setMarkdown('line1\nline2');
+      editor.changeMode('wysiwyg');
+      editor.setSelection(2, 8);
+
+      const [from, to] = editor.getSelection() as [number, number];
+      const expected = getEditorToMdPos((editor as any).wwEditor.view.state.doc, from, to);
+
+      editor.changeMode('markdown');
+
+      expect(editor.getSelection()).toEqual(expected);
+    });
+
+    it('should not call mdEditor.focus when changing mode from wysiwyg to markdown', () => {
+      editor.setMarkdown('line1\nline2');
+      editor.changeMode('wysiwyg');
+
+      const focusSpy = jest.spyOn((editor as any).mdEditor, 'focus');
+
+      editor.changeMode('markdown');
+
+      expect(focusSpy).not.toHaveBeenCalled();
+    });
+
+    it('should set markdown selection without scroll when changing mode from wysiwyg', () => {
+      editor.setMarkdown('line1\nline2');
+      editor.changeMode('wysiwyg');
+      editor.setSelection(3, 8);
+
+      const selectionSpy = jest.spyOn((editor as any).mdEditor, 'setSelection');
+
+      editor.changeMode('markdown');
+
+      expect(selectionSpy).toHaveBeenCalledWith(expect.any(Array), expect.any(Array), false);
+    });
+
+    it('should preserve mapped selection when changing mode from markdown to wysiwyg', () => {
+      editor.setMarkdown('line1\nline2');
+
+      const sourceSelection: [[number, number], [number, number]] = [
+        [1, 3],
+        [2, 2],
+      ];
+
+      editor.setSelection(sourceSelection[0], sourceSelection[1]);
+      editor.changeMode('wysiwyg');
+
+      const expected = getMdToEditorPos(
+        (editor as any).wwEditor.view.state.doc,
+        sourceSelection[0],
+        sourceSelection[1]
+      );
+
+      expect(editor.getSelection()).toEqual(expected);
+    });
+
+    it('should set wysiwyg selection without scroll when changing mode from markdown', () => {
+      editor.setMarkdown('line1\nline2');
+      editor.setSelection([1, 3], [2, 2]);
+
+      const selectionSpy = jest.spyOn((editor as any).wwEditor, 'setSelection');
+
+      editor.changeMode('wysiwyg');
+
+      expect(selectionSpy).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), false);
+    });
+
     it('changePreviewStyle()', () => {
       const spy = jest.fn();
 
@@ -246,6 +326,30 @@ describe('editor', () => {
         editor.setHTML(input);
 
         expect(getPreviewHTML()).toBe(expected);
+      });
+
+      it('should convert single empty paragraph to markdown blank line without <br>', () => {
+        const input = source`
+          <p>first line</p>
+          <p><br></p>
+          <p>second line</p>
+        `;
+
+        editor.setHTML(input);
+
+        expect(editor.getMarkdown()).toBe('first line\n\nsecond line');
+      });
+
+      it('should keep an empty inline code pair as plain double backticks in markdown', () => {
+        editor.setHTML('<p>``</p>');
+
+        expect(editor.getMarkdown()).toBe('``');
+      });
+
+      it('should still escape a single backtick in markdown text', () => {
+        editor.setHTML('<p>`</p>');
+
+        expect(editor.getMarkdown()).toBe('\\`');
       });
 
       it('should be parsed with the same content when calling setHTML() with getHTML() API result', () => {

@@ -10,7 +10,8 @@ const reSpaceMoreThanOne = /[\u0020]+/g;
 const reEscapeChars = /[>(){}[\]+-.!#|]/g;
 const reEscapeHTML = /<([a-zA-Z_][a-zA-Z0-9\-._]*)(\s|[^\\>])*\/?>|<(\/)([a-zA-Z_][a-zA-Z0-9\-._]*)\s*\/?>|<!--[^-]+-->|<([a-zA-Z_][a-zA-Z0-9\-.:/]*)>/g;
 const reEscapeBackSlash = /\\[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~\\]/g;
-const reEscapePairedChars = /[*_~`]/g;
+const reEscapePairedChars = /[*_~]/g;
+const reBacktickSequence = /`+/g;
 const reMdImageSyntax = /!\[.*\]\(.*\)/g;
 const reEscapedCharInLinkSyntax = /[[\]]/g;
 const reEscapeBackSlashInSentence = /(?:^|[^\\])\\(?!\\)/g;
@@ -133,6 +134,9 @@ export function escape(text: string) {
   }
 
   escapedText = escapedText.replace(reEscapePairedChars, aheadReplacer);
+  escapedText = escapedText.replace(reBacktickSequence, (matched) =>
+    matched.length === 1 ? aheadReplacer(matched) : matched
+  );
 
   if (reEscapeHTML.test(escapedText)) {
     escapedText = escapedText.replace(reEscapeHTML, aheadReplacer);
