@@ -26,7 +26,7 @@ export function unescapeString(s: string) {
 
 export function normalizeURI(uri: string) {
   if (uri.startsWith('#')) {
-    return `#${uri.slice(1).trim().replace(/\s+/g, '_')}`;
+    return uri;
   }
 
   try {
