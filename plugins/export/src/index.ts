@@ -5,6 +5,7 @@
 import type { PluginContext, PluginInfo } from '@toast-ui/editor';
 
 import './css/plugin.css';
+import { resolveExportTheme } from './theme';
 
 export interface PluginOptions {
   markdownFileName?: string;
@@ -717,8 +718,8 @@ export default function exportPlugin(
 
   const downloadHtml = async () => {
     const wasMarkdownMode = instance.isMarkdownMode?.() ?? false;
-    const currentTheme = instance.getTheme?.() ?? 'light';
-    const isDark = currentTheme === 'dark';
+    const exportTheme = resolveExportTheme(instance);
+    const isDark = exportTheme === 'dark';
     const markdownSource = instance.getMarkdown?.() ?? '';
     let htmlBody = '';
 
@@ -734,7 +735,7 @@ export default function exportPlugin(
       // exported HTML will use so they can render accordingly.
       const exportOpts: Record<string, unknown> = {
         promises: [],
-        theme: isDark ? 'dark' : 'default',
+        theme: exportTheme,
       };
 
       instance.eventEmitter?.emit?.('beforeExportHtml', exportOpts);
