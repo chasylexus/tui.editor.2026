@@ -219,6 +219,29 @@ export class CustomBlockView implements NodeView {
     return true;
   }
 
+  selectNode() {
+    this.dom.classList.add('ProseMirror-selectednode');
+
+    if (this.isLatexBlock() && !this.innerEditorView) {
+      requestAnimationFrame(() => {
+        if (!this.innerEditorView) {
+          this.openEditor();
+        }
+      });
+    }
+  }
+
+  deselectNode() {
+    this.dom.classList.remove('ProseMirror-selectednode');
+  }
+
+  private isLatexBlock() {
+    const info = String(this.node.attrs.info || '').trim();
+    const [kind] = info.split(/\s+/);
+
+    return !kind || kind === 'latex';
+  }
+
   stopEvent(event: Event): boolean {
     return (
       !!this.innerEditorView &&

@@ -1,5 +1,6 @@
 import type { PluginContext, PluginInfo } from '@toast-ui/editor';
 import type { Node as ProsemirrorNode } from 'prosemirror-model';
+import type { EditorView } from 'prosemirror-view';
 import { NodeSelection, EditorState, Selection } from 'prosemirror-state';
 import { renderKatexBlock } from '../utils/inlineMath';
 
@@ -79,42 +80,40 @@ function buildBlockLatexDecorations(
   return DecorationSetAny.create(doc, decorations);
 }
 
+function isLatexCustomBlock(node: ProsemirrorNode | null): boolean {
+  if (!node || node.type?.name !== 'customBlock') return false;
+  const info = String(node.attrs?.info || '').trim();
+  const [kind] = info.split(/\s+/);
+
+  return kind === 'latex';
+}
+
+function findLatexBlockAtSelection(state: EditorState): ActiveLatexBlock | null {
+  const { selection } = state;
+
+  if (!selection) return null;
+
+  if (selection instanceof NodeSelection && isLatexCustomBlock(selection.node)) {
+    return { node: selection.node, pos: selection.from };
+  }
+
+  const { $from } = selection;
+
+  for (let d = $from.depth; d >= 0; d -= 1) {
+    const node = $from.node(d);
+
+    if (isLatexCustomBlock(node)) {
+      return { node, pos: $from.before(d) };
+    }
+  }
+
+  return null;
+}
+
 export function createBlockLatexWysiwygPlugin(context: PluginContext): PluginInfo {
   const { Plugin, PluginKey } = context.pmState;
   const { Decoration, DecorationSet } = context.pmView;
   const pluginKey = new PluginKey('blockLatexWysiwygPreview');
-
-  const isLatexCustomBlock = (node: any) => {
-    if (!node || node.type?.name !== 'customBlock') return false;
-    const info = String(node.attrs?.info || '').trim();
-    const [kind] = info.split(/\s+/);
-
-    return kind === 'latex';
-  };
-
-  const findLatexBlockAtSelection = (state: EditorState) => {
-    const { selection } = state;
-
-    if (!selection) return null;
-
-    if (selection instanceof NodeSelection && isLatexCustomBlock(selection.node)) {
-      return { node: selection.node, pos: selection.from };
-    }
-
-    const { $from } = selection;
-
-    for (let d = $from.depth; d >= 0; d -= 1) {
-      const node = $from.node(d);
-
-      if (isLatexCustomBlock(node)) {
-        const pos = $from.before(d);
-
-        return { node, pos };
-      }
-    }
-
-    return null;
-  };
 
   return {
     wysiwygPlugins: [
@@ -159,7 +158,7 @@ export function createBlockLatexWysiwygPlugin(context: PluginContext): PluginInf
             let lastOpenedPos: number | null = null;
 
             return {
-              update: (nextView, prevState) => {
+              update: (nextView: EditorView, prevState: EditorState) => {
                 const { selection } = nextView.state;
                 const prevSelection = prevState.selection;
 
@@ -181,9 +180,8 @@ export function createBlockLatexWysiwygPlugin(context: PluginContext): PluginInf
                 if (!(nodeDom instanceof HTMLElement)) return;
 
                 const editorEl = nodeDom.querySelector('.toastui-editor-custom-block-editor');
-                const editorVisible = editorEl && getComputedStyle(editorEl).display !== 'none';
 
-                if (editorVisible) {
+                if (editorEl && getComputedStyle(editorEl).display !== 'none') {
                   lastOpenedPos = pos;
                   return;
                 }

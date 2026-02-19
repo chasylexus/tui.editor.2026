@@ -1,6 +1,7 @@
 import { oneLineTrim } from 'common-tags';
 import { HTMLConvertorMap } from '@toast-ui/toastmark';
 import { DOMParser } from 'prosemirror-model';
+import { NodeSelection } from 'prosemirror-state';
 import { ToDOMAdaptor } from '@t/convertor';
 import { WwToDOMAdaptor } from '@/wysiwyg/adaptor/wwToDOMAdaptor';
 import WysiwygEditor from '@/wysiwyg/wwEditor';
@@ -13,6 +14,16 @@ function createCustomBlockNode() {
   const customBlock = wwe.schema.nodes.customBlock.create(
     { info: 'myCustom' },
     wwe.schema.text('myCustom Node!!')
+  );
+  const doc = wwe.schema.nodes.doc.create(null, customBlock);
+
+  return doc;
+}
+
+function createLatexCustomBlockNode() {
+  const customBlock = wwe.schema.nodes.customBlock.create(
+    { info: 'latex' },
+    wwe.schema.text('E=mc^2')
   );
   const doc = wwe.schema.nodes.doc.create(null, customBlock);
 
@@ -88,4 +99,23 @@ it('should select all text in custom block inner editor by Mod-a', () => {
   const selectedText = innerEditorView.state.doc.textBetween(from, to, '\n');
 
   expect(selectedText).toBe(innerEditorView.state.doc.textContent);
+});
+
+it('should open inner editor when selecting latex custom block node', async () => {
+  wwe.setModel(createLatexCustomBlockNode());
+
+  const customBlockEl = wwe.view.dom.querySelector(`.${cls('custom-block')}`) as HTMLElement;
+  const innerEditorContainer = customBlockEl.querySelector(
+    `.${cls('custom-block-editor')}`
+  ) as HTMLElement;
+
+  expect(innerEditorContainer.style.display).toBe('none');
+
+  wwe.view.dispatch(wwe.view.state.tr.setSelection(NodeSelection.create(wwe.view.state.doc, 0)));
+
+  await new Promise((resolve) => {
+    setTimeout(resolve, 30);
+  });
+
+  expect(innerEditorContainer.style.display).toBe('block');
 });

@@ -11,6 +11,7 @@ import {
   renderKatexBlock,
 } from './utils/inlineMath';
 import { createBlockLatexWysiwygPlugin } from './wysiwyg/blockLatexWysiwygPlugin';
+import { createCustomBlockAutoDetectPlugin } from './wysiwyg/customBlockAutoDetectPlugin';
 import { createInlineLatexWysiwygPlugin } from './wysiwyg/inlineLatexWysiwygPlugin';
 
 const DEFAULT_INLINE_CLASS = 'toastui-inline-latex-render';
@@ -48,6 +49,7 @@ export default function katexPlugin(
 
   const inlinePluginInfo = createInlineLatexWysiwygPlugin(context, inlineClassName);
   const blockPluginInfo = createBlockLatexWysiwygPlugin(context);
+  const autoDetectPluginInfo = createCustomBlockAutoDetectPlugin(context);
 
   context.eventEmitter.listen('beforeConvertWysiwygToMarkdown', (markdownText) => {
     // Example: "text $a\\_b$ text" -> "text $a_b$ text"
@@ -60,10 +62,11 @@ export default function katexPlugin(
 
   const inlineWysiwygPlugins = inlinePluginInfo.wysiwygPlugins || [];
   const blockWysiwygPlugins = blockPluginInfo.wysiwygPlugins || [];
+  const autoDetectWysiwygPlugins = autoDetectPluginInfo.wysiwygPlugins || [];
 
   return {
     ...inlinePluginInfo,
-    wysiwygPlugins: [...inlineWysiwygPlugins, ...blockWysiwygPlugins],
+    wysiwygPlugins: [...inlineWysiwygPlugins, ...blockWysiwygPlugins, ...autoDetectWysiwygPlugins],
     toHTMLRenderers: {
       // block latex: $$latex ... $$
       latex(node: MdNode) {
