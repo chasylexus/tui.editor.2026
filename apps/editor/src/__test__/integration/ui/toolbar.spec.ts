@@ -219,6 +219,18 @@ describe('Default toolbar', () => {
       expect(editor.getMarkdown()).toBe('[toastui](https://ui.toast.com)');
     });
 
+    it('should preserve raw fragment destination entered in URL field', () => {
+      const urlText = getByText(linkPopup, 'URL').nextElementSibling as HTMLInputElement;
+      const linkText = getByText(linkPopup, 'Link text').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(linkPopup, 'OK');
+
+      urlText.value = "#my' anchor!";
+      linkText.value = 'some text';
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe("[some text](#my' anchor!)");
+    });
+
     it('should add wrong class when url or text are not filled out', () => {
       const urlText = getByText(linkPopup, 'URL').nextElementSibling as HTMLInputElement;
       const linkText = getByText(linkPopup, 'Link text').nextElementSibling as HTMLInputElement;
