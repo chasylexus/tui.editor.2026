@@ -10,6 +10,10 @@ import { ToDOMAdaptor } from '@t/convertor';
 import { createTextSelection } from '@/helper/manipulation';
 import { cls } from '@/utils/dom';
 
+interface EventLike {
+  emit(event: string, ...args: any[]): void;
+}
+
 type GetPos = (() => number) | boolean;
 
 export class CustomBlockView implements NodeView {
@@ -21,6 +25,8 @@ export class CustomBlockView implements NodeView {
 
   private editorView: EditorView;
 
+  private eventEmitter: EventLike;
+
   private innerEditorView: EditorView | null;
 
   private wrapper: HTMLElement;
@@ -31,11 +37,18 @@ export class CustomBlockView implements NodeView {
 
   private canceled: boolean;
 
-  constructor(node: ProsemirrorNode, view: EditorView, getPos: GetPos, toDOMAdaptor: ToDOMAdaptor) {
+  constructor(
+    node: ProsemirrorNode,
+    view: EditorView,
+    getPos: GetPos,
+    toDOMAdaptor: ToDOMAdaptor,
+    eventEmitter: EventLike
+  ) {
     this.node = node;
     this.editorView = view;
     this.getPos = getPos;
     this.toDOMAdaptor = toDOMAdaptor;
+    this.eventEmitter = eventEmitter;
     this.innerEditorView = null;
     this.canceled = false;
 
@@ -159,6 +172,7 @@ export class CustomBlockView implements NodeView {
 
     this.renderCustomBlock();
     this.closeEditor();
+    this.eventEmitter.emit('change', 'wysiwyg');
   }
 
   private cancelEditing() {

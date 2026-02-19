@@ -194,9 +194,14 @@ export const toMdConvertors: ToMdConvertorMap = {
 
   customBlock({ node }) {
     const { attrs, textContent } = node as ProsemirrorNode;
+    const info = String(attrs.info || '')
+      .trim()
+      .toLowerCase();
+    const codeFenceKinds = ['mermaid', 'uml', 'chart'];
+    const useCodeFence = codeFenceKinds.includes(info);
 
     return {
-      delim: [`$$${attrs.info}`, '$$'],
+      delim: useCodeFence ? [`\`\`\`${info}`, '```'] : [`$$${attrs.info}`, '$$'],
       text: textContent,
     };
   },

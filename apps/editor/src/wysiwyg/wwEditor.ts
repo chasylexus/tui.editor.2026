@@ -181,7 +181,7 @@ export default class WysiwygEditor extends EditorBase {
       },
       nodeViews: {
         customBlock(node: ProsemirrorNode, view: EditorView, getPos: () => number) {
-          return new CustomBlockView(node, view, getPos, toDOMAdaptor);
+          return new CustomBlockView(node, view, getPos, toDOMAdaptor, eventEmitter);
         },
         image(node: ProsemirrorNode, view: EditorView, getPos: () => number) {
           return new ImageView(node, view, getPos, eventEmitter);

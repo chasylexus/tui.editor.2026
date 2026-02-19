@@ -81,8 +81,27 @@ const toWwConvertors: ToWwConvertorMap = {
   },
 
   codeBlock(state, node, customAttrs) {
-    const { codeBlock } = state.schema.nodes;
+    const { codeBlock, customBlock, paragraph } = state.schema.nodes;
     const { info, literal } = node as CodeBlockMdNode;
+    const CUSTOM_BLOCK_LANGUAGES = ['mermaid', 'uml', 'chart'];
+    const baseLang = info
+      ? info
+          .replace(/[=]\d*$/, '')
+          .trim()
+          .toLowerCase()
+      : '';
+
+    if (customBlock && CUSTOM_BLOCK_LANGUAGES.includes(baseLang)) {
+      state.openNode(customBlock, { info: baseLang });
+      state.addText(getTextWithoutTrailingNewline(literal || ''));
+      state.closeNode();
+      if (!node.next) {
+        state.openNode(paragraph);
+        state.closeNode();
+      }
+      return;
+    }
+
     const match = info ? info.match(/^(.+?)=(\d*)$/) : null;
     let language: string | null = info || null;
     let lineNumber: number | null = null;
