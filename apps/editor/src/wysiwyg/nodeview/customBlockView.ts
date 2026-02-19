@@ -106,7 +106,7 @@ export class CustomBlockView implements NodeView {
           keymap({
             'Mod-z': () => undo(this.innerEditorView!.state, this.innerEditorView!.dispatch),
             'Shift-Mod-z': () => redo(this.innerEditorView!.state, this.innerEditorView!.dispatch),
-            Tab: (state, dispatch) => {
+            Tab: (state: EditorState, dispatch?: (tr: Transaction) => void) => {
               dispatch!(state.tr.insertText('\t'));
               return true;
             },

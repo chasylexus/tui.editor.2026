@@ -88,7 +88,7 @@ export default class CellSelection extends Selection {
     return new CellSelection(startCell, endCell);
   }
 
-  eq(cell: CellSelection) {
+  eq(cell: Selection): boolean {
     return (
       cell instanceof CellSelection &&
       cell.startCell.pos === this.startCell.pos &&
@@ -137,6 +137,10 @@ export default class CellSelection extends Selection {
   }
 
   toJSON() {
-    return JSON.stringify(this);
+    return {
+      type: 'text',
+      anchor: this.anchor,
+      head: this.head,
+    };
   }
 }

@@ -76,9 +76,7 @@ export function getStartPosListPerLine(doc: ProsemirrorNode, endIndex: number) {
 export function getMdToEditorPos(doc: ProsemirrorNode, startPos: MdPos, endPos: MdPos) {
   const clampPosByDoc = (pos: MdPos): MdPos => {
     const line = Math.min(Math.max(pos[0], 1), Math.max(doc.childCount, 1));
-    const lineNode = doc.child(line - 1);
-    const maxCh = Math.max(lineNode.content.size + 1, 1);
-    const ch = Math.min(Math.max(pos[1], 1), maxCh);
+    const ch = Math.max(pos[1], 1);
 
     return [line, ch];
   };
@@ -98,7 +96,9 @@ export function getMdToEditorPos(doc: ProsemirrorNode, startPos: MdPos, endPos: 
   from += clampedStartPos[1] + getWidgetNodePos(startNode, clampedStartPos[1] - 1);
   to += clampedEndPos[1] + getWidgetNodePos(endNode, clampedEndPos[1] - 1);
 
-  return [from, Math.min(to, doc.content.size)];
+  const maxPos = doc.content.size;
+
+  return [Math.min(from, maxPos), Math.min(to, maxPos)];
 }
 
 export function getRangeInfo(selection: Selection) {

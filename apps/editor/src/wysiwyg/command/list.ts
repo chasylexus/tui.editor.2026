@@ -259,7 +259,7 @@ export function sinkListItem(listItem: NodeType): Command {
     const { $from, $to } = selection;
     const range = $from.blockRange(
       $to,
-      ({ childCount, firstChild }) => !!childCount && firstChild!.type === listItem
+      (node: ProsemirrorNode) => !!node.childCount && node.firstChild!.type === listItem
     );
 
     if (range && range.startIndex > 0) {
@@ -379,7 +379,7 @@ export function liftListItem(listItem: NodeType): Command {
     const { $from, $to } = selection;
     const range = $from.blockRange(
       $to,
-      ({ childCount, firstChild }) => !!childCount && firstChild!.type === listItem
+      (node: ProsemirrorNode) => !!node.childCount && node.firstChild!.type === listItem
     );
 
     if (range) {

@@ -172,6 +172,15 @@ export class Renderer implements HTMLRenderer {
     if (attributes) {
       Object.keys(attributes).forEach((attrName) => {
         const attrValue = attributes[attrName];
+
+        if (attrValue === null || typeof attrValue === 'undefined') {
+          return;
+        }
+
+        if (attrName === 'class' && attrValue === '') {
+          return;
+        }
+
         this.buffer.push(` ${attrName}="${attrValue}"`);
       });
     }

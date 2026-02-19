@@ -142,7 +142,15 @@ export function closest(node: Node, found: string | Node) {
   let condition;
 
   if (isString(found)) {
-    condition = (target: Node) => matches(target as Element, found);
+    const selector = /^[A-Za-z][A-Za-z0-9-]*$/.test(found) ? found.toLowerCase() : found;
+
+    condition = (target: Node) => {
+      try {
+        return matches(target as Element, selector);
+      } catch (e) {
+        return false;
+      }
+    };
   } else {
     condition = (target: Node) => target === found;
   }

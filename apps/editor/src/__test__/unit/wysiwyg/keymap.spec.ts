@@ -815,7 +815,6 @@ describe('keymap', () => {
 
       expect(wwe.getHTML()).toBe('<p>1<code>2</code>X</p>');
     });
-
   });
 
   describe('paragraph', () => {

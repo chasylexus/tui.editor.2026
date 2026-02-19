@@ -24,6 +24,7 @@ export type EventTypes =
   | 'updatePreview'
   | 'changeMode'
   | 'needChangeMode'
+  | 'changeTheme'
   | 'command'
   | 'changePreviewStyle'
   | 'changePreviewTabPreview'
@@ -54,4 +55,6 @@ export type EventTypes =
   | 'blur'
   | 'keydown'
   | 'keyup'
-  | 'wwUserEdit';
+  | 'wwUserEdit'
+  | 'beforeExportHtml'
+  | 'afterExportHtml';

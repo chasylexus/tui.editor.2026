@@ -1,6 +1,6 @@
 import type { PluginContext, PluginInfo } from '@toast-ui/editor';
 import type { Node as ProsemirrorNode } from 'prosemirror-model';
-import type { EditorState } from 'prosemirror-state';
+import { NodeSelection, EditorState, Selection } from 'prosemirror-state';
 import { renderKatexBlock } from '../utils/inlineMath';
 
 interface ActiveLatexBlock {
@@ -10,12 +10,12 @@ interface ActiveLatexBlock {
 
 function findActiveLatexBlock(
   doc: EditorState['doc'],
-  selection: EditorState['selection'] | null
+  selection: Selection | null
 ): ActiveLatexBlock | null {
   if (!selection) return null;
   let active: ActiveLatexBlock | null = null;
 
-  if (selection.node && selection.node.type?.name === 'customBlock') {
+  if (selection instanceof NodeSelection && selection.node.type?.name === 'customBlock') {
     const info = String(selection.node.attrs?.info || '').trim();
     const [kind] = info.split(/\s+/);
 
@@ -24,7 +24,7 @@ function findActiveLatexBlock(
     }
   }
 
-  doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+  doc.nodesBetween(selection.from, selection.to, (node: ProsemirrorNode, pos: number) => {
     if (node.type?.name !== 'customBlock') return true;
     const info = String(node.attrs?.info || '').trim();
     const [kind] = info.split(/\s+/);
@@ -97,7 +97,7 @@ export function createBlockLatexWysiwygPlugin(context: PluginContext): PluginInf
 
     if (!selection) return null;
 
-    if (selection.node && isLatexCustomBlock(selection.node)) {
+    if (selection instanceof NodeSelection && isLatexCustomBlock(selection.node)) {
       return { node: selection.node, pos: selection.from };
     }
 

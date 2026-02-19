@@ -147,8 +147,16 @@ class MarkdownPreview {
       const currentEl = this.getElementByNodeId(this.cursorNodeId);
 
       if (currentEl) {
-        removeClass(currentEl, CLASS_HIGHLIGHT);
+        this.removeHighlightClass(currentEl);
       }
+    }
+  }
+
+  private removeHighlightClass(el: HTMLElement) {
+    removeClass(el, CLASS_HIGHLIGHT);
+
+    if (!el.className) {
+      el.removeAttribute('class');
     }
   }
 
@@ -174,7 +182,7 @@ class MarkdownPreview {
     const newEL = this.getElementByNodeId(cursorNodeId);
 
     if (oldEL) {
-      removeClass(oldEL, CLASS_HIGHLIGHT);
+      this.removeHighlightClass(oldEL);
     }
     if (newEL) {
       addClass(newEL, CLASS_HIGHLIGHT);

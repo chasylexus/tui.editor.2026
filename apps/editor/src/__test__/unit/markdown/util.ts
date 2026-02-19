@@ -1,5 +1,6 @@
 import { HTMLConvertorMap } from '@toast-ui/toastmark';
 import { history } from 'prosemirror-history';
+import { ProsemirrorNode } from 'prosemirror-model';
 import MarkdownEditor from '@/markdown/mdEditor';
 
 export function getTextContent(editor: MarkdownEditor) {
@@ -7,7 +8,7 @@ export function getTextContent(editor: MarkdownEditor) {
   const docSize = doc.content.size;
   let text = '';
 
-  doc.nodesBetween(0, docSize, (node, pos) => {
+  doc.nodesBetween(0, docSize, (node: ProsemirrorNode, pos: number) => {
     if (node.isText) {
       text += node.text!.slice(Math.max(0, pos) - pos, docSize - pos);
     } else if (node.isBlock && pos > 0) {

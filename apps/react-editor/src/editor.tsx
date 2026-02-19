@@ -2,7 +2,7 @@ import React from 'react';
 import Editor, { EventMap } from '@toast-ui/editor';
 import type { EditorProps, EventNames } from '../index';
 
-export default class extends React.Component<EditorProps> {
+class ToastUIEditor extends React.Component<EditorProps> {
   rootEl = React.createRef<HTMLDivElement>();
 
   editorInst!: Editor;
@@ -72,3 +72,5 @@ export default class extends React.Component<EditorProps> {
     return <div ref={this.rootEl} />;
   }
 }
+
+export default ToastUIEditor;

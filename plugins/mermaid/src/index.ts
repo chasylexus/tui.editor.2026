@@ -2,7 +2,7 @@
  * @fileoverview Implements mermaid plugin
  * @author NHN FE Development Lab <dl_javascript@nhn.com>
  */
-import mermaid from 'mermaid';
+import mermaid, { MermaidConfig } from 'mermaid';
 import type { MdNode, PluginContext, PluginInfo } from '@toast-ui/editor';
 import type { HTMLToken } from '@toast-ui/toastmark';
 
@@ -30,7 +30,7 @@ function ensureInitialized(theme: 'default' | 'dark') {
   if (typeof window !== 'undefined' && !(window as any).mermaid) {
     (window as any).mermaid = mermaid;
   }
-  const config: mermaid.MermaidConfig = {
+  const config: MermaidConfig = {
     startOnLoad: false,
     securityLevel: 'strict',
     theme,

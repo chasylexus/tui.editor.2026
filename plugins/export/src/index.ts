@@ -663,12 +663,14 @@ ${styles}
 }
 
 function getWysiwygRoot(instance: any): HTMLElement | null {
-  const elements = instance.getEditorElements?.();
+  const elements = instance.getEditorElements?.() as { wwEditor?: HTMLElement | null } | undefined;
   const wysiwygRoot = elements?.wwEditor || null;
 
   if (!wysiwygRoot) return null;
 
-  return wysiwygRoot.querySelector<HTMLElement>('.toastui-editor-contents') || wysiwygRoot;
+  return (
+    (wysiwygRoot.querySelector('.toastui-editor-contents') as HTMLElement | null) || wysiwygRoot
+  );
 }
 
 function nextFrame() {

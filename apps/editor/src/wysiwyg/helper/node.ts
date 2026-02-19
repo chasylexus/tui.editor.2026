@@ -107,6 +107,7 @@ export function getDefaultCustomAttrs(): CustomAttrs {
 
 export function getCustomAttrs(attrs: Record<string, any>) {
   const { htmlAttrs, classNames } = attrs;
+  const classAttr = classNames && classNames.length ? classNames.join(' ') : null;
 
-  return { ...htmlAttrs, class: classNames ? classNames.join(' ') : null };
+  return { ...htmlAttrs, class: classAttr };
 }

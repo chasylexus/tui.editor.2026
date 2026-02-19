@@ -358,7 +358,7 @@ export class InlineParser {
     let delim = this.delimiters;
 
     while (delim) {
-      if (delim.cc === C_DOLLAR && delim.canOpen) {
+      if (delim.cc === C_DOLLAR && delim.canOpen && delim.numdelims === 1) {
         return true;
       }
       delim = delim.previous;
@@ -821,8 +821,16 @@ export class InlineParser {
               if (literal.length <= info.length) {
                 textNode.unlink();
               } else {
+                const infoPrefixLen = literal.startsWith(`${info} `)
+                  ? info.length + 1
+                  : info.length;
+
                 textNode.sourcepos![0][1] += info.length;
-                textNode.literal = literal.replace(`${info} `, '');
+                textNode.literal = literal.slice(infoPrefixLen);
+
+                if (!textNode.literal.length) {
+                  textNode.unlink();
+                }
               }
             }
 

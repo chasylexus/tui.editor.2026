@@ -1,4 +1,4 @@
-import { Schema } from 'prosemirror-model';
+import { ProsemirrorNode, Schema } from 'prosemirror-model';
 import { EditorState, Plugin, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { keymap } from 'prosemirror-keymap';
@@ -117,7 +117,7 @@ export default abstract class EditorBase implements Base {
             parent = pos.node(pos.depth - 1);
           }
 
-          parent.forEach((child) => isWidgetNode(child) && (count += 1));
+          parent.forEach((child: ProsemirrorNode) => isWidgetNode(child) && (count += 1));
 
           // replace the content only if the count of matched rules in whole text is greater than current widget node count
           if (allMatched.length > count) {

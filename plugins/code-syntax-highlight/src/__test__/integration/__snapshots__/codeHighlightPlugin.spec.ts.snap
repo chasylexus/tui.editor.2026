@@ -44,7 +44,7 @@ exports[`codeSyntaxHighlightPlugin should render highlighted codeblock element i
 
 exports[`codeSyntaxHighlightPlugin should render highlighted codeblock element in wysiwyg 1`] = `
 <div data-language="yaml"
-     class="toastui-editor-ww-code-block-highlighting"
+     class="toastui-editor-ww-code-block-highlighting has-toolbar"
 >
   <pre class="language-yaml">
     <code data-language="yaml"
@@ -79,5 +79,33 @@ exports[`codeSyntaxHighlightPlugin should render highlighted codeblock element i
       Elite
     </code>
   </pre>
+  <div class="toastui-editor-code-block-toolbar">
+    <button class="toastui-editor-code-block-copy"
+            type="button"
+            title="Copy code"
+    >
+      <svg viewbox="0 0 24 24"
+           width="14"
+           height="14"
+      >
+        <path fill="currentColor"
+              d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+        >
+        </path>
+      </svg>
+    </button>
+    <div class="toastui-editor-line-number-badge">
+      <span>
+        #
+      </span>
+      <input type="text"
+             class="toastui-editor-line-number-input"
+             placeholder="off"
+      >
+    </div>
+    <div class="toastui-editor-code-block-lang-label">
+      yaml
+    </div>
+  </div>
 </div>
 `;

@@ -1,4 +1,5 @@
 import type { PluginInfo, PluginContext } from '@toast-ui/editor';
+import type { Node as ProsemirrorNode, Mark as ProsemirrorMark } from 'prosemirror-model';
 import type { EditorState } from 'prosemirror-state';
 import { renderKatexInline } from '../utils/inlineMath';
 
@@ -31,7 +32,7 @@ function collectInlineMathRanges(doc: EditorState['doc']): InlineMathRange[] {
   const ranges: InlineMathRange[] = [];
   let pending: { from: number; content: string } | null = null;
 
-  doc.descendants((node, pos) => {
+  doc.descendants((node: ProsemirrorNode, pos: number) => {
     if (node.type?.name === 'codeBlock') {
       pending = null;
       return false;
@@ -42,7 +43,7 @@ function collectInlineMathRanges(doc: EditorState['doc']): InlineMathRange[] {
     }
 
     if (!node.isText) return true;
-    if (node.marks?.some((mark) => mark.type?.name === 'code')) return true;
+    if (node.marks?.some((mark: ProsemirrorMark) => mark.type?.name === 'code')) return true;
 
     const text = node.text || '';
 

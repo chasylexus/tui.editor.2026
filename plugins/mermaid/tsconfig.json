@@ -1,11 +1,12 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "src/**/*.js", "types/index.d.ts"],
+  "include": ["src/**/*.ts", "src/**/*.js", "types/**/*.d.ts"],
   "exclude": ["node_modules"],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "mermaid": ["types/mermaid-shim"]
     },
     "importHelpers": false,
     "typeRoots": ["./types", "node_modules/@types", "../../node_modules/@types"],

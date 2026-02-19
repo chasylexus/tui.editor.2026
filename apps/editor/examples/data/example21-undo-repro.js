@@ -1,8 +1,10 @@
+/* global toastui */
 const undoReproContent = '# Heading\n\nThis is the initial paragraph text.';
 
 function createLogger(editor, rootEl, name) {
   const getFocusInfo = () => {
     const active = document.activeElement;
+
     return {
       activeTag: active ? active.tagName : 'none',
       inEditor: rootEl.contains(active),
@@ -14,6 +16,7 @@ function createLogger(editor, rootEl, name) {
     const focus = getFocusInfo();
     const mdHead = md.slice(0, 80);
     const snapshotSize = debug.snapshotSize || { undo: 0, redo: 0 };
+
     // eslint-disable-next-line no-console
     console.log(`[${name}] ${label}`, {
       mode: debug.mode || (editor.isMarkdownMode() ? 'markdown' : 'wysiwyg'),
@@ -29,6 +32,7 @@ function createLogger(editor, rootEl, name) {
   };
 
   let lastUndoKeyAt = 0;
+
   window.addEventListener('keydown', (ev) => {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') {
       lastUndoKeyAt = Date.now();
@@ -40,6 +44,7 @@ function createLogger(editor, rootEl, name) {
   return {
     onChange() {
       const now = Date.now();
+
       if (now - lastUndoKeyAt < 300) {
         logState('undo dispatch');
         lastUndoKeyAt = 0;
@@ -101,16 +106,10 @@ function createLogger(editor, rootEl, name) {
   editorB.on('changeMode', loggerB.onModeChange);
 
   const outsideButton = document.getElementById('outside-button');
+
   outsideButton.addEventListener('click', () => {
     outsideButton.focus();
     // eslint-disable-next-line no-console
     console.log('[outside] clicked', document.activeElement && document.activeElement.tagName);
   });
 })();
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-var */
-var undoReproContent = `# Undo Repro
-
-This is a paragraph with some text.
-Second line to ensure multiple blocks.
-`;

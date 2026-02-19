@@ -180,13 +180,13 @@ export default class WysiwygEditor extends EditorBase {
         class: CONTENTS_CLASS_NAME,
       },
       nodeViews: {
-        customBlock(node, view, getPos) {
+        customBlock(node: ProsemirrorNode, view: EditorView, getPos: () => number) {
           return new CustomBlockView(node, view, getPos, toDOMAdaptor);
         },
-        image(node, view, getPos) {
+        image(node: ProsemirrorNode, view: EditorView, getPos: () => number) {
           return new ImageView(node, view, getPos, eventEmitter);
         },
-        codeBlock(node, view, getPos) {
+        codeBlock(node: ProsemirrorNode, view: EditorView, getPos: () => number) {
           return new CodeBlockView(node, view, getPos, eventEmitter);
         },
         widget: widgetNodeView,
@@ -457,7 +457,7 @@ export default class WysiwygEditor extends EditorBase {
 
       type = mark ? mark.type.name : 'text';
 
-      node.forEach((child, offset) => {
+      node.forEach((child: ProsemirrorNode, offset: number) => {
         const { isText, nodeSize, marks: nodeMarks } = child;
         const startOffset = $pos.pos - start;
 
