@@ -292,6 +292,283 @@ function fixLineNumberInputs(original: HTMLElement, clone: HTMLElement) {
   });
 }
 
+interface MarkdownAnchor {
+  id: string;
+  text: string;
+}
+
+function slugify(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\u0080-\uffff-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function toHashHref(id: string) {
+  return `#${encodeURIComponent(id)}`;
+}
+
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch (e) {
+    return value;
+  }
+}
+
+function normalizeText(text: string) {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function createUniqueId(baseId: string, usedIds: Set<string>) {
+  let id = baseId || 'heading';
+  let suffix = 1;
+
+  while (usedIds.has(id)) {
+    id = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(id);
+
+  return id;
+}
+
+function ensureHeadingIds(root: HTMLElement) {
+  const usedIds = new Set<string>();
+  const headings = Array.from(root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'));
+
+  headings.forEach((heading) => {
+    const existingId = heading.getAttribute('id')?.trim();
+    const baseId = existingId || slugify(heading.textContent || '') || 'heading';
+    const uniqueId = createUniqueId(baseId, usedIds);
+
+    heading.setAttribute('id', uniqueId);
+    heading.setAttribute('data-export-anchor-target', 'true');
+  });
+}
+
+function extractMarkdownAnchors(markdown: string) {
+  const anchors: MarkdownAnchor[] = [];
+  const reAnchor = /<a\s+[^>]*id\s*=\s*(?:"([^"]+)"|'([^']+)')[^>]*>([\s\S]*?)<\/a>/gi;
+  let match = reAnchor.exec(markdown);
+
+  while (match) {
+    const id = (match[1] || match[2] || '').trim();
+    const rawText = (match[3] || '').replace(/<[^>]+>/g, '');
+    const text = rawText.trim();
+
+    if (id && text) {
+      anchors.push({ id, text });
+    }
+    match = reAnchor.exec(markdown);
+  }
+
+  return anchors;
+}
+
+function addCustomAnchorTargets(root: HTMLElement, markdownAnchors: MarkdownAnchor[]) {
+  const usedIds = new Set<string>(
+    Array.from(root.querySelectorAll<HTMLElement>('[id]'))
+      .map((el) => el.id)
+      .filter(Boolean)
+  );
+  const candidates = Array.from(
+    root.querySelectorAll<HTMLElement>('span, a, mark, strong, em, code')
+  );
+
+  markdownAnchors.forEach(({ id, text }) => {
+    const existing = root.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
+
+    if (existing) {
+      existing.setAttribute('data-export-anchor-target', 'true');
+
+      if (existing.tagName === 'A') {
+        const anchor = existing as HTMLAnchorElement;
+
+        anchor.setAttribute('href', toHashHref(existing.id));
+        anchor.removeAttribute('target');
+        anchor.removeAttribute('rel');
+      }
+      return;
+    }
+
+    const normalizedAnchorText = normalizeText(text);
+    const anchorNodeTarget = candidates.find((candidate) => {
+      if (candidate.tagName !== 'A') {
+        return false;
+      }
+
+      const href = candidate.getAttribute('href') || '';
+
+      if (href && href !== '#') {
+        return false;
+      }
+
+      return normalizeText(candidate.textContent || '') === normalizedAnchorText;
+    });
+
+    const target = anchorNodeTarget
+      ? anchorNodeTarget
+      : candidates.find((candidate) => {
+          if (candidate.hasAttribute('id')) {
+            return false;
+          }
+          if (candidate.closest('a[href]')) {
+            return false;
+          }
+
+          return normalizeText(candidate.textContent || '') === normalizedAnchorText;
+        });
+
+    if (!target) {
+      return;
+    }
+
+    const uniqueId = createUniqueId(id, usedIds);
+
+    target.setAttribute('id', uniqueId);
+    target.setAttribute('data-export-anchor-target', 'true');
+
+    if (target.tagName === 'A') {
+      const anchor = target as HTMLAnchorElement;
+
+      anchor.setAttribute('href', toHashHref(uniqueId));
+      anchor.removeAttribute('target');
+      anchor.removeAttribute('rel');
+    }
+  });
+}
+
+function extractFragmentDestinations(markdown: string) {
+  const destinations: string[] = [];
+
+  for (let i = 0; i < markdown.length; i += 1) {
+    if (markdown[i] !== '[' || markdown[i - 1] === '!') {
+      continue;
+    }
+
+    let labelEnd = i + 1;
+
+    while (labelEnd < markdown.length && markdown[labelEnd] !== ']') {
+      if (markdown[labelEnd] === '\\') {
+        labelEnd += 2;
+      } else {
+        labelEnd += 1;
+      }
+    }
+
+    if (markdown[labelEnd] !== ']' || markdown[labelEnd + 1] !== '(') {
+      continue;
+    }
+
+    let cursor = labelEnd + 2;
+
+    while (cursor < markdown.length && /\s/.test(markdown[cursor])) {
+      cursor += 1;
+    }
+
+    if (markdown[cursor] !== '#') {
+      continue;
+    }
+
+    cursor += 1;
+
+    const start = cursor;
+    let depth = 1;
+
+    while (cursor < markdown.length) {
+      const ch = markdown[cursor];
+
+      if (ch === '\\') {
+        cursor += 2;
+        continue;
+      }
+      if (ch === '(') {
+        depth += 1;
+      } else if (ch === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          break;
+        }
+      }
+      cursor += 1;
+    }
+
+    if (depth === 0) {
+      const destination = markdown.slice(start, cursor).trim();
+
+      if (destination) {
+        destinations.push(destination);
+      }
+      i = cursor;
+    }
+  }
+
+  return destinations;
+}
+
+function resolveTargetId(rawDestination: string, root: HTMLElement) {
+  const decoded = safeDecodeURIComponent(rawDestination.trim());
+  const directId = decoded;
+
+  if (directId && root.querySelector(`[id="${CSS.escape(directId)}"]`)) {
+    return directId;
+  }
+
+  const slug = slugify(decoded);
+
+  if (slug && root.querySelector(`[id="${CSS.escape(slug)}"]`)) {
+    return slug;
+  }
+
+  const headingByText = Array.from(
+    root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
+  ).find((heading) => normalizeText(heading.textContent || '') === normalizeText(decoded));
+
+  if (headingByText?.id) {
+    return headingByText.id;
+  }
+
+  return slug || directId;
+}
+
+function restoreFragmentLinks(root: HTMLElement, markdown: string) {
+  const destinations = extractFragmentDestinations(markdown);
+  const links = Array.from(root.querySelectorAll<HTMLAnchorElement>('a[href]')).filter((link) => {
+    const href = link.getAttribute('href') || '';
+
+    return href === '' || href.startsWith('#');
+  });
+
+  const count = Math.min(destinations.length, links.length);
+
+  for (let i = 0; i < count; i += 1) {
+    const resolvedId = resolveTargetId(destinations[i], root);
+
+    if (!resolvedId) {
+      continue;
+    }
+
+    links[i].setAttribute('href', toHashHref(resolvedId));
+    links[i].removeAttribute('target');
+    links[i].removeAttribute('rel');
+  }
+}
+
+function markSelfAnchors(root: HTMLElement) {
+  Array.from(root.querySelectorAll<HTMLElement>('[id]')).forEach((el) => {
+    if (
+      el.matches('h1, h2, h3, h4, h5, h6') ||
+      el.getAttribute('data-export-anchor-target') === 'true'
+    ) {
+      el.setAttribute('data-export-self-anchor', 'true');
+    }
+  });
+}
+
 function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
   const styles = collectInlineStyles();
   const darkClass = isDark ? ' toastui-editor-dark' : '';
@@ -319,6 +596,24 @@ ${styles}
         if(c){navigator.clipboard.writeText(c.textContent).then(function(){
           b.classList.add('copied');setTimeout(function(){b.classList.remove('copied')},1500);
         })}
+      });
+    });
+    document.querySelectorAll('a[href^="#"]').forEach(function(link){
+      link.removeAttribute('target');
+      link.removeAttribute('rel');
+    });
+    document.querySelectorAll('[data-export-self-anchor="true"]').forEach(function(target){
+      target.style.cursor='pointer';
+      target.addEventListener('click', function(event){
+        var id = target.getAttribute('id');
+        if(!id){return;}
+        if(target.tagName === 'A'){event.preventDefault();}
+        var encoded = encodeURIComponent(id);
+        if(window.location.hash !== '#' + encoded){
+          history.replaceState(null,'', '#' + encoded);
+        }
+        var targetElement = document.getElementById(id) || document.getElementById(decodeURIComponent(encoded));
+        if(targetElement){targetElement.scrollIntoView({ block: 'start' });}
       });
     });
     ${'<'}/script>
@@ -385,6 +680,7 @@ export default function exportPlugin(
     const wasMarkdownMode = instance.isMarkdownMode?.() ?? false;
     const currentTheme = instance.getTheme?.() ?? 'light';
     const isDark = currentTheme === 'dark';
+    const markdownSource = instance.getMarkdown?.() ?? '';
     let htmlBody = '';
 
     try {
@@ -420,6 +716,10 @@ export default function exportPlugin(
         inlineCanvases(wysiwygRoot, clone);
         inlineTokenStyles(wysiwygRoot, clone);
         fixLineNumberInputs(wysiwygRoot, clone);
+        ensureHeadingIds(clone);
+        addCustomAnchorTargets(clone, extractMarkdownAnchors(markdownSource));
+        restoreFragmentLinks(clone, markdownSource);
+        markSelfAnchors(clone);
         await inlineImagesIn(clone);
 
         htmlBody = clone.innerHTML;
