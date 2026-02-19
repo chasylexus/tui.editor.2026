@@ -58,6 +58,7 @@ const DEFAULT_DIMENSION_OPTIONS = {
   height: 'auto',
   width: 'auto',
 };
+const FALLBACK_CONTAINER_WIDTH = 600;
 const RESERVED_KEYS = ['type', 'url'];
 const chart = {
   bar: Chart.barChart,
@@ -67,7 +68,7 @@ const chart = {
   pie: Chart.pieChart,
 };
 const chartMap: Record<string, ChartInstance> = {};
-let darkModeOverride: boolean | null = null;
+let effectiveDarkMode: boolean | null = null;
 
 const DARK_CHART_THEME = {
   chart: { backgroundColor: '#1a1a1a' },
@@ -253,6 +254,27 @@ function getAdjustedDimension(size: 'auto' | number, containerWidth: number) {
   return size === 'auto' ? containerWidth : size;
 }
 
+function getRenderableContainerWidth(chartContainer: HTMLElement) {
+  const ownWidth = chartContainer.getBoundingClientRect().width;
+
+  if (ownWidth > 0) {
+    return ownWidth;
+  }
+
+  let parent = chartContainer.parentElement;
+
+  while (parent) {
+    const parentWidth = parent.getBoundingClientRect().width;
+
+    if (parentWidth > 0) {
+      return parentWidth;
+    }
+    parent = parent.parentElement;
+  }
+
+  return FALLBACK_CONTAINER_WIDTH;
+}
+
 function getChartDimension(
   chartOptions: ChartOptions,
   pluginOptions: PluginOptions,
@@ -261,7 +283,7 @@ function getChartDimension(
   const dimensionOptions = extend({ ...DEFAULT_DIMENSION_OPTIONS }, pluginOptions);
   const { maxWidth, minWidth, maxHeight, minHeight } = dimensionOptions;
   // if no width or height specified, set width and height to container width
-  const { width: containerWidth } = chartContainer.getBoundingClientRect();
+  const containerWidth = getRenderableContainerWidth(chartContainer);
   let { width = dimensionOptions.width, height = dimensionOptions.height } = chartOptions.chart!;
 
   width = getAdjustedDimension(width, containerWidth);
@@ -332,7 +354,7 @@ function doRenderChart(
       const { data, options } = parsedInfo || {};
       const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer);
       const chartType = chartOptions.editorChart.type!;
-      const dark = darkModeOverride !== null ? darkModeOverride : isDarkMode(chartContainer);
+      const dark = effectiveDarkMode !== null ? effectiveDarkMode : isDarkMode(chartContainer);
 
       if (dark) {
         (chartOptions as any).theme = DARK_CHART_THEME;
@@ -378,9 +400,9 @@ function renderChart(
 function reRenderAllCharts(
   usageStatistics: boolean,
   pluginOptions: PluginOptions,
-  forceDark?: boolean
+  forceDark: boolean
 ) {
-  darkModeOverride = typeof forceDark === 'boolean' ? forceDark : null;
+  effectiveDarkMode = forceDark;
 
   const containers = document.querySelectorAll<HTMLElement>('[data-chart-id][data-chart-text]');
 
@@ -398,8 +420,6 @@ function reRenderAllCharts(
 
     doRenderChart(id, text, usageStatistics, pluginOptions, container);
   });
-
-  darkModeOverride = null;
 }
 
 function generateId() {
@@ -415,6 +435,24 @@ function clearTimer() {
   }
 }
 
+function getEditorRoot(instance: any) {
+  let elements: any = null;
+
+  try {
+    elements = instance.getEditorElements?.();
+  } catch (e) {
+    elements = null;
+  }
+
+  return (elements?.mdPreview?.closest('.toastui-editor-defaultUI') ||
+    elements?.wwEditor?.closest('.toastui-editor-defaultUI') ||
+    document.querySelector('.toastui-editor-defaultUI')) as HTMLElement | null;
+}
+
+function detectDarkMode(instance: any) {
+  return !!getEditorRoot(instance)?.classList.contains('toastui-editor-dark');
+}
+
 /**
  * Chart plugin
  * @param {Object} context - plugin context for communicating with editor
@@ -428,9 +466,90 @@ function clearTimer() {
  */
 export default function chartPlugin(context: PluginContext, options: PluginOptions): PluginInfo {
   const { usageStatistics = true } = context;
+  const instance = context.instance as any;
+
+  let scheduled = false;
+  let pendingThemeOverride: boolean | null = null;
+  let rootObserver: MutationObserver | null = null;
+
+  const scheduleReRender = ({
+    themeOverride,
+    deferFrames = 1,
+  }: { themeOverride?: boolean; deferFrames?: number } = {}) => {
+    if (typeof themeOverride === 'boolean') {
+      pendingThemeOverride = themeOverride;
+    }
+
+    if (scheduled) {
+      return;
+    }
+
+    scheduled = true;
+
+    const framesToWait = Math.max(1, deferFrames);
+    let frameCount = 0;
+
+    const run = () => {
+      frameCount += 1;
+
+      if (frameCount < framesToWait) {
+        requestAnimationFrame(run);
+        return;
+      }
+
+      scheduled = false;
+
+      const resolvedDark =
+        pendingThemeOverride !== null ? pendingThemeOverride : detectDarkMode(instance);
+
+      pendingThemeOverride = null;
+      effectiveDarkMode = resolvedDark;
+      reRenderAllCharts(usageStatistics, options, resolvedDark);
+    };
+
+    requestAnimationFrame(run);
+  };
+
+  const bindThemeObserver = () => {
+    if (rootObserver) {
+      return;
+    }
+
+    const root = getEditorRoot(instance);
+
+    if (!root) {
+      return;
+    }
+
+    rootObserver = new MutationObserver(() => {
+      const dark = detectDarkMode(instance);
+
+      if (effectiveDarkMode !== dark) {
+        scheduleReRender({ themeOverride: dark });
+      }
+    });
+
+    rootObserver.observe(root, { attributes: true, attributeFilter: ['class'] });
+  };
 
   context.eventEmitter.listen('changeTheme', (theme: string) => {
-    reRenderAllCharts(usageStatistics, options, theme === 'dark');
+    scheduleReRender({ themeOverride: theme === 'dark' });
+  });
+  context.eventEmitter.listen('changeMode', () => {
+    bindThemeObserver();
+    scheduleReRender({ deferFrames: 2 });
+  });
+  context.eventEmitter.listen('load', () => {
+    bindThemeObserver();
+    scheduleReRender({ deferFrames: 2 });
+  });
+  context.eventEmitter.listen('loadUI', () => {
+    bindThemeObserver();
+    scheduleReRender({ deferFrames: 2 });
+  });
+
+  requestAnimationFrame(() => {
+    bindThemeObserver();
   });
 
   return {

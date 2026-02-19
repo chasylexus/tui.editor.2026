@@ -62,4 +62,30 @@ describe('uml plugin', () => {
 
     assertWwEditorHTML('src="//www.plantuml.com/plantuml/png');
   });
+
+  it('should update uml image src when changeTheme event is emitted', async () => {
+    editor.setMarkdown('$$uml\nAlice -> Bob: Hello\n$$');
+
+    const mdPreviewEl = editor.getEditorElements().mdPreview;
+    const img = mdPreviewEl.querySelector<HTMLImageElement>('img')!;
+    const lightSrc = img.getAttribute('src');
+
+    (editor as any).eventEmitter.emit('changeTheme', 'dark');
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+
+    const darkSrc = img.getAttribute('src');
+
+    expect(darkSrc).not.toBe(lightSrc);
+
+    (editor as any).eventEmitter.emit('changeTheme', 'light');
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+
+    const lightSrcAgain = img.getAttribute('src');
+
+    expect(lightSrcAgain).toBe(lightSrc);
+  });
 });

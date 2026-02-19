@@ -53,6 +53,12 @@ function createUMLTokens(text: string, rendererURL: string, isDark: boolean): HT
   ];
 }
 
+function findContentsRoot(root: HTMLElement | null) {
+  if (!root) return null;
+
+  return root.querySelector<HTMLElement>('.toastui-editor-contents') || root;
+}
+
 function updateUmlImagesIn(root: HTMLElement | null, rendererURL: string, isDark: boolean) {
   if (!root) return;
   const containers = root.querySelectorAll<HTMLElement>('[data-plantuml-source]');
@@ -111,18 +117,54 @@ export default function umlPlugin(context: PluginContext, options: PluginOptions
     }
 
     return {
-      previewRoot: (elements.mdPreview || null) as HTMLElement | null,
-      wysiwygRoot: (elements.wwEditor || null) as HTMLElement | null,
+      previewRoot: findContentsRoot((elements.mdPreview || null) as HTMLElement | null),
+      wysiwygRoot: findContentsRoot((elements.wwEditor || null) as HTMLElement | null),
     };
   }
 
-  context.eventEmitter.listen('changeTheme', (theme: string) => {
-    const dark = theme === 'dark';
-    const { previewRoot, wysiwygRoot } = getEditorRoots();
+  let scheduled = false;
+  let pendingThemeOverride: boolean | null = null;
 
-    updateUmlImagesIn(previewRoot, rendererURL, dark);
-    updateUmlImagesIn(wysiwygRoot, rendererURL, dark);
+  const scheduleUpdate = (themeOverride?: boolean) => {
+    if (typeof themeOverride === 'boolean') {
+      pendingThemeOverride = themeOverride;
+    }
+
+    if (scheduled) {
+      return;
+    }
+
+    scheduled = true;
+
+    requestAnimationFrame(() => {
+      scheduled = false;
+
+      const { previewRoot, wysiwygRoot } = getEditorRoots();
+      const dark =
+        pendingThemeOverride !== null
+          ? pendingThemeOverride
+          : previewRoot
+              ?.closest('.toastui-editor-defaultUI')
+              ?.classList.contains('toastui-editor-dark') ||
+            wysiwygRoot
+              ?.closest('.toastui-editor-defaultUI')
+              ?.classList.contains('toastui-editor-dark') ||
+            false;
+
+      pendingThemeOverride = null;
+
+      updateUmlImagesIn(previewRoot, rendererURL, dark);
+      updateUmlImagesIn(wysiwygRoot, rendererURL, dark);
+    });
+  };
+
+  context.eventEmitter.listen('changeTheme', (theme: string) => {
+    scheduleUpdate(theme === 'dark');
   });
+  context.eventEmitter.listen('change', () => scheduleUpdate());
+  context.eventEmitter.listen('changeMode', () => scheduleUpdate());
+  context.eventEmitter.listen('load', () => scheduleUpdate());
+  context.eventEmitter.listen('loadUI', () => scheduleUpdate());
 
   return {
     toHTMLRenderers: {

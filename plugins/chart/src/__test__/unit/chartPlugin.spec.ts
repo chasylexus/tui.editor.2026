@@ -371,4 +371,36 @@ describe('setDefaultOptions', () => {
     expect(chartOptions.chart!.width).toBe(700);
     expect(chartOptions.chart!.height).toBe(800);
   });
+
+  it('should use fallback width when container is hidden', () => {
+    const rectSpy = jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+      width: 0,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect);
+
+    const chartOptions = setDefaultOptions(
+      {
+        chart: {
+          width: 'auto',
+          height: 'auto',
+        },
+      } as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect(chartOptions.chart!.width).toBe(600);
+    expect(chartOptions.chart!.height).toBe(600);
+
+    rectSpy.mockRestore();
+  });
 });
