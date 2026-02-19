@@ -204,6 +204,7 @@ function createDefaultToolbarItemInfo(type: string) {
         name: 'link',
         className: 'link',
         tooltip: i18n.get('Insert link'),
+        state: 'link',
       };
       break;
     case 'code':

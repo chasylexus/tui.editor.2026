@@ -297,18 +297,20 @@ interface MarkdownAnchor {
   text: string;
 }
 
+function normalizeFragmentId(text: string) {
+  return text.trim().replace(/\\s+/g, '_');
+}
+
+function normalizeFragmentHref(text: string) {
+  return `#${normalizeFragmentId(text)}`;
+}
+
 function slugify(text: string) {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\u0080-\uffff-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+  return normalizeFragmentId(text).replace(/_+/g, '_');
 }
 
 function toHashHref(id: string) {
-  return `#${encodeURIComponent(id)}`;
+  return normalizeFragmentHref(id);
 }
 
 function safeDecodeURIComponent(value: string) {
@@ -380,6 +382,7 @@ function addCustomAnchorTargets(root: HTMLElement, markdownAnchors: MarkdownAnch
   );
 
   markdownAnchors.forEach(({ id, text }) => {
+    id = normalizeFragmentId(id);
     const existing = root.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
 
     if (existing) {
@@ -511,7 +514,7 @@ function extractFragmentDestinations(markdown: string) {
 }
 
 function resolveTargetId(rawDestination: string, root: HTMLElement) {
-  const decoded = safeDecodeURIComponent(rawDestination.trim());
+  const decoded = normalizeFragmentId(safeDecodeURIComponent(rawDestination.trim()));
   const directId = decoded;
 
   if (directId && root.querySelector(`[id="${CSS.escape(directId)}"]`)) {
@@ -608,11 +611,11 @@ ${styles}
         var id = target.getAttribute('id');
         if(!id){return;}
         if(target.tagName === 'A'){event.preventDefault();}
-        var encoded = encodeURIComponent(id);
-        if(window.location.hash !== '#' + encoded){
-          history.replaceState(null,'', '#' + encoded);
+        var normalizedId = String(id).trim().replace(/\\s+/g, '_');
+        if(window.location.hash !== '#' + normalizedId){
+          history.replaceState(null,'', '#' + normalizedId);
         }
-        var targetElement = document.getElementById(id) || document.getElementById(decodeURIComponent(encoded));
+        var targetElement = document.getElementById(normalizedId) || document.getElementById(id);
         if(targetElement){targetElement.scrollIntoView({ block: 'start' });}
       });
     });

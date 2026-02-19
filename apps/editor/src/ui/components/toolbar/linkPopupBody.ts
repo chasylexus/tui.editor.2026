@@ -44,7 +44,14 @@ export class LinkPopupBody extends Component<Props> {
     removeClass(linkUrlEl, 'wrong');
     removeClass(linkTextEl, 'wrong');
 
+    const hasInitialLink = !isUndefined(this.props.initialValues.linkUrl);
+
     if (linkUrlEl.value.length < 1) {
+      if (hasInitialLink) {
+        this.props.execCommand('removeLink', { linkText: linkTextEl.value });
+        return;
+      }
+
       addClass(linkUrlEl, 'wrong');
       return;
     }

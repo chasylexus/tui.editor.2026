@@ -1,4 +1,4 @@
-import { MdNode, MdPos } from '@toast-ui/toastmark';
+import { MdNode, MdPos, ToastMark } from '@toast-ui/toastmark';
 import { Plugin } from 'prosemirror-state';
 import { MdContext } from '@t/spec';
 import { ToolbarStateMap, ToolbarStateKeys } from '@t/ui';
@@ -24,7 +24,93 @@ const defaultToolbarStateKeys: ToolbarStateKeys[] = [
   'codeBlock',
   'indent',
   'outdent',
+  'link',
 ];
+
+type MdRange = [MdPos, MdPos];
+
+function comparePos(a: MdPos, b: MdPos) {
+  if (a[0] !== b[0]) {
+    return a[0] - b[0];
+  }
+
+  return a[1] - b[1];
+}
+
+function normalizeRange(range: MdRange): MdRange {
+  const [start, end] = range;
+
+  return comparePos(start, end) <= 0 ? [start, end] : [end, start];
+}
+
+function isEmptyRange(range: MdRange) {
+  return comparePos(range[0], range[1]) === 0;
+}
+
+function rangeContains(container: MdRange, target: MdRange) {
+  const [containerStart, containerEnd] = container;
+  const [targetStart, targetEnd] = target;
+
+  return comparePos(containerStart, targetStart) <= 0 && comparePos(containerEnd, targetEnd) >= 0;
+}
+
+function posInRange(range: MdRange, pos: MdPos) {
+  const [start, end] = range;
+
+  return comparePos(start, pos) <= 0 && comparePos(end, pos) >= 0;
+}
+
+function toSelectionRange(sourceRange: MdRange): MdRange {
+  const [start, end] = sourceRange;
+
+  return [start, [end[0], end[1] + 1]];
+}
+
+function getLinkRanges(toastMark: ToastMark) {
+  const ranges: MdRange[] = [];
+  const walker = toastMark.getRootNode().walker();
+  let event = walker.next();
+
+  while (event) {
+    const { node, entering } = event;
+
+    if (entering && node.type === 'link' && node.sourcepos) {
+      ranges.push(toSelectionRange(node.sourcepos as MdRange));
+    }
+    event = walker.next();
+  }
+
+  return ranges;
+}
+
+function toMdPos(doc: any, pos: number): MdPos {
+  const startChOffset = doc.resolve(pos).start();
+  const line = doc.content.findIndex(pos).index + 1;
+  let ch = pos - startChOffset;
+
+  if (pos === startChOffset) {
+    ch += 1;
+  }
+
+  return [line, ch];
+}
+
+function isSingleLinkSelection(toastMark: ToastMark, range: MdRange) {
+  const normalizedRange = normalizeRange(range);
+  const linkRanges = getLinkRanges(toastMark);
+
+  if (isEmptyRange(normalizedRange)) {
+    const [cursor] = normalizedRange;
+
+    return linkRanges.some((linkRange) => posInRange(linkRange, cursor));
+  }
+
+  const containedLinks = linkRanges.filter((linkRange) =>
+    rangeContains(linkRange, normalizedRange)
+  );
+
+  return containedLinks.length === 1;
+}
 
 function getToolbarStateType(mdNode: MdNode) {
   const { type } = mdNode;
@@ -92,17 +178,17 @@ export function previewHighlight({ toastMark, eventEmitter }: MdContext) {
           if (prevState && prevState.doc.eq(doc) && prevState.selection.eq(selection)) {
             return;
           }
-          const { from } = selection;
-          const startChOffset = state.doc.resolve(from).start();
-          const line = state.doc.content.findIndex(from).index + 1;
-          let ch = from - startChOffset;
-
-          if (from === startChOffset) {
-            ch += 1;
-          }
-          const cursorPos: MdPos = [line, ch];
+          const cursorPos = toMdPos(doc, selection.from);
+          const range = normalizeRange([
+            toMdPos(doc, selection.from),
+            toMdPos(doc, selection.to),
+          ] as MdRange);
           const mdNode = toastMark.findNodeAtPosition(cursorPos)!;
           const toolbarState = getToolbarState(mdNode);
+
+          toolbarState.link = {
+            active: isSingleLinkSelection(toastMark, range),
+          };
 
           eventEmitter.emit('changeToolbarState', {
             cursorPos,

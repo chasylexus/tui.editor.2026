@@ -3,6 +3,7 @@ import { toggleMark } from 'prosemirror-commands';
 
 import Mark from '@/spec/mark';
 import { escapeXml } from '@/utils/common';
+import { normalizeFragmentHref } from '@/utils/link';
 import { sanitizeHTML } from '@/sanitizer/htmlSanitizer';
 import { createTextNode } from '@/helper/manipulation';
 import { getCustomAttrs, getDefaultCustomAttrs } from '@/wysiwyg/helper/node';
@@ -63,11 +64,12 @@ export class Link extends Mark {
   private addLink(): EditorCommand {
     return (payload) => (state, dispatch) => {
       const { linkUrl, linkText = '' } = payload!;
+      const normalizedLinkUrl = normalizeFragmentHref(linkUrl);
       const { schema, tr, selection } = state;
       const { empty, from, to } = selection;
 
-      if (from && to && linkUrl) {
-        const attrs = { linkUrl };
+      if (from && to && normalizedLinkUrl) {
+        const attrs = { linkUrl: normalizedLinkUrl };
         const mark = schema.mark('link', attrs);
 
         if (empty && linkText) {
@@ -92,10 +94,26 @@ export class Link extends Mark {
       toggleMark(state.schema.marks.link, payload)(state, dispatch);
   }
 
+  private removeLink(): EditorCommand {
+    return () => (state, dispatch) => {
+      const { schema, tr, selection } = state;
+      const { empty, from, to } = selection;
+
+      if (empty || from === to) {
+        return false;
+      }
+
+      dispatch!(tr.removeMark(from, to, schema.marks.link).scrollIntoView());
+
+      return true;
+    };
+  }
+
   commands() {
     return {
       addLink: this.addLink(),
       toggleLink: this.toggleLink(),
+      removeLink: this.removeLink(),
     };
   }
 }

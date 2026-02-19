@@ -2,6 +2,7 @@ import { DOMOutputSpec, Mark as ProsemirrorMark } from 'prosemirror-model';
 import { EditorCommand } from '@t/spec';
 import { clsWithMdPrefix } from '@/utils/dom';
 import { escapeTextForLink } from '@/utils/common';
+import { normalizeFragmentHref } from '@/utils/link';
 import Mark from '@/spec/mark';
 import { createTextNode } from '@/helper/manipulation';
 import { resolveSelectionPos } from '../helper/pos';
@@ -47,7 +48,7 @@ export class Link extends Mark {
       const [from, to] = resolveSelectionPos(selection);
       const { linkText, altText, linkUrl, imageUrl } = payload!;
       let text = linkText;
-      let url = linkUrl;
+      let url = normalizeFragmentHref(linkUrl);
       let syntax = '';
 
       if (commandType === 'image') {
@@ -65,10 +66,22 @@ export class Link extends Mark {
     };
   }
 
+  private removeLink(): EditorCommand<Payload> {
+    return (payload) => ({ selection, tr, schema }, dispatch) => {
+      const [from, to] = resolveSelectionPos(selection);
+      const text = payload?.linkText || '';
+
+      dispatch!(tr.replaceWith(from, to, createTextNode(schema, text)));
+
+      return true;
+    };
+  }
+
   commands() {
     return {
       addImage: this.addLinkOrImage('image'),
       addLink: this.addLinkOrImage('link'),
+      removeLink: this.removeLink(),
     };
   }
 }

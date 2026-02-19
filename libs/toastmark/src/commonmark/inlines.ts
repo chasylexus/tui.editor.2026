@@ -903,6 +903,7 @@ export class InlineParser {
       }
       // @TODO handrolled parser; res should be null or the string
       const savepos = this.pos;
+      const isFragmentDestination = this.subject.charAt(savepos) === '#';
       let openparens = 0;
       let c: number;
       while ((c = this.peek()) !== -1) {
@@ -922,7 +923,11 @@ export class InlineParser {
             openparens -= 1;
           }
         } else if (reWhitespaceChar.exec(fromCodePoint(c)) !== null) {
-          break;
+          if (isFragmentDestination) {
+            this.pos += 1;
+          } else {
+            break;
+          }
         } else {
           this.pos += 1;
         }

@@ -18,6 +18,7 @@ const MARK_TYPES = [
   'underline',
   'emph',
   'code',
+  'link',
 ];
 const LIST_TYPES: ListType[] = ['bulletList', 'orderedList', 'taskList'];
 
