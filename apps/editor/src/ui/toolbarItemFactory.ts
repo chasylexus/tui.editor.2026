@@ -213,6 +213,7 @@ function createDefaultToolbarItemInfo(type: string) {
         name: 'anchor',
         className: 'anchor',
         tooltip: i18n.get('Insert anchor'),
+        state: 'anchor',
       };
       break;
     case 'code':

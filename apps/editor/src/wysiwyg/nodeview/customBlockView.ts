@@ -2,7 +2,7 @@ import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode } from 'prosemirror-model';
 import { StepMap } from 'prosemirror-transform';
 import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
-import { newlineInCode } from 'prosemirror-commands';
+import { newlineInCode, selectAll } from 'prosemirror-commands';
 import { redo, undo, undoDepth, history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import isFunction from 'tui-code-snippet/type/isFunction';
@@ -119,6 +119,7 @@ export class CustomBlockView implements NodeView {
               this.saveAndFinishEditing();
               return true;
             },
+            'Mod-a': selectAll,
           }),
           history(),
         ],

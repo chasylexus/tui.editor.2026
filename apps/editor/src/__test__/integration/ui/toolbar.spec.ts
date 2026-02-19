@@ -287,6 +287,50 @@ describe('Default toolbar', () => {
       expect(idInput.value).toBe('Existing ID');
     });
 
+    it('should set anchor button active when cursor is inside custom anchor', () => {
+      editor.setMarkdown('<a id="Existing ID">Anchor Text</a>');
+      editor.setSelection([1, 5], [1, 5]);
+
+      expect(anchorButton).toHaveClass('active');
+    });
+
+    it('should set anchor button active for custom anchor in wysiwyg mode', () => {
+      editor.changeMode('wysiwyg');
+      editor.setHTML('<p>Anchor Text</p>');
+      editor.exec('selectAll');
+      editor.exec('addCustomAnchor', { anchorId: 'Existing_ID' });
+      const [from] = editor.getSelection() as [number, number];
+
+      editor.setSelection(from + 5, from + 5);
+
+      expect(anchorButton).toHaveClass('active');
+    });
+
+    it('should keep anchor button active on custom anchor boundaries in wysiwyg mode', () => {
+      const states: Record<string, any>[] = [];
+
+      editor.eventEmitter.listen('changeToolbarState', ({ toolbarState }) => {
+        states.push(toolbarState);
+      });
+      editor.changeMode('wysiwyg');
+      editor.setHTML('<p>Anchor Text</p>');
+      editor.exec('selectAll');
+      editor.exec('addCustomAnchor', { anchorId: 'Boundary_ID' });
+      const [from, to] = editor.getSelection() as [number, number];
+
+      editor.setSelection(from, from);
+      const startState = states[states.length - 1];
+
+      expect(startState.anchor?.active).toBe(true);
+      expect(anchorButton).toHaveClass('active');
+
+      editor.setSelection(to, to);
+      const endState = states[states.length - 1];
+
+      expect(endState.anchor?.active).toBe(true);
+      expect(anchorButton).toHaveClass('active');
+    });
+
     it('should prefill and select generated anchor id from selected text', () => {
       editor.setMarkdown('Anchor Text');
       editor.setSelection([1, 1], [1, 12]);

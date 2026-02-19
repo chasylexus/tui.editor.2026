@@ -25,6 +25,7 @@ const defaultToolbarStateKeys: ToolbarStateKeys[] = [
   'indent',
   'outdent',
   'link',
+  'anchor',
 ];
 
 type MdRange = [MdPos, MdPos];
@@ -83,6 +84,50 @@ function getLinkRanges(toastMark: ToastMark) {
   return ranges;
 }
 
+function getLineStartOffsets(markdown: string) {
+  const offsets = [0];
+
+  for (let i = 0; i < markdown.length; i += 1) {
+    if (markdown[i] === '\n') {
+      offsets.push(i + 1);
+    }
+  }
+
+  return offsets;
+}
+
+function toMdPosFromIndex(lineOffsets: number[], index: number): MdPos {
+  let line = 0;
+
+  while (line + 1 < lineOffsets.length && lineOffsets[line + 1] <= index) {
+    line += 1;
+  }
+
+  return [line + 1, index - lineOffsets[line] + 1];
+}
+
+function getCustomAnchorRanges(markdownSource: string) {
+  const ranges: MdRange[] = [];
+  const reAnchor = /<a\s+[^>]*id\s*=\s*(?:"([^"]+)"|'([^']+)')[^>]*>[\s\S]*?<\/a>/gi;
+  const lineOffsets = getLineStartOffsets(markdownSource);
+  let match = reAnchor.exec(markdownSource);
+
+  while (match) {
+    const anchorId = (match[1] || match[2] || '').trim();
+
+    if (anchorId) {
+      const start = toMdPosFromIndex(lineOffsets, match.index);
+      const end = toMdPosFromIndex(lineOffsets, match.index + match[0].length);
+
+      ranges.push([start, end]);
+    }
+
+    match = reAnchor.exec(markdownSource);
+  }
+
+  return ranges;
+}
+
 function toMdPos(doc: any, pos: number): MdPos {
   const startChOffset = doc.resolve(pos).start();
   const line = doc.content.findIndex(pos).index + 1;
@@ -110,6 +155,23 @@ function isSingleLinkSelection(toastMark: ToastMark, range: MdRange) {
   );
 
   return containedLinks.length === 1;
+}
+
+function isSingleAnchorSelection(markdownSource: string, range: MdRange) {
+  const normalizedRange = normalizeRange(range);
+  const anchorRanges = getCustomAnchorRanges(markdownSource);
+
+  if (isEmptyRange(normalizedRange)) {
+    const [cursor] = normalizedRange;
+
+    return anchorRanges.some((anchorRange) => posInRange(anchorRange, cursor));
+  }
+
+  const containedAnchors = anchorRanges.filter((anchorRange) =>
+    rangeContains(anchorRange, normalizedRange)
+  );
+
+  return containedAnchors.length === 1;
 }
 
 function getToolbarStateType(mdNode: MdNode) {
@@ -183,11 +245,15 @@ export function previewHighlight({ toastMark, eventEmitter }: MdContext) {
             toMdPos(doc, selection.from),
             toMdPos(doc, selection.to),
           ] as MdRange);
+          const markdownSource = doc.textBetween(0, doc.content.size, '\n');
           const mdNode = toastMark.findNodeAtPosition(cursorPos)!;
           const toolbarState = getToolbarState(mdNode);
 
           toolbarState.link = {
             active: isSingleLinkSelection(toastMark, range),
+          };
+          toolbarState.anchor = {
+            active: isSingleAnchorSelection(markdownSource, range),
           };
 
           eventEmitter.emit('changeToolbarState', {

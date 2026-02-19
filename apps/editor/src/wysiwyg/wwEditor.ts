@@ -299,8 +299,28 @@ export default class WysiwygEditor extends EditorBase {
       handlePaste: (view: EditorView, _: ClipboardEvent, slice: Slice) => pasteToTable(view, slice),
       handleTextInput: (view, from, to, text) =>
         this.convertBacktickPairToInlineCode(view, from, to, text),
-      handleKeyDown: (_, ev) => {
+      handleKeyDown: (view, ev) => {
         this.eventEmitter.emit('keydown', this.editorType, ev);
+
+        if (
+          (ev.metaKey || ev.ctrlKey) &&
+          !ev.shiftKey &&
+          !ev.altKey &&
+          ev.key.toLowerCase() === 'a'
+        ) {
+          const { $from } = view.state.selection;
+
+          for (let d = $from.depth; d >= 0; d -= 1) {
+            if ($from.node(d).type.name === 'codeBlock') {
+              const { tr } = view.state;
+
+              view.dispatch(tr.setSelection(createTextSelection(tr, $from.start(d), $from.end(d))));
+
+              return true;
+            }
+          }
+        }
+
         return false;
       },
       handleDOMEvents: {

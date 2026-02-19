@@ -1,6 +1,6 @@
 import { oneLineTrim } from 'common-tags';
 
-import { DOMParser } from 'prosemirror-model';
+import { DOMParser, ProsemirrorNode } from 'prosemirror-model';
 import {
   chainCommands,
   deleteSelection,
@@ -522,6 +522,55 @@ describe('keymap', () => {
 
         expect(wwe.getHTML()).toBe(expected);
       });
+    });
+
+    it('should select the current code block content by Mod-a', () => {
+      html = oneLineTrim`
+        <p>before</p>
+        <div data-language="text" class="${CODE_BLOCK_CLS}">
+          <pre>
+            <code>foo\nbar\nbaz</code>
+          </pre>
+        </div>
+        <p>after</p>
+      `;
+
+      setContent(html);
+
+      let codeBlockPos = -1;
+      let codeBlockNodeSize = 0;
+      let codeText = '';
+
+      wwe.view.state.doc.descendants((node: ProsemirrorNode, pos: number) => {
+        if (node.type.name === 'codeBlock') {
+          codeBlockPos = pos;
+          codeBlockNodeSize = node.nodeSize;
+          codeText = node.textContent;
+          return false;
+        }
+
+        return true;
+      });
+
+      expect(codeBlockPos).toBeGreaterThan(-1);
+
+      wwe.setSelection(codeBlockPos + 2, codeBlockPos + 2);
+      const codeEl = wwe.view.dom.querySelector('pre code') as HTMLElement;
+
+      codeEl.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'a',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+
+      const { from, to } = wwe.view.state.selection;
+      const selectedText = wwe.view.state.doc.textBetween(from, to, '\n');
+
+      expect([from, to]).toEqual([codeBlockPos + 1, codeBlockPos + codeBlockNodeSize - 1]);
+      expect(selectedText).toBe(codeText);
     });
   });
 

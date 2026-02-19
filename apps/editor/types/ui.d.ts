@@ -135,6 +135,7 @@ interface ToolbarStateMap {
   indent: ToolbarItemState;
   outdent: ToolbarItemState;
   link: ToolbarItemState;
+  anchor: ToolbarItemState;
 }
 export type ToolbarStateKeys = keyof ToolbarStateMap;
 

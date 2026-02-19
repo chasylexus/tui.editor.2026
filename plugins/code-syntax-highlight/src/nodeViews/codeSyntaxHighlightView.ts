@@ -1,5 +1,6 @@
 import type { EditorView, NodeView } from 'prosemirror-view';
 import type { Node as ProsemirrorNode } from 'prosemirror-model';
+import { TextSelection } from 'prosemirror-state';
 
 import isFunction from 'tui-code-snippet/type/isFunction';
 import addClass from 'tui-code-snippet/domUtil/addClass';
@@ -305,6 +306,31 @@ class CodeSyntaxHighlightView implements NodeView {
     }
   };
 
+  private onCodeBlockKeyDown = (ev: KeyboardEvent) => {
+    const isSelectAllShortcut =
+      (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === 'a';
+
+    if (!isSelectAllShortcut || !isFunction(this.getPos)) {
+      return;
+    }
+
+    if (this.toolbar && ev.target instanceof Node && this.toolbar.contains(ev.target)) {
+      return;
+    }
+
+    const pos = this.getPos();
+    const { state } = this.view;
+    const from = pos + 1;
+    const to = pos + this.node.nodeSize - 1;
+    const maxPos = state.doc.content.size;
+    const safeFrom = Math.max(1, Math.min(from, maxPos));
+    const safeTo = Math.max(safeFrom, Math.min(to, maxPos));
+
+    this.view.focus();
+    this.view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, safeFrom, safeTo)));
+    ev.preventDefault();
+  };
+
   private bindDOMEvent() {
     if (this.toolbar) {
       this.toolbar.addEventListener('mousedown', this.onToolbarMouseDown);
@@ -323,6 +349,7 @@ class CodeSyntaxHighlightView implements NodeView {
       this.lineNumberInput.addEventListener('keydown', this.onLineNumberKeyDown);
     }
 
+    this.dom.addEventListener('keydown', this.onCodeBlockKeyDown);
     this.view.dom.addEventListener('mousedown', this.finishLanguageEditing);
     window.addEventListener('resize', this.finishLanguageEditing);
   }
@@ -411,6 +438,7 @@ class CodeSyntaxHighlightView implements NodeView {
       this.lineNumberInput.removeEventListener('keydown', this.onLineNumberKeyDown);
     }
 
+    this.dom.removeEventListener('keydown', this.onCodeBlockKeyDown);
     this.view.dom.removeEventListener('mousedown', this.finishLanguageEditing);
     window.removeEventListener('resize', this.finishLanguageEditing);
 

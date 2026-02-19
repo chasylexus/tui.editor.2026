@@ -59,6 +59,7 @@ function setMarkTypeStates(
       }
 
       if (type === 'link' && activeMark.attrs.anchorId && !activeMark.attrs.linkUrl) {
+        toolbarState.anchor = { active: true };
         return false;
       }
 
@@ -67,6 +68,71 @@ function setMarkTypeStates(
 
     if (foundMark) {
       toolbarState[type as ToolbarStateKeys] = { active: true };
+    }
+  });
+}
+
+function setBoundaryLinkStates(
+  selection: Selection,
+  doc: Node,
+  schema: Schema,
+  toolbarState: ToolbarStateMap
+) {
+  if (!selection.empty) {
+    return;
+  }
+
+  const linkType = schema.marks.link;
+
+  if (!linkType) {
+    return;
+  }
+
+  const { $from } = selection;
+  const candidateNodes = [$from.nodeBefore, $from.nodeAfter];
+
+  candidateNodes.forEach((node) => {
+    if (!node || !node.isText) {
+      return;
+    }
+
+    const linkMark = linkType.isInSet(node.marks);
+
+    if (!linkMark) {
+      return;
+    }
+
+    if (linkMark.attrs.anchorId && !linkMark.attrs.linkUrl) {
+      toolbarState.anchor = { active: true };
+    } else {
+      toolbarState.link = { active: true };
+    }
+  });
+
+  const size = doc.content.size > 0 ? doc.content.size - 1 : 1;
+  const cursorPos = selection.from;
+  const aroundPositions = [cursorPos, Math.max(1, cursorPos - 1), Math.min(size, cursorPos + 1)];
+
+  if (cursorPos <= 1) {
+    aroundPositions.push(Math.min(size, cursorPos + 2));
+  }
+
+  if (cursorPos >= size - 1) {
+    aroundPositions.push(Math.max(1, cursorPos - 2));
+  }
+
+  aroundPositions.forEach((pos) => {
+    const marks = doc.resolve(pos).marks();
+    const linkMark = linkType.isInSet(marks);
+
+    if (!linkMark) {
+      return;
+    }
+
+    if (linkMark.attrs.anchorId && !linkMark.attrs.linkUrl) {
+      toolbarState.anchor = { active: true };
+    } else {
+      toolbarState.link = { active: true };
     }
   });
 }
@@ -93,6 +159,8 @@ function getToolbarState(
   } else {
     activeMarks = $from.marksAcross($to) || [];
   }
+
+  setBoundaryLinkStates(selection, doc, schema, toolbarState);
 
   doc.nodesBetween(from, to, (node, _, parentNode) => {
     const type = getToolbarStateType(node, parentNode!);

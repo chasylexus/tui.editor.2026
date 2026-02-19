@@ -1,5 +1,6 @@
 import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode } from 'prosemirror-model';
+import { TextSelection } from 'prosemirror-state';
 
 import isFunction from 'tui-code-snippet/type/isFunction';
 import css from 'tui-code-snippet/domUtil/css';
@@ -260,6 +261,7 @@ export class CodeBlockView implements NodeView {
   private bindDOMEvent() {
     if (this.dom) {
       this.dom.addEventListener('click', this.handleMousedown);
+      this.dom.addEventListener('keydown', this.handleKeydown);
     }
   }
 
@@ -280,6 +282,27 @@ export class CodeBlockView implements NodeView {
 
       this.createLanguageEditor({ top, right });
     }
+  };
+
+  private handleKeydown = (ev: KeyboardEvent) => {
+    const isSelectAllShortcut =
+      (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === 'a';
+
+    if (!isSelectAllShortcut || !isFunction(this.getPos)) {
+      return;
+    }
+
+    const pos = this.getPos();
+    const { state } = this.view;
+    const from = pos + 1;
+    const to = pos + this.node.nodeSize - 1;
+    const maxPos = state.doc.content.size;
+    const safeFrom = Math.max(1, Math.min(from, maxPos));
+    const safeTo = Math.max(safeFrom, Math.min(to, maxPos));
+
+    this.view.focus();
+    this.view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, safeFrom, safeTo)));
+    ev.preventDefault();
   };
 
   private resetEditor() {
@@ -322,6 +345,7 @@ export class CodeBlockView implements NodeView {
 
     if (this.dom) {
       this.dom.removeEventListener('click', this.handleMousedown);
+      this.dom.removeEventListener('keydown', this.handleKeydown);
     }
   }
 }
