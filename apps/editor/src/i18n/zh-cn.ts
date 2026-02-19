@@ -23,6 +23,9 @@ Editor.setLanguage('zh-CN', {
   Indent: '缩进',
   Outdent: '减少缩进',
   'Insert link': '插入链接',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': '插入代码块',
   'Insert table': '插入表格',
   'Insert image': '插入图片',

@@ -23,6 +23,9 @@ Editor.setLanguage(['nb', 'nb-NO'], {
   Indent: 'Indent',
   Outdent: 'Outdent',
   'Insert link': 'Sett inn lenke',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Sett inn CodeStreng',
   'Insert table': 'Sett inn diagram',
   'Insert image': 'Sett inn bilde',

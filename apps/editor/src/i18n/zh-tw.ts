@@ -23,6 +23,9 @@ Editor.setLanguage('zh-TW', {
   Indent: '增加縮排',
   Outdent: '減少縮排',
   'Insert link': '插入超連結',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': '插入程式碼區塊',
   'Insert table': '插入表格',
   'Insert image': '插入圖片',

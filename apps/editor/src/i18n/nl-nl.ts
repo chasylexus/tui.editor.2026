@@ -23,6 +23,9 @@ Editor.setLanguage(['nl', 'nl-NL'], {
   Indent: 'Niveau verhogen',
   Outdent: 'Niveau verlagen',
   'Insert link': 'Link invoegen',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Codeblok toevoegen',
   'Insert table': 'Tabel invoegen',
   'Insert image': 'Afbeelding invoegen',

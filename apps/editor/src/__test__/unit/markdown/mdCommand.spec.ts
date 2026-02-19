@@ -293,6 +293,15 @@ describe('addImage command', () => {
     expect(getTextContent(mde)).toBe('![image](myurl ()[]<>)');
   });
 
+  it('should preserve raw fragment destination without underscore normalization', () => {
+    cmd.exec('addLink', {
+      linkText: 'some text',
+      linkUrl: "#my' anchor!",
+    });
+
+    expect(getTextContent(mde)).toBe("[some text](#my' anchor!)");
+  });
+
   it('should not decode url which is already encoded', () => {
     cmd.exec('addImage', {
       altText: 'image',
@@ -321,6 +330,15 @@ describe('addLink command', () => {
     expect(getTextContent(mde)).toBe('[mytext ()\\[\\]<>](https://ui.toast.com)');
   });
 
+  it('should preserve raw fragment destination without underscore normalization', () => {
+    cmd.exec('addLink', {
+      linkText: 'some text',
+      linkUrl: "#my' anchor!",
+    });
+
+    expect(getTextContent(mde)).toBe("[some text](#my' anchor!)");
+  });
+
   it('should not decode url which is already encoded', () => {
     cmd.exec('addLink', {
       linkText: 'TOAST UI',
@@ -330,6 +348,57 @@ describe('addLink command', () => {
     expect(getTextContent(mde)).toBe(
       '[TOAST UI](https://firebasestorage.googleapis.com/links%2Fimage.png?alt=media)'
     );
+  });
+});
+
+describe('addCustomAnchor command', () => {
+  it('should wrap selected text with custom anchor html', () => {
+    mde.setMarkdown('Anchor Text');
+    mde.setSelection([1, 1], [1, 12]);
+
+    cmd.exec('addCustomAnchor');
+
+    expect(getTextContent(mde)).toBe('<a id="Anchor_Text">Anchor Text</a>');
+  });
+
+  it('should create deterministic unique ids on collision', () => {
+    mde.setMarkdown('<a id="Anchor_Text">Anchor Text</a>\n\nAnchor Text');
+    mde.setSelection([3, 1], [3, 12]);
+
+    cmd.exec('addCustomAnchor');
+
+    expect(getTextContent(mde)).toBe(
+      '<a id="Anchor_Text">Anchor Text</a>\n\n<a id="Anchor_Text_1">Anchor Text</a>'
+    );
+  });
+
+  it('should do nothing for empty selection', () => {
+    mde.setMarkdown('Anchor Text');
+    mde.setSelection([1, 1], [1, 1]);
+
+    cmd.exec('addCustomAnchor');
+
+    expect(getTextContent(mde)).toBe('Anchor Text');
+  });
+
+  it('should use custom anchor id payload and normalize spaces', () => {
+    mde.setMarkdown('Anchor Text');
+    mde.setSelection([1, 1], [1, 12]);
+
+    cmd.exec('addCustomAnchor', { anchorId: 'My Custom ID' });
+
+    expect(getTextContent(mde)).toBe('<a id="My Custom ID">Anchor Text</a>');
+  });
+});
+
+describe('removeCustomAnchor command', () => {
+  it('should remove custom anchor wrapper and keep text', () => {
+    mde.setMarkdown(`<a id="my'_anchor!">Anchor Text</a>`);
+    mde.setSelection([1, 1], [1, 37]);
+
+    cmd.exec('removeCustomAnchor', { anchorText: 'Anchor Text' });
+
+    expect(getTextContent(mde)).toBe('Anchor Text');
   });
 });
 

@@ -580,6 +580,64 @@ describe('wysiwyg commands', () => {
     });
   });
 
+  describe('addCustomAnchor command', () => {
+    it('should create custom anchor from selected text', () => {
+      setTextToEditor('Anchor Text');
+      cmd.exec('selectAll');
+
+      cmd.exec('addCustomAnchor');
+
+      expect(wwe.getHTML()).toBe('<p><a id="Anchor_Text">Anchor Text</a></p>');
+    });
+
+    it('should generate deterministic unique id on collision', () => {
+      em.listen('query', (query: string) => {
+        if (query === 'getCurrentMarkdown') {
+          return '<a id="Anchor_Text">Anchor Text</a>';
+        }
+
+        return null;
+      });
+      setTextToEditor('Anchor Text');
+      cmd.exec('selectAll');
+
+      cmd.exec('addCustomAnchor');
+
+      expect(wwe.getHTML()).toBe('<p><a id="Anchor_Text_1">Anchor Text</a></p>');
+    });
+
+    it('should keep document unchanged on empty selection', () => {
+      setTextToEditor('Anchor Text');
+      wwe.setSelection(1, 1);
+
+      cmd.exec('addCustomAnchor');
+
+      expect(wwe.getHTML()).toBe('<p>Anchor Text</p>');
+    });
+
+    it('should use custom anchor id payload and normalize spaces', () => {
+      setTextToEditor('Anchor Text');
+      cmd.exec('selectAll');
+
+      cmd.exec('addCustomAnchor', { anchorId: 'My Custom ID' });
+
+      expect(wwe.getHTML()).toBe('<p><a id="My Custom ID">Anchor Text</a></p>');
+    });
+  });
+
+  describe('removeCustomAnchor command', () => {
+    it('should remove custom anchor mark and keep text', () => {
+      setTextToEditor('Anchor Text');
+      cmd.exec('selectAll');
+      cmd.exec('addCustomAnchor', { anchorId: "my'_anchor!" });
+
+      cmd.exec('selectAll');
+      cmd.exec('removeCustomAnchor');
+
+      expect(wwe.getHTML()).toBe('<p>Anchor Text</p>');
+    });
+  });
+
   describe(`addLink command with 'linkAttributes' option`, () => {
     beforeEach(() => {
       const linkAttributes = {

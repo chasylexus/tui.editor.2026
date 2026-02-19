@@ -23,6 +23,9 @@ Editor.setLanguage(['ko', 'ko-KR'], {
   Indent: '들여쓰기',
   Outdent: '내어쓰기',
   'Insert link': '링크 삽입',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': '코드블럭 삽입',
   'Insert table': '표 삽입',
   'Insert image': '이미지 삽입',

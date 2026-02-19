@@ -23,6 +23,9 @@ Editor.setLanguage(['tr', 'tr-TR'], {
   Indent: 'Girintiyi arttır',
   Outdent: 'Girintiyi azalt',
   'Insert link': 'Bağlantı ekle',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Kod bloku ekle',
   'Insert table': 'Tablo ekle',
   'Insert image': 'İmaj ekle',

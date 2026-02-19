@@ -20,6 +20,7 @@ import html from './vdom/template';
 import { HeadingPopupBody } from './components/toolbar/headingPopupBody';
 import { ImagePopupBody } from './components/toolbar/imagePopupBody';
 import { LinkPopupBody } from './components/toolbar/linkPopupBody';
+import { AnchorPopupBody } from './components/toolbar/anchorPopupBody';
 import { TablePopupBody } from './components/toolbar/tablePopupBody';
 import { CustomPopupBody } from './components/toolbar/customPopupBody';
 
@@ -207,6 +208,13 @@ function createDefaultToolbarItemInfo(type: string) {
         state: 'link',
       };
       break;
+    case 'anchor':
+      info = {
+        name: 'anchor',
+        className: 'anchor',
+        tooltip: i18n.get('Insert anchor'),
+      };
+      break;
     case 'code':
       info = {
         name: 'code',
@@ -287,6 +295,14 @@ export function createPopupInfo(type: string, payload: Payload): PopupInfo | nul
       return {
         render: (props) => html`<${LinkPopupBody} ...${props} />`,
         className: cls('popup-add-link'),
+        fromEl: el,
+        pos,
+        initialValues,
+      };
+    case 'anchor':
+      return {
+        render: (props) => html`<${AnchorPopupBody} ...${props} />`,
+        className: cls('popup-add-anchor'),
         fromEl: el,
         pos,
         initialValues,

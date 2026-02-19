@@ -891,6 +891,22 @@
   background-position-x: -334px;
 }
 
+.toastui-editor-toolbar-icons.anchor {
+  background-image: none;
+  color: #555;
+}
+
+.toastui-editor-toolbar-icons.anchor::before {
+  content: '⚓';
+  display: block;
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.toastui-editor-toolbar-icons.anchor.active {
+  color: #00a9ff;
+}
+
 .toastui-editor-toolbar-icons.code {
   background-position-x: -361px;
 }

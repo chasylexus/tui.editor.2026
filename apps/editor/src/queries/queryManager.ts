@@ -2,6 +2,11 @@ import type { EditorCore as Editor, EditorPos, EditorType } from '@t/editor';
 import type { LinkMdNode, MdNode, MdPos } from '@toast-ui/toastmark';
 import { MarkType, Node as ProsemirrorNode } from 'prosemirror-model';
 import { getChildrenText } from '@/utils/markdown';
+import {
+  createAnchorIdFromText,
+  collectExistingAnchorIds,
+  createUniqueAnchorId,
+} from '@/utils/link';
 
 type QueryFn = (editor: Editor, payload?: Record<string, any>) => any;
 
@@ -18,11 +23,30 @@ interface LinkInitialValues {
   linkText: string;
 }
 
+interface AnchorInfo {
+  range: MdRange;
+  anchorId: string;
+  anchorText: string;
+}
+
+interface AnchorInitialValues {
+  anchorId: string;
+  anchorText?: string;
+  existingAnchor?: boolean;
+}
+
 interface WwLinkSpan {
   from: number;
   to: number;
   linkUrl: string;
   linkText: string;
+}
+
+interface WwAnchorSpan {
+  from: number;
+  to: number;
+  anchorId: string;
+  anchorText: string;
 }
 
 interface QueryEditor extends Editor {
@@ -118,7 +142,7 @@ function collectLinks(root: MdNode) {
 
       links.push({
         range: toSelectionRange(node.sourcepos as MdRange),
-        linkUrl: linkNode.destination,
+        linkUrl: linkNode.destination || '',
         linkText: getChildrenText(linkNode),
       });
     }
@@ -127,6 +151,180 @@ function collectLinks(root: MdNode) {
   }
 
   return links;
+}
+
+function getLineStartOffsets(markdown: string) {
+  const offsets = [0];
+
+  for (let i = 0; i < markdown.length; i += 1) {
+    if (markdown[i] === '\n') {
+      offsets.push(i + 1);
+    }
+  }
+
+  return offsets;
+}
+
+function toMdPosFromIndex(lineOffsets: number[], index: number): MdPos {
+  let line = 0;
+
+  while (line + 1 < lineOffsets.length && lineOffsets[line + 1] <= index) {
+    line += 1;
+  }
+
+  return [line + 1, index - lineOffsets[line] + 1];
+}
+
+function collectCustomAnchors(markdown: string) {
+  const anchors: AnchorInfo[] = [];
+  const reAnchor = /<a\s+[^>]*id\s*=\s*(?:"([^"]+)"|'([^']+)')[^>]*>[\s\S]*?<\/a>/gi;
+  const lineOffsets = getLineStartOffsets(markdown);
+  let match = reAnchor.exec(markdown);
+
+  while (match) {
+    const anchorId = (match[1] || match[2] || '').trim();
+
+    if (anchorId) {
+      const startIndex = match.index;
+      const endIndex = match.index + match[0].length;
+
+      const anchorText = (
+        match[0].replace(/<a\s+[^>]*>/i, '').replace(/<\/a>$/i, '') || ''
+      ).replace(/<[^>]+>/g, '');
+
+      anchors.push({
+        range: [toMdPosFromIndex(lineOffsets, startIndex), toMdPosFromIndex(lineOffsets, endIndex)],
+        anchorId,
+        anchorText,
+      });
+    }
+
+    match = reAnchor.exec(markdown);
+  }
+
+  return anchors;
+}
+
+function getMarkdownAnchorInitialValues(editor: QueryEditor): AnchorInitialValues | null {
+  const selectionRange = getSelectionInMarkdown(editor);
+  const markdownSource = editor.getMarkdown();
+  const anchors = collectCustomAnchors(markdownSource);
+
+  if (isEmptyRange(selectionRange)) {
+    const [cursor] = selectionRange;
+    const found = anchors.find(({ range }) => posInRange(range, cursor));
+
+    if (!found) {
+      return null;
+    }
+
+    setSelectionFromMarkdownRange(editor, found.range);
+
+    return { anchorId: found.anchorId, anchorText: found.anchorText, existingAnchor: true };
+  }
+
+  const containedAnchors = anchors.filter(({ range }) => rangeContains(range, selectionRange));
+
+  if (containedAnchors.length === 1) {
+    const [found] = containedAnchors;
+
+    setSelectionFromMarkdownRange(editor, found.range);
+
+    return { anchorId: found.anchorId, anchorText: found.anchorText, existingAnchor: true };
+  }
+
+  if (containedAnchors.length > 1) {
+    const hasMultipleIds = new Set(containedAnchors.map(({ anchorId }) => anchorId)).size > 1;
+
+    if (hasMultipleIds) {
+      return { anchorId: '' };
+    }
+  }
+
+  return null;
+}
+
+function collectWysiwygAnchorSpans(doc: ProsemirrorNode, linkType: MarkType) {
+  const spans: WwAnchorSpan[] = [];
+
+  doc.descendants((node, pos) => {
+    if (!node.isText) {
+      return true;
+    }
+
+    const mark = linkType.isInSet(node.marks);
+
+    if (!mark) {
+      return true;
+    }
+
+    const anchorId = mark.attrs.anchorId || '';
+    const linkUrl = mark.attrs.linkUrl || '';
+
+    if (!anchorId || linkUrl) {
+      return true;
+    }
+
+    const from = pos;
+    const to = pos + node.nodeSize;
+    const text = node.text || '';
+    const last = spans[spans.length - 1];
+
+    if (last && last.to === from && last.anchorId === anchorId) {
+      last.to = to;
+      last.anchorText += text;
+    } else {
+      spans.push({ from, to, anchorId, anchorText: text });
+    }
+
+    return true;
+  });
+
+  return spans;
+}
+
+function getWysiwygAnchorInitialValues(editor: QueryEditor): AnchorInitialValues | null {
+  const { state } = editor.wwEditor.view;
+  const { from, to, empty } = state.selection;
+  const linkType = state.schema.marks.link;
+
+  if (!linkType) {
+    return null;
+  }
+
+  const spans = collectWysiwygAnchorSpans(state.doc, linkType);
+
+  if (empty) {
+    const found = spans.find((span) => span.from <= from && from <= span.to);
+
+    if (!found) {
+      return null;
+    }
+
+    editor.setSelection(found.from, found.to);
+
+    return { anchorId: found.anchorId, anchorText: found.anchorText, existingAnchor: true };
+  }
+
+  const covered = spans.filter((span) => span.from <= from && to <= span.to);
+
+  if (covered.length === 1) {
+    const [found] = covered;
+
+    editor.setSelection(found.from, found.to);
+
+    return { anchorId: found.anchorId, anchorText: found.anchorText, existingAnchor: true };
+  }
+
+  if (covered.length > 1) {
+    const hasMultipleIds = new Set(covered.map(({ anchorId }) => anchorId)).size > 1;
+
+    if (hasMultipleIds) {
+      return { anchorId: '' };
+    }
+  }
+
+  return null;
 }
 
 function getMarkdownLinkInitialValues(editor: QueryEditor): LinkInitialValues | null {
@@ -191,6 +389,11 @@ function collectWysiwygLinkSpans(doc: ProsemirrorNode, linkType: MarkType) {
     const to = pos + node.nodeSize;
     const text = node.text || '';
     const linkUrl = mark.attrs.linkUrl || '';
+
+    if (mark.attrs.anchorId && !linkUrl) {
+      return true;
+    }
+
     const last = spans[spans.length - 1];
 
     if (last && last.to === from && last.linkUrl === linkUrl) {
@@ -264,7 +467,33 @@ function getLinkInitialValues(editor: QueryEditor): LinkInitialValues | null {
   return getWysiwygLinkInitialValues(editor);
 }
 
+function getAnchorInitialValues(editor: QueryEditor) {
+  const existingAnchorValues = editor.isMarkdownMode()
+    ? getMarkdownAnchorInitialValues(editor)
+    : getWysiwygAnchorInitialValues(editor);
+
+  if (existingAnchorValues) {
+    return existingAnchorValues;
+  }
+
+  const selectedText = editor.getSelectedText().trim();
+
+  if (!selectedText) {
+    return { anchorId: '' };
+  }
+
+  const markdownSource = editor.getMarkdown();
+  const existingIds = collectExistingAnchorIds(markdownSource);
+  const anchorId = createUniqueAnchorId(createAnchorIdFromText(selectedText), existingIds);
+
+  return { anchorId };
+}
+
 const queryMap: Record<string, QueryFn> = {
+  getCurrentMarkdown(editor) {
+    return editor.getMarkdown();
+  },
+
   getPopupInitialValues(editor, payload) {
     const { popupName } = payload!;
 
@@ -276,6 +505,10 @@ const queryMap: Record<string, QueryFn> = {
       }
 
       return { linkText: editor.getSelectedText() };
+    }
+
+    if (popupName === 'anchor') {
+      return getAnchorInitialValues(editor as QueryEditor);
     }
 
     return {};

@@ -71,6 +71,7 @@ describe('Default toolbar', () => {
       'Insert table',
       'Insert image',
       'Insert link',
+      'Insert anchor',
       'Inline code',
       'Insert codeBlock',
     ].forEach((label) => {
@@ -78,6 +79,18 @@ describe('Default toolbar', () => {
     });
 
     expect(document.body).toContainElement(getElement('.scroll-sync'));
+  });
+
+  it('should render Anchor button immediately after Link', () => {
+    const toolbarItems = Array.from(
+      document.querySelectorAll<HTMLElement>(`.${cls('toolbar-group')} .${cls('toolbar-icons')}`)
+    );
+    const linkIndex = toolbarItems.findIndex((item) => item.classList.contains('link'));
+    const anchorIndex = toolbarItems.findIndex((item) => item.classList.contains('anchor'));
+
+    expect(linkIndex).toBeGreaterThanOrEqual(0);
+    expect(anchorIndex).toBe(linkIndex + 1);
+    expect(toolbarItems[linkIndex].parentElement).toBe(toolbarItems[anchorIndex].parentElement);
   });
 
   it('should trigger command event when clicking toolbar button', () => {
@@ -174,6 +187,17 @@ describe('Default toolbar', () => {
       expect(linkPopup).toHaveStyle({ display: 'block' });
     });
 
+    it('should focus URL input when opening link popup', () => {
+      const urlText = getByText(linkPopup, 'URL').nextElementSibling as HTMLInputElement;
+
+      expect(document.activeElement).toBe(urlText);
+
+      getByText(linkPopup, 'Cancel').click();
+      linkButton.click();
+
+      expect(document.activeElement).toBe(urlText);
+    });
+
     it('should hide popup when clicking Cancel button', () => {
       const closeBtn = getByText(linkPopup, 'Cancel');
 
@@ -208,6 +232,90 @@ describe('Default toolbar', () => {
       OkBtn.click();
 
       expect(linkText).toHaveClass('wrong');
+    });
+  });
+
+  describe('anchor button', () => {
+    let anchorPopup: HTMLElement;
+    let anchorButton: HTMLElement;
+
+    beforeEach(() => {
+      anchorPopup = getPopUpElement();
+      anchorButton = screen.getByLabelText('Insert anchor');
+    });
+
+    it('should show the popup when clicking anchor button', () => {
+      anchorButton.click();
+
+      expect(anchorPopup).toHaveClass(cls('popup-add-anchor'));
+      expect(anchorPopup).toHaveStyle({ display: 'block' });
+    });
+
+    it('should focus Anchor ID input when opening anchor popup', () => {
+      anchorButton.click();
+
+      const idInput = getByText(anchorPopup, 'Anchor ID').nextElementSibling as HTMLInputElement;
+
+      expect(document.activeElement).toBe(idInput);
+
+      getByText(anchorPopup, 'Cancel').click();
+      anchorButton.click();
+
+      expect(document.activeElement).toBe(idInput);
+    });
+
+    it('should preload existing anchor id when cursor is inside custom anchor', () => {
+      editor.setMarkdown('<a id="Existing ID">Anchor Text</a>');
+      editor.setSelection([1, 5], [1, 5]);
+
+      anchorButton.click();
+
+      const idInput = getByText(anchorPopup, 'Anchor ID').nextElementSibling as HTMLInputElement;
+
+      expect(idInput.value).toBe('Existing ID');
+    });
+
+    it('should prefill and select generated anchor id from selected text', () => {
+      editor.setMarkdown('Anchor Text');
+      editor.setSelection([1, 1], [1, 12]);
+
+      anchorButton.click();
+
+      const idInput = getByText(anchorPopup, 'Anchor ID').nextElementSibling as HTMLInputElement;
+
+      expect(idInput.value).toBe('Anchor_Text');
+      expect(idInput.selectionStart).toBe(0);
+      expect(idInput.selectionEnd).toBe('Anchor_Text'.length);
+    });
+
+    it('should remove existing anchor when ID is cleared and OK is clicked', () => {
+      editor.setMarkdown('<a id="Existing ID">Anchor Text</a>');
+      editor.setSelection([1, 5], [1, 5]);
+
+      anchorButton.click();
+
+      const idInput = getByText(anchorPopup, 'Anchor ID').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(anchorPopup, 'OK');
+
+      idInput.value = '';
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('Anchor Text');
+    });
+
+    it('should insert anchor with manually edited id when clicking OK', () => {
+      editor.setMarkdown('Anchor Text');
+      editor.setSelection([1, 1], [1, 12]);
+
+      anchorButton.click();
+
+      const idInput = getByText(anchorPopup, 'Anchor ID').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(anchorPopup, 'OK');
+
+      idInput.value = 'My Custom ID';
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('<a id="My Custom ID">Anchor Text</a>');
     });
   });
 

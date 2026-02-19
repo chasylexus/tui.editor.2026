@@ -23,6 +23,9 @@ Editor.setLanguage(['es', 'es-ES'], {
   Indent: 'Sangría',
   Outdent: 'Saliendo',
   'Insert link': 'Insertar enlace',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Insertar bloque de código',
   'Insert table': 'Insertar tabla',
   'Insert image': 'Insertar imagen',

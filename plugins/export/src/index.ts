@@ -514,17 +514,17 @@ function extractFragmentDestinations(markdown: string) {
 }
 
 function resolveTargetId(rawDestination: string, root: HTMLElement) {
-  const decoded = normalizeFragmentId(safeDecodeURIComponent(rawDestination.trim()));
-  const directId = decoded;
-
-  if (directId && root.querySelector(`[id="${CSS.escape(directId)}"]`)) {
-    return directId;
-  }
-
+  const raw = rawDestination.trim();
+  const decoded = safeDecodeURIComponent(raw);
+  const normalizedRaw = normalizeFragmentId(raw);
+  const normalizedDecoded = normalizeFragmentId(decoded);
   const slug = slugify(decoded);
+  const candidates = [raw, decoded, normalizedRaw, normalizedDecoded, slug].filter(Boolean);
 
-  if (slug && root.querySelector(`[id="${CSS.escape(slug)}"]`)) {
-    return slug;
+  for (const candidate of candidates) {
+    if (root.querySelector(`[id="${CSS.escape(candidate)}"]`)) {
+      return candidate;
+    }
   }
 
   const headingByText = Array.from(
@@ -535,7 +535,7 @@ function resolveTargetId(rawDestination: string, root: HTMLElement) {
     return headingByText.id;
   }
 
-  return slug || directId;
+  return normalizedDecoded || slug || decoded || raw;
 }
 
 function restoreFragmentLinks(root: HTMLElement, markdown: string) {
@@ -543,7 +543,10 @@ function restoreFragmentLinks(root: HTMLElement, markdown: string) {
   const links = Array.from(root.querySelectorAll<HTMLAnchorElement>('a[href]')).filter((link) => {
     const href = link.getAttribute('href') || '';
 
-    return href === '' || href.startsWith('#');
+    return (
+      (href === '' || href.startsWith('#')) &&
+      link.getAttribute('data-export-anchor-target') !== 'true'
+    );
   });
 
   const count = Math.min(destinations.length, links.length);
@@ -601,9 +604,47 @@ ${styles}
         })}
       });
     });
+    function safeDecode(value){
+      try{return decodeURIComponent(value);}catch(e){return value;}
+    }
+    function resolveAnchorTarget(rawId){
+      var decoded = safeDecode(rawId);
+      var normalizedRaw = String(rawId).trim().replace(/\\s+/g, '_');
+      var normalizedDecoded = String(decoded).trim().replace(/\\s+/g, '_');
+      var candidates = [rawId, decoded, normalizedRaw, normalizedDecoded].filter(Boolean);
+      for(var i=0;i<candidates.length;i+=1){
+        var id = candidates[i];
+        var byId = document.getElementById(id);
+        if(byId){return { id: id, el: byId };}
+        try {
+          var escaped = CSS && CSS.escape ? CSS.escape(id) : id.replace(/(["'\\.#:[,=])/g,'\\$1');
+          var byQuery = document.querySelector('[id="' + escaped + '"]');
+          if(byQuery){return { id: id, el: byQuery };}
+        } catch(err) {}
+      }
+      return null;
+    }
+    function navigateToHash(rawHash){
+      var hash = rawHash || '';
+      if(!hash || hash[0] !== '#'){return;}
+      var rawId = hash.slice(1);
+      var resolved = resolveAnchorTarget(rawId);
+      if(!resolved){return;}
+      var nextHash = '#' + resolved.id;
+      if(window.location.hash !== nextHash){
+        history.replaceState(null,'', nextHash);
+      }
+      resolved.el.scrollIntoView({ block: 'start' });
+    }
     document.querySelectorAll('a[href^="#"]').forEach(function(link){
       link.removeAttribute('target');
       link.removeAttribute('rel');
+      link.addEventListener('click', function(event){
+        var href = link.getAttribute('href') || '';
+        if(!href || href === '#'){return;}
+        event.preventDefault();
+        navigateToHash(href);
+      });
     });
     document.querySelectorAll('[data-export-self-anchor="true"]').forEach(function(target){
       target.style.cursor='pointer';
@@ -611,12 +652,7 @@ ${styles}
         var id = target.getAttribute('id');
         if(!id){return;}
         if(target.tagName === 'A'){event.preventDefault();}
-        var normalizedId = String(id).trim().replace(/\\s+/g, '_');
-        if(window.location.hash !== '#' + normalizedId){
-          history.replaceState(null,'', '#' + normalizedId);
-        }
-        var targetElement = document.getElementById(normalizedId) || document.getElementById(id);
-        if(targetElement){targetElement.scrollIntoView({ block: 'start' });}
+        navigateToHash('#' + id);
       });
     });
     ${'<'}/script>

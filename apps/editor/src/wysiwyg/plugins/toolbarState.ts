@@ -53,7 +53,17 @@ function setMarkTypeStates(
 ) {
   MARK_TYPES.forEach((type) => {
     const mark = schema.marks[type];
-    const foundMark = !!mark.isInSet(activeMarks);
+    const foundMark = activeMarks.some((activeMark) => {
+      if (activeMark.type !== mark) {
+        return false;
+      }
+
+      if (type === 'link' && activeMark.attrs.anchorId && !activeMark.attrs.linkUrl) {
+        return false;
+      }
+
+      return true;
+    });
 
     if (foundMark) {
       toolbarState[type as ToolbarStateKeys] = { active: true };
@@ -65,7 +75,7 @@ function getToolbarState(
   selection: Selection,
   doc: Node,
   schema: Schema,
-  storedMarks: readonly Mark[] | null
+  storedMarks: readonly Mark[] | null | undefined
 ) {
   const { $from, $to, from, to } = selection;
   const toolbarState = {

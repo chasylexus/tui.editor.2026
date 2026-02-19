@@ -35,6 +35,9 @@ export class LinkPopupBody extends Component<Props> {
 
     linkUrlEl.value = linkUrl || '';
     linkTextEl.value = linkText || '';
+
+    linkUrlEl.focus();
+    linkUrlEl.setSelectionRange(linkUrlEl.value.length, linkUrlEl.value.length);
   }
 
   private execCommand = () => {

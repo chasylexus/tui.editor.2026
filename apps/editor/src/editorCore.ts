@@ -280,7 +280,7 @@ class ToastUIEditorCore {
           ['heading', 'bold', 'italic', 'strike', 'mark', 'superscript', 'subscript', 'underline'],
           ['hr', 'quote'],
           ['ul', 'ol', 'task', 'indent', 'outdent'],
-          ['table', 'image', 'link'],
+          ['table', 'image', 'link', 'anchor'],
           ['code', 'codeblock'],
           ['scrollSync'],
         ],

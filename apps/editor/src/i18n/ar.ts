@@ -23,6 +23,9 @@ Editor.setLanguage('ar', {
   Indent: 'المسافة البادئة',
   Outdent: 'المسافة الخارجة',
   'Insert link': 'أدخل الرابط',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'أدخل الكود',
   'Insert table': 'أدخل جدول',
   'Insert image': 'أدخل صورة',

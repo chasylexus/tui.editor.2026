@@ -23,6 +23,9 @@ Editor.setLanguage(['fr', 'fr-FR'], {
   Indent: 'Retrait',
   Outdent: 'Sortir',
   'Insert link': 'Insérer un lien',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Insérer un bloc de code',
   'Insert table': 'Insérer un tableau',
   'Insert image': 'Insérer une image',

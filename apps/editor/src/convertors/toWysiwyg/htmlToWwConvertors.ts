@@ -184,13 +184,18 @@ const convertors: HTMLToWwConvertorMap = {
 
     if (openTagName) {
       const [linkUrl] = getMatchedAttributeValue(tag, 'href');
+      const [anchorId] = getMatchedAttributeValue(tag, 'id');
+      const attrs = {
+        linkUrl,
+        rawHTML: openTagName,
+      } as Record<string, string>;
 
-      state.openMark(
-        link.create({
-          linkUrl,
-          rawHTML: openTagName,
-        })
-      );
+      if (anchorId && !linkUrl) {
+        attrs.anchorId = anchorId;
+        attrs.linkUrl = '';
+      }
+
+      state.openMark(link.create(attrs));
     } else {
       state.closeMark(link);
     }

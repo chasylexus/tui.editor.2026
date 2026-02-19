@@ -24,6 +24,9 @@ Editor.setLanguage(['gl', 'gl-ES'], {
   Indent: 'Sangría',
   Outdent: 'Anular sangría',
   'Insert link': 'Inserir enlace',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Inserir bloque de código',
   'Insert table': 'Inserir táboa',
   'Insert image': 'Inserir imaxe',

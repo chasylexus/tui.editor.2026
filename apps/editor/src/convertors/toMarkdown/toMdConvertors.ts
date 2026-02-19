@@ -278,9 +278,23 @@ export const toMdConvertors: ToMdConvertorMap = {
 
   link({ node }, { entering }) {
     const { attrs } = node;
-    const { title, rawHTML } = attrs;
+    const { title, rawHTML, anchorId } = attrs;
     const linkUrl = attrs.linkUrl.replace(/&amp;/g, '&');
     const titleAttr = title ? ` title="${escapeXml(title)}"` : '';
+
+    if (anchorId) {
+      if (entering) {
+        return {
+          delim: '',
+          rawHTML: `<a id="${escapeXml(anchorId)}">`,
+        };
+      }
+
+      return {
+        delim: '',
+        rawHTML: '</a>',
+      };
+    }
 
     if (entering) {
       return {

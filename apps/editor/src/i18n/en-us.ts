@@ -23,6 +23,9 @@ Editor.setLanguage(['en', 'en-US'], {
   Indent: 'Indent',
   Outdent: 'Outdent',
   'Insert link': 'Insert link',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Insert codeBlock',
   'Insert table': 'Insert table',
   'Insert image': 'Insert image',

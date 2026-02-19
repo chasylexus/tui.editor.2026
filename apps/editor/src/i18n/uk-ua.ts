@@ -23,6 +23,9 @@ Editor.setLanguage(['uk', 'uk-UA'], {
   Indent: 'відступ',
   Outdent: 'застарілий',
   'Insert link': 'Вставити посилання',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Вставити код',
   'Insert table': 'Вставити таблицю',
   'Insert image': 'Вставити зображення',

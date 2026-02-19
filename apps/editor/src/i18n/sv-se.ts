@@ -23,6 +23,9 @@ Editor.setLanguage(['sv', 'sv-SE'], {
   Indent: 'Öka indrag',
   Outdent: 'Minska indrag',
   'Insert link': 'Infoga länk',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Infoga kodblock',
   'Insert table': 'Infoga tabell',
   'Insert image': 'Infoga bild',

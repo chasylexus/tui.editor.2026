@@ -23,6 +23,9 @@ Editor.setLanguage(['it', 'it-IT'], {
   Indent: 'Aggiungi indentazione',
   Outdent: 'Rimuovi indentazione',
   'Insert link': 'Inserisci link',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Inserisci blocco di codice',
   'Insert table': 'Inserisci tabella',
   'Insert image': 'Inserisci immagine',

@@ -23,6 +23,9 @@ Editor.setLanguage(['fi', 'fi-FI'], {
   Indent: 'Suurenna sisennystä',
   Outdent: 'Pienennä sisennystä',
   'Insert link': 'Lisää linkki',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Lisää koodia',
   'Insert table': 'Lisää taulukko',
   'Insert image': 'Lisää kuva',

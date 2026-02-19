@@ -23,6 +23,9 @@ Editor.setLanguage(['cs', 'cs-CZ'], {
   Indent: 'Zvětšit odsazení',
   Outdent: 'Zmenšit odsazení',
   'Insert link': 'Vložit odkaz',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Vložit blok kódu',
   'Insert table': 'Vložit tabulku',
   'Insert image': 'Vložit obrázek',

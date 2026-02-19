@@ -23,6 +23,9 @@ Editor.setLanguage(['pl', 'pl-PL'], {
   Indent: 'Utwórz wcięcie',
   Outdent: 'Usuń wcięcie',
   'Insert link': 'Umieść odnośnik',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Umieść blok kodu',
   'Insert table': 'Umieść tabelę',
   'Insert image': 'Umieść obraz',

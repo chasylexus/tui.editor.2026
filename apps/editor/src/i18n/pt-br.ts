@@ -23,6 +23,9 @@ Editor.setLanguage(['pt', 'pt-BR'], {
   Indent: 'Recuo à esquerda',
   Outdent: 'Recuo à direita',
   'Insert link': 'Inserir link',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Inserir bloco de código',
   'Insert table': 'Inserir tabela',
   'Insert image': 'Inserir imagem',

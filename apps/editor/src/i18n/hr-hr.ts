@@ -23,6 +23,9 @@ Editor.setLanguage(['hr', 'hr-HR'], {
   Indent: 'Povećaj uvlaku',
   Outdent: 'Smanji uvlaku',
   'Insert link': 'Umetni link',
+
+  'Insert anchor': 'Insert anchor',
+  'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Umetni blok kôda',
   'Insert table': 'Umetni tablicu',
   'Insert image': 'Umetni sliku',
