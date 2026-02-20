@@ -70,6 +70,24 @@ describe('parseToChartOption()', () => {
     });
   });
 
+  it('should map y.min/y.max to yAxis.scale for @toast-ui/chart v4', () => {
+    expect(
+      parseToChartOption(`
+          y.min: 0
+          y.max: 40
+          x.min: 10
+          x.stepSize: 5
+        `)
+    ).toEqual({
+      yAxis: {
+        scale: { min: 0, max: 40 },
+      },
+      xAxis: {
+        scale: { min: 10, stepSize: 5 },
+      },
+    });
+  });
+
   it('should parse option code into object with string numeric value', () => {
     expect(
       parseToChartOption(`

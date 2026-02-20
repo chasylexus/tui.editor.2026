@@ -1,22 +1,29 @@
 /**
+ * Chart plugin for @toast-ui/editor using @toast-ui/chart v4.
+ *
+ * Shorthand option syntax (left) and what it maps to in the v4 API (right):
+ *
  * @example
- * $$chart
- * \tcat1\tcat2                => tsv, csv format chart data
- * jan\t21\t23
- * feb\t351\t45
- * // url: http://url.to/csv   => fetch data from the url when not using plain data
- *                             => space required as a separator
- * type: area                  => tui.chart.areaChart()
- * width: 700                  => chart.width
- * height: 300                 => chart.height
- * title: Monthly Revenue      => chart.title
- * format: 1000                => chart.format
- * x.title: Amount             => xAxis.title
- * x.min: 0                    => xAxis.min
- * x.max 9000                  => xAxis.max
- * x.suffix: $                 => xAxis.suffix
- * y.title: Month              => yAxis.title
- * $$
+ * ```chart
+ * ,cat1,cat2                   CSV/TSV chart data
+ * Jan,21,23
+ * Feb,35,45
+ *
+ * type: area                   => editorChart.type  (bar | column | line | area | pie)
+ * url: http://url/to/data      => editorChart.url   (fetch CSV from URL)
+ * width: 700                   => chart.width
+ * height: 300                  => chart.height
+ * title: Monthly Revenue       => chart.title
+ * x.title: Amount              => xAxis.title
+ * x.min: 0                     => xAxis.scale.min
+ * x.max: 9000                  => xAxis.scale.max
+ * x.stepSize: 1000             => xAxis.scale.stepSize
+ * x.suffix: $                  => xAxis.label.formatter  (appends suffix)
+ * y.title: Month               => yAxis.title
+ * y.min: 0                     => yAxis.scale.min
+ * y.max: 100                   => yAxis.scale.max
+ * y.suffix: %                  => yAxis.label.formatter  (appends suffix)
+ * ```
  */
 import type { PluginInfo, MdNode, PluginContext } from '@toast-ui/editor';
 import Chart, {
@@ -205,8 +212,13 @@ function createOptionKeys(keyString: string) {
     // short names for `chart`
     keys.unshift('chart');
   } else if (topKey === 'x' || topKey === 'y') {
-    // short-handed keys
     keys[0] = `${topKey}Axis`;
+
+    const SCALE_KEYS = ['min', 'max', 'stepSize'];
+
+    if (keys.length === 2 && SCALE_KEYS.indexOf(keys[1]) >= 0) {
+      keys.splice(1, 0, 'scale');
+    }
   }
 
   return keys;
@@ -318,6 +330,18 @@ export function setDefaultOptions(
   chartOptions.editorChart.type = chartOptions.editorChart.type || 'column';
   // default visibility of export menu
   chartOptions.exportMenu!.visible = !!chartOptions.exportMenu!.visible;
+
+  (['xAxis', 'yAxis'] as const).forEach((axis) => {
+    const axisOpts = (chartOptions as any)[axis];
+
+    if (axisOpts && axisOpts.suffix) {
+      const { suffix } = axisOpts;
+
+      axisOpts.label = axisOpts.label || {};
+      axisOpts.label.formatter = (value: string) => `${value}${suffix}`;
+      delete axisOpts.suffix;
+    }
+  });
 
   return chartOptions;
 }
