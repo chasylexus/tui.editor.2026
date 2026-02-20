@@ -1,4 +1,5 @@
 import type { PluginContext } from '@toast-ui/editor';
+
 const TABLE_CELL_SELECT_CLASS = '.toastui-editor-cell-selected';
 
 function hasSpanAttr(tableCell: Element) {
@@ -11,19 +12,33 @@ function hasSpanningCell(headOrBody: Element) {
   return Array.from(headOrBody.querySelectorAll(TABLE_CELL_SELECT_CLASS)).some(hasSpanAttr);
 }
 
-function isCellSelected(headOrBody: Element) {
+function isCellSelectedByDOM(headOrBody: Element) {
   return !!headOrBody.querySelectorAll(TABLE_CELL_SELECT_CLASS).length;
 }
 
-function createMergedTableContextMenu(context: PluginContext, tableCell: Element) {
+function isMultiCellSelection(cellSelection: any) {
+  return cellSelection && cellSelection.startCell.pos !== cellSelection.endCell.pos;
+}
+
+function createMergedTableContextMenu(
+  context: PluginContext,
+  tableCell: Element,
+  cellSelection: any,
+  restoreSelection: () => void
+) {
   const { i18n, eventEmitter } = context;
   const headOrBody = tableCell.parentElement!.parentElement!;
   const mergedTableContextMenu = [];
 
-  if (isCellSelected(headOrBody)) {
+  const hasSelection = isMultiCellSelection(cellSelection) || isCellSelectedByDOM(headOrBody);
+
+  if (hasSelection) {
     mergedTableContextMenu.push({
       label: i18n.get('Merge cells'),
-      onClick: () => eventEmitter.emit('command', 'mergeCells'),
+      onClick: () => {
+        restoreSelection();
+        eventEmitter.emit('command', 'mergeCells');
+      },
       className: 'merge-cells',
     });
   }
@@ -31,7 +46,10 @@ function createMergedTableContextMenu(context: PluginContext, tableCell: Element
   if (hasSpanAttr(tableCell) || hasSpanningCell(headOrBody)) {
     mergedTableContextMenu.push({
       label: i18n.get('Split cells'),
-      onClick: () => eventEmitter.emit('command', 'splitCells'),
+      onClick: () => {
+        restoreSelection();
+        eventEmitter.emit('command', 'splitCells');
+      },
       className: 'split-cells',
     });
   }
@@ -41,11 +59,20 @@ function createMergedTableContextMenu(context: PluginContext, tableCell: Element
 
 export function addMergedTableContextMenu(context: PluginContext) {
   context.eventEmitter.listen('contextmenu', (...args) => {
-    const [{ menuGroups, tableCell }] = args;
-    const mergedTableContextMenu = createMergedTableContextMenu(context, tableCell);
+    const [{ menuGroups, tableCell, cellSelection, restoreSelection }] = args;
+    const restore =
+      restoreSelection ||
+      (() => {
+        /* noop */
+      });
+    const mergedTableContextMenu = createMergedTableContextMenu(
+      context,
+      tableCell,
+      cellSelection,
+      restore
+    );
 
     if (mergedTableContextMenu.length) {
-      // add merged table context menu on third group
       menuGroups.splice(2, 0, mergedTableContextMenu);
     }
   });

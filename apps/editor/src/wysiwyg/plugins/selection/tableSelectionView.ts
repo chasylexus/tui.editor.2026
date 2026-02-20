@@ -16,12 +16,19 @@ export const pluginKey = new PluginKey('cellSelection');
 
 const MOUSE_RIGHT_BUTTON = 2;
 
+interface SavedCellRange {
+  startPos: number;
+  endPos: number;
+}
+
 export default class TableSelection {
   private view: EditorView;
 
   private handlers: EventHandlers;
 
   private startCellPos: ResolvedPos | null;
+
+  private savedCellRange: SavedCellRange | null;
 
   constructor(view: EditorView) {
     this.view = view;
@@ -33,6 +40,7 @@ export default class TableSelection {
     };
 
     this.startCellPos = null;
+    this.savedCellRange = null;
 
     this.init();
   }
@@ -49,8 +57,11 @@ export default class TableSelection {
 
       ev.preventDefault();
       ev.stopPropagation();
+
       return;
     }
+
+    this.savedCellRange = null;
 
     if (foundCell) {
       const startCellPos = this.getCellPos(ev as MouseEvent);
@@ -67,25 +78,52 @@ export default class TableSelection {
     const currentSelection = this.view.state.selection;
 
     if (currentSelection instanceof CellSelection) {
-      (this.view as { __lastCellSelection?: CellSelection }).__lastCellSelection = currentSelection;
-      this.view.dispatch(this.view.state.tr.setSelection(currentSelection));
+      this.saveCellSelection(currentSelection);
+    } else if (this.savedCellRange && this.savedCellRange.startPos !== this.savedCellRange.endPos) {
+      this.restoreSavedSelection();
+    } else if (foundCell) {
+      const cellPos = this.getCellPos(ev);
+
+      if (cellPos) {
+        const selection = new CellSelection(cellPos);
+
+        this.saveCellSelection(selection);
+        this.view.dispatch(this.view.state.tr.setSelection(selection));
+      }
+
+      return;
+    } else {
       return;
     }
 
-    if (!foundCell) {
+    this.reapplySavedSelection();
+  }
+
+  private reapplySavedSelection() {
+    const range = this.savedCellRange;
+
+    if (!range) {
       return;
     }
 
-    const cellPos = this.getCellPos(ev);
+    const reapply = () => {
+      if (this.view.state.selection instanceof CellSelection) {
+        return;
+      }
 
-    if (!cellPos) {
-      return;
-    }
+      try {
+        const { doc } = this.view.state;
+        const sel = new CellSelection(doc.resolve(range.startPos), doc.resolve(range.endPos));
 
-    const selection = new CellSelection(cellPos);
+        this.view.dispatch(this.view.state.tr.setSelection(sel));
+        (this.view as { __lastCellSelection?: CellSelection }).__lastCellSelection = sel;
+      } catch (e) {
+        // positions invalid
+      }
+    };
 
-    (this.view as { __lastCellSelection?: CellSelection }).__lastCellSelection = selection;
-    this.view.dispatch(this.view.state.tr.setSelection(selection));
+    setTimeout(reapply, 0);
+    setTimeout(reapply, 50);
   }
 
   handleMousemove(ev: Event) {
@@ -111,8 +149,41 @@ export default class TableSelection {
 
     this.unbindEvent();
 
+    const { selection } = this.view.state;
+
+    if (selection instanceof CellSelection) {
+      this.saveCellSelection(selection);
+    }
+
     if (pluginKey.getState(this.view.state) !== null) {
       this.view.dispatch(this.view.state.tr.setMeta(pluginKey, -1));
+    }
+  }
+
+  private saveCellSelection(sel: CellSelection) {
+    this.savedCellRange = { startPos: sel.startCell.pos, endPos: sel.endCell.pos };
+    (this.view as { __lastCellSelection?: CellSelection }).__lastCellSelection = sel;
+  }
+
+  private restoreSavedSelection(): boolean {
+    if (!this.savedCellRange) {
+      return false;
+    }
+
+    try {
+      const { doc } = this.view.state;
+      const start = doc.resolve(this.savedCellRange.startPos);
+      const end = doc.resolve(this.savedCellRange.endPos);
+      const restored = new CellSelection(start, end);
+
+      (this.view as { __lastCellSelection?: CellSelection }).__lastCellSelection = restored;
+      this.view.dispatch(this.view.state.tr.setSelection(restored));
+
+      return true;
+    } catch (e) {
+      this.savedCellRange = null;
+
+      return false;
     }
   }
 
