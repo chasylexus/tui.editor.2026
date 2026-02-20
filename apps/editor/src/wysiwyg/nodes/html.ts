@@ -6,7 +6,6 @@ import {
   MarkSpec,
 } from 'prosemirror-model';
 import { MdNode } from '@toast-ui/toastmark';
-import toArray from 'tui-code-snippet/collection/toArray';
 import { Sanitizer, HTMLSchemaMap, CustomHTMLRenderer } from '@t/editor';
 import { ToDOMAdaptor } from '@t/convertor';
 import { registerTagWhitelistIfPossible } from '@/sanitizer/htmlSanitizer';
@@ -36,7 +35,7 @@ export function getHTMLAttrsByHTMLString(html: string) {
 }
 
 function getHTMLAttrs(dom: HTMLElement) {
-  return toArray(dom.attributes).reduce<Record<string, string | null>>((acc, attr) => {
+  return Array.from(dom.attributes).reduce<Record<string, string | null>>((acc, attr) => {
     acc[attr.nodeName] = attr.nodeValue;
     return acc;
   }, {});
@@ -87,7 +86,7 @@ const schemaFactory = {
 
         htmlAttrs.class = htmlAttrs.class ? `${htmlAttrs.class} html-block` : 'html-block';
 
-        return [typeName, htmlAttrs, ...toArray(dom.childNodes)];
+        return [typeName, htmlAttrs, ...Array.from(dom.childNodes)];
       },
     };
   },

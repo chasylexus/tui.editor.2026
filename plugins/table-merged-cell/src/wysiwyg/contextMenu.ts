@@ -1,6 +1,4 @@
 import type { PluginContext } from '@toast-ui/editor';
-import toArray from 'tui-code-snippet/collection/toArray';
-
 const TABLE_CELL_SELECT_CLASS = '.toastui-editor-cell-selected';
 
 function hasSpanAttr(tableCell: Element) {
@@ -10,7 +8,7 @@ function hasSpanAttr(tableCell: Element) {
 }
 
 function hasSpanningCell(headOrBody: Element) {
-  return toArray(headOrBody.querySelectorAll(TABLE_CELL_SELECT_CLASS)).some(hasSpanAttr);
+  return Array.from(headOrBody.querySelectorAll(TABLE_CELL_SELECT_CLASS)).some(hasSpanAttr);
 }
 
 function isCellSelected(headOrBody: Element) {

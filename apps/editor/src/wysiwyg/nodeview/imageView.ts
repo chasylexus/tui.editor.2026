@@ -1,9 +1,6 @@
 import { EditorView, NodeView } from 'prosemirror-view';
 import { Node as ProsemirrorNode, Mark } from 'prosemirror-model';
 
-import hasClass from 'tui-code-snippet/domUtil/hasClass';
-import isFunction from 'tui-code-snippet/type/isFunction';
-
 import { isPositionInBox, setAttributes } from '@/utils/dom';
 import { createTextSelection } from '@/helper/manipulation';
 import { getCustomAttrs } from '@/wysiwyg/helper/node';
@@ -81,8 +78,8 @@ export class ImageView implements NodeView {
 
     if (
       this.imageLink &&
-      isFunction(this.getPos) &&
-      hasClass(target as HTMLElement, IMAGE_LINK_CLASS_NAME)
+      typeof this.getPos === 'function' &&
+      (target as HTMLElement).classList.contains(IMAGE_LINK_CLASS_NAME)
     ) {
       const style = getComputedStyle(target as HTMLElement, ':before');
 

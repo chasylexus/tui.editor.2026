@@ -1,5 +1,3 @@
-import throttle from 'tui-code-snippet/tricks/throttle';
-import forEachArray from 'tui-code-snippet/collection/forEachArray';
 import ResizeObserver from 'resize-observer-polyfill';
 import { EditorType, PreviewStyle } from '@t/editor';
 import { Emitter } from '@t/event';
@@ -55,6 +53,32 @@ interface ItemWidthMap {
   [key: string]: number;
 }
 
+function throttle(fn: (...args: any[]) => void, interval: number) {
+  let lastCall = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: any[]) => {
+    const now = Date.now();
+    const remaining = interval - (now - lastCall);
+
+    if (remaining <= 0) {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+
+      lastCall = now;
+      fn(...args);
+    } else if (!timer) {
+      timer = setTimeout(() => {
+        lastCall = Date.now();
+        timer = null;
+        fn(...args);
+      }, remaining);
+    }
+  };
+}
+
 const INLINE_PADDING = 50;
 
 export class Toolbar extends Component<Props, State> {
@@ -106,20 +130,21 @@ export class Toolbar extends Component<Props, State> {
   }
 
   removeToolbarItem(name: string) {
-    forEachArray(this.initialItems, (group) => {
+    for (const group of this.initialItems) {
       let found = false;
 
-      forEachArray(group, (item, index) => {
-        if (item.name === name) {
+      for (let index = 0; index < group.length; index += 1) {
+        if (group[index].name === name) {
           found = true;
           group.splice(index, 1);
           this.setState(this.classifyToolbarItems());
-          return false;
+          break;
         }
-        return true;
-      });
-      return !found;
-    });
+      }
+      if (found) {
+        break;
+      }
+    }
   }
 
   addEvent() {

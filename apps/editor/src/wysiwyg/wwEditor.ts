@@ -1,8 +1,5 @@
 import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode, Slice, Fragment, Mark, Schema } from 'prosemirror-model';
-import isNumber from 'tui-code-snippet/type/isNumber';
-import toArray from 'tui-code-snippet/collection/toArray';
-
 import EditorBase from '@/base';
 import { getWwCommands } from '@/commands/wwCommands';
 
@@ -330,7 +327,7 @@ export default class WysiwygEditor extends EditorBase {
           const items = clipboardData?.items;
 
           if (items) {
-            const containRtfItem = toArray(items).some(
+            const containRtfItem = Array.from(items).some(
               (item) => item.kind === 'string' && item.type === 'text/rtf'
             );
 
@@ -389,7 +386,7 @@ export default class WysiwygEditor extends EditorBase {
     );
     const slice = new Slice(Fragment.from(paras), 1, 1);
     const newTr =
-      isNumber(start) && isNumber(end)
+      typeof start === 'number' && typeof end === 'number'
         ? tr.replaceRange(start, end, slice)
         : tr.replaceSelection(slice);
 
@@ -400,7 +397,9 @@ export default class WysiwygEditor extends EditorBase {
   deleteSelection(start?: number, end?: number) {
     const { tr } = this.view.state;
     const newTr =
-      isNumber(start) && isNumber(end) ? tr.deleteRange(start, end) : tr.deleteSelection();
+      typeof start === 'number' && typeof end === 'number'
+        ? tr.deleteRange(start, end)
+        : tr.deleteSelection();
 
     this.view.dispatch(newTr.scrollIntoView());
   }
@@ -409,7 +408,7 @@ export default class WysiwygEditor extends EditorBase {
     const { doc, selection } = this.view.state;
     let { from, to } = selection;
 
-    if (isNumber(start) && isNumber(end)) {
+    if (typeof start === 'number' && typeof end === 'number') {
       from = start;
       to = end;
     }

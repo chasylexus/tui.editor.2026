@@ -1,5 +1,3 @@
-import isFunction from 'tui-code-snippet/type/isFunction';
-
 import { getHTMLRenderers } from '@/renderers/toHTMLRenderers';
 import { codeSyntaxHighlighting } from '@/plugins/codeSyntaxHighlighting';
 import { createCodeSyntaxHighlightView } from '@/nodeViews/codeSyntaxHighlightView';
@@ -21,7 +19,7 @@ export function codeSyntaxHighlightPlugin(
 
     const { languages } = prism!;
     const registerdlanguages = Object.keys(languages).filter(
-      (language) => !isFunction(languages[language])
+      (language) => typeof languages[language] !== 'function'
     );
 
     return {

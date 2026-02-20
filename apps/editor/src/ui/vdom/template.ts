@@ -1,7 +1,4 @@
 import html from './htm';
-import isBoolean from 'tui-code-snippet/type/isBoolean';
-import isString from 'tui-code-snippet/type/isString';
-import isNumber from 'tui-code-snippet/type/isNumber';
 import { ComponentClass } from '@t/ui';
 import { VNode } from './vnode';
 
@@ -13,9 +10,9 @@ function excludeUnnecessaryChild(child: VNode, flatted: VNode[]) {
   let vnode: VNode | null = child;
 
   // eslint-disable-next-line no-eq-null,eqeqeq
-  if (isBoolean(child) || child == null) {
+  if (typeof child === 'boolean' || child == null) {
     vnode = null;
-  } else if (isString(child) || isNumber(child)) {
+  } else if (typeof child === 'string' || typeof child === 'number') {
     vnode = createTextNode(String(child));
   }
   if (vnode) {

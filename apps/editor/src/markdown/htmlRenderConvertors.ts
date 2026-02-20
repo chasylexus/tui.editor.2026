@@ -1,4 +1,3 @@
-import isFunction from 'tui-code-snippet/type/isFunction';
 import {
   HTMLConvertorMap,
   MdNode,
@@ -180,14 +179,17 @@ export function getHTMLRenderConvertors(
       const orgConvertor = convertors[nodeType];
       const customConvertor = customConvertors[nodeType]!;
 
-      if (orgConvertor && isFunction(customConvertor)) {
+      if (orgConvertor && typeof customConvertor === 'function') {
         convertors[nodeType] = (node, context) => {
           const newContext = { ...context };
 
           newContext.origin = () => orgConvertor(node, context);
           return customConvertor(node, newContext);
         };
-      } else if (includes(['htmlBlock', 'htmlInline'], nodeType) && !isFunction(customConvertor)) {
+      } else if (
+        includes(['htmlBlock', 'htmlInline'], nodeType) &&
+        typeof customConvertor !== 'function'
+      ) {
         convertors[nodeType] = (node, context) => {
           const matched = node.literal!.match(reHTMLTag);
 
@@ -227,7 +229,7 @@ export function getHTMLRenderConvertors(
             .toLowerCase()
         : '';
 
-      if (PLUGIN_LANGUAGES.includes(lang) && isFunction(customConvertors[lang])) {
+      if (PLUGIN_LANGUAGES.includes(lang) && typeof customConvertors[lang] === 'function') {
         return (customConvertors[lang] as HTMLConvertor)(node, context);
       }
 

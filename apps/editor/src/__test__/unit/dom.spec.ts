@@ -1,4 +1,3 @@
-import toArray from 'tui-code-snippet/collection/toArray';
 import {
   isPositionInBox,
   isElemNode,
@@ -198,7 +197,7 @@ describe('dom utils', () => {
 
     it('type selector from text node', () => {
       const selector = 'li';
-      const [target] = toArray(container.querySelectorAll('li'));
+      const [target] = Array.from(container.querySelectorAll('li'));
       const foundNode = closest(target.firstChild!, selector);
       const result = container.querySelector(selector);
 
@@ -207,7 +206,7 @@ describe('dom utils', () => {
 
     it('attribute selector from text node', () => {
       const selector = '.test';
-      const [, target] = toArray(container.querySelectorAll('li'));
+      const [, target] = Array.from(container.querySelectorAll('li'));
       const foundNode = closest(target.firstChild!, selector);
       const result = container.querySelector(selector);
 

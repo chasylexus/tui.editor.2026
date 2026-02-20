@@ -1,7 +1,6 @@
 import { EditorView } from 'prosemirror-view';
 import { keymap } from 'prosemirror-keymap';
 import { EditorAllCommandMap, SpecContext, EditorCommand } from '@t/spec';
-import isFunction from 'tui-code-snippet/type/isFunction';
 import { getDefaultCommands } from '@/commands/defaultCommands';
 import { includes } from '@/utils/common';
 
@@ -75,7 +74,7 @@ export default class SpecManager {
         const commands: EditorAllCommandMap = {};
         const specCommand = spec.commands!();
 
-        if (isFunction(specCommand)) {
+        if (typeof specCommand === 'function') {
           commands[spec.name] = (payload) => execCommand(view, specCommand, payload);
         } else {
           Object.keys(specCommand).forEach((name) => {

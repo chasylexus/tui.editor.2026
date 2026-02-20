@@ -9,7 +9,6 @@ import {
   CustomBlockMdNode,
   ListItemMdNode,
 } from '@toast-ui/toastmark';
-import isFunction from 'tui-code-snippet/type/isFunction';
 import {
   getMdStartLine,
   getMdStartCh,
@@ -325,7 +324,7 @@ type SimpleNodeFuncMapKey = keyof typeof simpleMarkClassNameMap;
 export function getMarkInfo(node: MdNode, start: MdPos, end: MdPos, endLine: string) {
   const { type } = node;
 
-  if (isFunction(markNodeFuncMap[type as MarkNodeFuncMapKey])) {
+  if (typeof markNodeFuncMap[type as MarkNodeFuncMapKey] === 'function') {
     // @ts-ignore
     return markNodeFuncMap[type as MarkNodeFuncMapKey](node, start, end, endLine);
   }

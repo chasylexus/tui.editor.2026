@@ -1,4 +1,3 @@
-import isFunction from 'tui-code-snippet/type/isFunction';
 import { innerDiff, removeNode } from './dom';
 import { VNode } from './vnode';
 
@@ -13,7 +12,7 @@ export function commit(vnode?: VNode) {
       vnode = next.vnode!;
       if (next.entering) {
         diff(vnode);
-      } else if (isFunction(vnode.type)) {
+      } else if (typeof vnode.type === 'function') {
         const comp = vnode.component!;
 
         // lifecycle method
@@ -62,7 +61,7 @@ function diff(vnode: VNode | null) {
     while ((next = walker.walk())) {
       vnode = next.vnode!;
       if (!next.entering) {
-        if (isFunction(vnode.type)) {
+        if (typeof vnode.type === 'function') {
           const comp = vnode.component!;
 
           // lifecycle method

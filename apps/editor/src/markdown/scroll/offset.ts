@@ -1,4 +1,3 @@
-import toArray from 'tui-code-snippet/collection/toArray';
 import { getTotalOffsetTop } from './dom';
 
 const offsetInfoMap: { [key: number]: { height: number; offsetTop: number } } = {};
@@ -24,7 +23,7 @@ export function getOffsetTop(id: number) {
 export function removeOffsetInfoByNode(node: HTMLElement) {
   if (node) {
     delete offsetInfoMap[Number(node.getAttribute('data-nodeid'))];
-    toArray(node.children).forEach((child) => {
+    Array.from(node.children).forEach((child) => {
       removeOffsetInfoByNode(child as HTMLElement);
     });
   }

@@ -1,7 +1,3 @@
-import addClass from 'tui-code-snippet/domUtil/addClass';
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
-import isUndefined from 'tui-code-snippet/type/isUndefined';
-
 import { Emitter } from '@t/event';
 import { ExecCommand, HidePopup, PopupInitialValues } from '@t/ui';
 import i18n from '@/i18n/i18n';
@@ -24,12 +20,12 @@ export class LinkPopupBody extends Component<Props> {
     const linkUrlEl = this.refs.url as HTMLInputElement;
     const linkTextEl = this.refs.text as HTMLInputElement;
 
-    removeClass(linkUrlEl, 'wrong');
-    removeClass(linkTextEl, 'wrong', 'disabled');
+    linkUrlEl.classList.remove('wrong');
+    linkTextEl.classList.remove('wrong', 'disabled');
     linkTextEl.removeAttribute('disabled');
 
     if (linkUrl) {
-      addClass(linkTextEl, 'disabled');
+      linkTextEl.classList.add('disabled');
       linkTextEl.setAttribute('disabled', 'disabled');
     }
 
@@ -44,10 +40,10 @@ export class LinkPopupBody extends Component<Props> {
     const linkUrlEl = this.refs.url as HTMLInputElement;
     const linkTextEl = this.refs.text as HTMLInputElement;
 
-    removeClass(linkUrlEl, 'wrong');
-    removeClass(linkTextEl, 'wrong');
+    linkUrlEl.classList.remove('wrong');
+    linkTextEl.classList.remove('wrong');
 
-    const hasInitialLink = !isUndefined(this.props.initialValues.linkUrl);
+    const hasInitialLink = typeof this.props.initialValues.linkUrl !== 'undefined';
 
     if (linkUrlEl.value.length < 1) {
       if (hasInitialLink) {
@@ -55,14 +51,14 @@ export class LinkPopupBody extends Component<Props> {
         return;
       }
 
-      addClass(linkUrlEl, 'wrong');
+      linkUrlEl.classList.add('wrong');
       return;
     }
 
-    const checkLinkText = isUndefined(this.props.initialValues.linkUrl);
+    const checkLinkText = typeof this.props.initialValues.linkUrl === 'undefined';
 
     if (checkLinkText && linkTextEl.value.length < 1) {
-      addClass(linkTextEl, 'wrong');
+      linkTextEl.classList.add('wrong');
       return;
     }
 

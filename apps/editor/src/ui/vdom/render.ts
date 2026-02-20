@@ -1,4 +1,3 @@
-import isFunction from 'tui-code-snippet/type/isFunction';
 import { ComponentClass } from '@t/ui';
 import { VNode } from './vnode';
 import { createNode } from './dom';
@@ -20,7 +19,7 @@ export function buildVNode(vnode: VNode | null) {
   const root = vnode;
 
   while (vnode && !vnode.skip) {
-    if (isFunction(vnode.type)) {
+    if (typeof vnode.type === 'function') {
       const instance = createComponent(vnode.type, vnode);
 
       instance.vnode = vnode;

@@ -5,11 +5,9 @@ import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
 import { newlineInCode, selectAll } from 'prosemirror-commands';
 import { redo, undo, undoDepth, history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
-import isFunction from 'tui-code-snippet/type/isFunction';
-import css from 'tui-code-snippet/domUtil/css';
 import { ToDOMAdaptor } from '@t/convertor';
 import { createTextSelection } from '@/helper/manipulation';
-import { cls, removeNode } from '@/utils/dom';
+import { cls, css, removeNode } from '@/utils/dom';
 
 const CODE_FENCE_KINDS = new Set(['mermaid', 'uml', 'chart']);
 
@@ -231,7 +229,7 @@ export class CustomBlockView implements NodeView {
 
     this.innerEditorView!.updateState(state);
 
-    if (!this.canceled && isFunction(this.getPos)) {
+    if (!this.canceled && typeof this.getPos === 'function') {
       const outerTr = this.editorView.state.tr;
       const offsetMap = StepMap.offset(this.getPos() + 1);
 
@@ -286,7 +284,7 @@ export class CustomBlockView implements NodeView {
   }
 
   private openTypeEditor() {
-    if (this.typeEditorEl || !isFunction(this.getPos)) return;
+    if (this.typeEditorEl || typeof this.getPos !== 'function') return;
 
     const pos = this.getPos();
     const { top, right } = this.editorView.coordsAtPos(pos);
@@ -342,7 +340,7 @@ export class CustomBlockView implements NodeView {
   }
 
   private commitTypeChange(newType: string) {
-    if (!isFunction(this.getPos)) return;
+    if (typeof this.getPos !== 'function') return;
 
     const lang = newType.trim().toLowerCase();
 

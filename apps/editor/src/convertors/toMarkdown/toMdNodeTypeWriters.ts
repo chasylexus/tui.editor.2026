@@ -1,7 +1,5 @@
 import { ProsemirrorNode } from 'prosemirror-model';
 
-import inArray from 'tui-code-snippet/array/inArray';
-
 import { escapeTextForLink, repeat } from '@/utils/common';
 
 import {
@@ -271,9 +269,9 @@ export function write(
   const { rawHTML } = params;
 
   if (rawHTML) {
-    if (inArray(type, ['heading', 'codeBlock']) > -1) {
+    if (['heading', 'codeBlock'].indexOf(type) > -1) {
       convertToRawHTMLHavingInlines(state, nodeInfo.node, rawHTML as string[]);
-    } else if (inArray(type, ['image', 'thematicBreak']) > -1) {
+    } else if (['image', 'thematicBreak'].indexOf(type) > -1) {
       state.write(rawHTML as string);
     } else {
       convertToRawHTMLHavingBlocks(state, nodeInfo, rawHTML as string[]);

@@ -1,4 +1,3 @@
-import isFunction from 'tui-code-snippet/type/isFunction';
 import { EditorCommand } from '@t/spec';
 import { createTextSelection } from '@/helper/manipulation';
 import { resolveSelectionPos } from './pos';
@@ -8,9 +7,8 @@ type Condition = RegExp | ConditionFn;
 
 export function toggleMark(condition: Condition, syntax: string): EditorCommand {
   return () => ({ tr, selection }, dispatch) => {
-    const conditionFn: ConditionFn = !isFunction(condition)
-      ? (text) => condition.test(text)
-      : condition;
+    const conditionFn: ConditionFn =
+      typeof condition !== 'function' ? (text) => condition.test(text) : condition;
     const syntaxLen = syntax.length;
     const { doc } = tr;
 

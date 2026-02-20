@@ -1,9 +1,4 @@
 import { ToastMark } from '@toast-ui/toastmark';
-import forEachOwnProperties from 'tui-code-snippet/collection/forEachOwnProperties';
-import extend from 'tui-code-snippet/object/extend';
-import on from 'tui-code-snippet/domEvent/on';
-import off from 'tui-code-snippet/domEvent/off';
-
 import { CustomHTMLRenderer, ViewerOptions } from '@t/editor';
 import { Emitter, Handler } from '@t/event';
 import MarkdownPreview from './markdown/mdPreview';
@@ -56,7 +51,7 @@ class ToastUIEditorViewer {
   private preview: MarkdownPreview;
 
   constructor(options: ViewerOptions) {
-    this.options = extend(
+    this.options = Object.assign(
       {
         linkAttributes: null,
         extendedAutolinks: false,
@@ -99,7 +94,7 @@ class ToastUIEditorViewer {
     registerHTMLTagToWhitelist(rendererOptions.customHTMLRenderer);
 
     if (this.options.events) {
-      forEachOwnProperties(this.options.events, (fn, key) => {
+      Object.entries(this.options.events).forEach(([key, fn]) => {
         this.on(key, fn);
       });
     }
@@ -125,7 +120,7 @@ class ToastUIEditorViewer {
       isViewer: true,
     });
 
-    on(this.preview.previewContent!, 'mousedown', this.toggleTask.bind(this));
+    this.preview.previewContent!.addEventListener('mousedown', this.toggleTask.bind(this));
 
     if (initialValue) {
       this.setMarkdown(initialValue);
@@ -204,7 +199,7 @@ class ToastUIEditorViewer {
    * Remove Viewer preview from document
    */
   destroy() {
-    off(this.preview.el!, 'mousedown', this.toggleTask.bind(this));
+    this.preview.el!.removeEventListener('mousedown', this.toggleTask.bind(this));
     this.preview.destroy();
     this.eventEmitter.emit('destroy');
   }

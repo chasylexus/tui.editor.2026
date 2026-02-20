@@ -1,14 +1,10 @@
-import off from 'tui-code-snippet/domEvent/off';
-import addClass from 'tui-code-snippet/domUtil/addClass';
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
-import on from 'tui-code-snippet/domEvent/on';
-import css from 'tui-code-snippet/domUtil/css';
 import { EditResult, MdNode, MdPos, Renderer } from '@toast-ui/toastmark';
 
 import { Emitter } from '@t/event';
 import { CustomHTMLRenderer, LinkAttributes } from '@t/editor';
 import {
   cls,
+  css,
   createElementWith,
   removeNode,
   removeProseMirrorHackNodes,
@@ -71,6 +67,8 @@ class MarkdownPreview {
 
   private sanitizer: Sanitizer;
 
+  private scrollHandler: ((event: Event) => void) | null = null;
+
   constructor(eventEmitter: Emitter, options: Options) {
     const el = document.createElement('div');
 
@@ -131,13 +129,14 @@ class MarkdownPreview {
       });
     }
 
-    on(this.el!, 'scroll', (event) => {
+    this.scrollHandler = (event) => {
       this.eventEmitter.emit(
         'scroll',
         'preview',
-        findAdjacentElementToScrollTop(event.target.scrollTop, this.previewContent)
+        findAdjacentElementToScrollTop((event.target as HTMLElement).scrollTop, this.previewContent)
       );
-    });
+    };
+    this.el!.addEventListener('scroll', this.scrollHandler);
     this.eventEmitter.listen('changePreviewTabPreview', () => this.toggleActive(true));
     this.eventEmitter.listen('changePreviewTabWrite', () => this.toggleActive(false));
   }
@@ -153,7 +152,7 @@ class MarkdownPreview {
   }
 
   private removeHighlightClass(el: HTMLElement) {
-    removeClass(el, CLASS_HIGHLIGHT);
+    el.classList.remove(CLASS_HIGHLIGHT);
 
     if (!el.className) {
       el.removeAttribute('class');
@@ -185,7 +184,7 @@ class MarkdownPreview {
       this.removeHighlightClass(oldEL);
     }
     if (newEL) {
-      addClass(newEL, CLASS_HIGHLIGHT);
+      newEL.classList.add(CLASS_HIGHLIGHT);
     }
 
     this.cursorNodeId = cursorNodeId;
@@ -241,7 +240,9 @@ class MarkdownPreview {
   }
 
   destroy() {
-    off(this.el!, 'scroll');
+    if (this.scrollHandler) {
+      this.el!.removeEventListener('scroll', this.scrollHandler);
+    }
     this.el = null;
   }
 

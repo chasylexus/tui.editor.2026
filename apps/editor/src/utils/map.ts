@@ -1,4 +1,3 @@
-import inArray from 'tui-code-snippet/array/inArray';
 import { Mapable } from '@t/map';
 
 /**
@@ -17,7 +16,7 @@ class Map<K, V> implements Mapable<K, V> {
   }
 
   private getKeyIndex(key: K) {
-    return inArray(key, this.keys);
+    return this.keys.indexOf(key);
   }
 
   get(key: K): V {

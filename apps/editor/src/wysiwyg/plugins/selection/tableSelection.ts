@@ -1,8 +1,6 @@
 import { EditorState, Plugin, SelectionRange } from 'prosemirror-state';
 import { EditorView, Decoration, DecorationSet } from 'prosemirror-view';
 
-import isNull from 'tui-code-snippet/type/isNull';
-
 import { cls } from '@/utils/dom';
 import CellSelection from './cellSelection';
 import TableSelection, { pluginKey } from './tableSelectionView';
@@ -38,7 +36,7 @@ export function tableSelection() {
           return cellOffset === -1 ? null : cellOffset;
         }
 
-        if (isNull(value) || !tr.docChanged) {
+        if (value === null || !tr.docChanged) {
           return value;
         }
 
@@ -50,7 +48,7 @@ export function tableSelection() {
     props: {
       decorations: drawCellSelection,
       createSelectionBetween({ state }) {
-        if (!isNull(pluginKey.getState(state))) {
+        if (pluginKey.getState(state) !== null) {
           return state.selection;
         }
 

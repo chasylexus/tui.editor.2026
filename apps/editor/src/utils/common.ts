@@ -1,8 +1,3 @@
-import isUndefined from 'tui-code-snippet/type/isUndefined';
-import isNull from 'tui-code-snippet/type/isNull';
-import sendHostname from 'tui-code-snippet/request/sendHostname';
-import forEachOwnProperties from 'tui-code-snippet/collection/forEachOwnProperties';
-
 import { LinkAttributeNames, LinkAttributes } from '@t/editor';
 
 export const isMac = /Mac/.test(navigator.platform);
@@ -42,7 +37,7 @@ export function escapeXml(text: string) {
 }
 
 export function sendHostName() {
-  sendHostname('editor', 'UA-129966929-1');
+  // telemetry removed
 }
 
 export function includes<T>(arr: T[], targetItem: T) {
@@ -72,7 +67,7 @@ export function sanitizeLinkAttribute(attribute: LinkAttributes) {
   const linkAttributes: LinkAttributes = {};
 
   availableLinkAttributes.forEach((key) => {
-    if (!isUndefined(attribute[key])) {
+    if (typeof attribute[key] !== 'undefined') {
       linkAttributes[key] = attribute[key];
     }
   });
@@ -91,16 +86,14 @@ export function repeat(text: string, count: number) {
 }
 
 function isNeedEscapeText(text: string) {
-  let needEscape = false;
-
-  forEachOwnProperties(reMarkdownTextToEscapeMap, (reMarkdownTextToEscape) => {
-    if (reMarkdownTextToEscape.test(text)) {
-      needEscape = true;
+  for (const key in reMarkdownTextToEscapeMap) {
+    if (Object.prototype.hasOwnProperty.call(reMarkdownTextToEscapeMap, key)) {
+      if (reMarkdownTextToEscapeMap[key as keyof typeof reMarkdownTextToEscapeMap].test(text)) {
+        return true;
+      }
     }
-    return !needEscape;
-  });
-
-  return needEscape;
+  }
+  return false;
 }
 
 export function escapeTextForLink(text: string) {
@@ -162,7 +155,7 @@ export function quote(text: string) {
 }
 
 export function isNil(value: unknown): value is null | undefined {
-  return isNull(value) || isUndefined(value);
+  return value === null || typeof value === 'undefined';
 }
 
 export function shallowEqual(o1: Record<string, any> | null, o2: Record<string, any> | null) {

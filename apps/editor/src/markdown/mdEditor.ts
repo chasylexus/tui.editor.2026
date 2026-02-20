@@ -4,8 +4,6 @@ import { Fragment, Slice } from 'prosemirror-model';
 import { ReplaceAroundStep } from 'prosemirror-transform';
 import { MdPos, ToastMark } from '@toast-ui/toastmark';
 
-import toArray from 'tui-code-snippet/collection/toArray';
-
 import { MdContext } from '@t/spec';
 import { Emitter } from '@t/event';
 import { WidgetStyle } from '@t/editor';
@@ -108,7 +106,7 @@ export default class MdEditor extends EditorBase {
       const items = clipboardData && clipboardData.items;
 
       if (items) {
-        const containRtfItem = toArray(items).some(
+        const containRtfItem = Array.from(items).some(
           (item) => item.kind === 'string' && item.type === 'text/rtf'
         );
 

@@ -2,10 +2,7 @@ import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 
-import isFunction from 'tui-code-snippet/type/isFunction';
-import css from 'tui-code-snippet/domUtil/css';
-
-import { removeNode, setAttributes } from '@/utils/dom';
+import { css, removeNode, setAttributes } from '@/utils/dom';
 import { getCustomAttrs } from '@/wysiwyg/helper/node';
 
 import { Emitter } from '@t/event';
@@ -232,7 +229,7 @@ export class CodeBlockView implements NodeView {
   }
 
   private commitAttrs(langInput: HTMLInputElement, lineInput: HTMLInputElement) {
-    if (!isFunction(this.getPos)) return;
+    if (typeof this.getPos !== 'function') return;
 
     const language = langInput.value || null;
     const lineVal = lineInput.value.trim();
@@ -277,7 +274,7 @@ export class CodeBlockView implements NodeView {
     const target = ev.target as HTMLElement;
     const style = getComputedStyle(target, ':after');
 
-    if (style.backgroundImage !== 'none' && isFunction(this.getPos)) {
+    if (style.backgroundImage !== 'none' && typeof this.getPos === 'function') {
       const { top, right } = this.view.coordsAtPos(this.getPos());
 
       this.createLanguageEditor({ top, right });
@@ -288,7 +285,7 @@ export class CodeBlockView implements NodeView {
     const isSelectAllShortcut =
       (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === 'a';
 
-    if (!isSelectAllShortcut || !isFunction(this.getPos)) {
+    if (!isSelectAllShortcut || typeof this.getPos !== 'function') {
       return;
     }
 

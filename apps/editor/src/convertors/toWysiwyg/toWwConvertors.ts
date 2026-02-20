@@ -12,8 +12,6 @@ import {
   OpenTagToken,
   Renderer,
 } from '@toast-ui/toastmark';
-import toArray from 'tui-code-snippet/collection/toArray';
-
 import { isElemNode } from '@/utils/dom';
 
 import {
@@ -35,7 +33,7 @@ function isBRTag(node: MdNode) {
 }
 
 function addRawHTMLAttributeToDOM(parent: Node) {
-  toArray(parent.childNodes).forEach((child) => {
+  Array.from(parent.childNodes).forEach((child) => {
     if (isElemNode(child)) {
       const openTagName = child.nodeName.toLowerCase();
 

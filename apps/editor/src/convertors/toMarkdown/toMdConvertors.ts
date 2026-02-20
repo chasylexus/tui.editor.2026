@@ -1,7 +1,5 @@
 import { ProsemirrorNode } from 'prosemirror-model';
 
-import isUndefined from 'tui-code-snippet/type/isUndefined';
-
 import { nodeTypeWriters, write } from './toMdNodeTypeWriters';
 
 import { repeat, quote, escapeXml, escapeTextForLink } from '@/utils/common';
@@ -441,7 +439,7 @@ function createMarkTypeConvertors(convertors: ToMdConvertorMap) {
       // in the `toMdConvertorState` module.
       // When calling the converter without using `delim` and `rawHTML` values,
       // the converter is called without parameters.
-      const runConvertor = convertor && nodeInfo && !isUndefined(entering);
+      const runConvertor = convertor && nodeInfo && typeof entering !== 'undefined';
       const params = runConvertor ? convertor!(nodeInfo as MarkInfo, { entering }) : {};
 
       return { ...params, ...markOption };

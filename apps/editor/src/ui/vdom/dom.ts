@@ -1,5 +1,3 @@
-import isObject from 'tui-code-snippet/type/isObject';
-import isNumber from 'tui-code-snippet/type/isNumber';
 import { shallowEqual } from '@/utils/common';
 import { isTextNode } from '@/utils/dom';
 import { VNode } from './vnode';
@@ -62,7 +60,11 @@ function setProps(node: Node, prevProps: Props, props: Props, condition?: Condit
         node.addEventListener(eventName, props[propName]);
       } else if (propName === 'nodeValue') {
         node[propName] = props[propName];
-      } else if (propName === 'style' && isObject(props[propName])) {
+      } else if (
+        propName === 'style' &&
+        typeof props[propName] === 'object' &&
+        props[propName] !== null
+      ) {
         setStyleProps(node as HTMLElement, prevProps[propName], props[propName]);
       } else if (propName !== 'children') {
         if (props[propName] === false) {
@@ -74,6 +76,7 @@ function setProps(node: Node, prevProps: Props, props: Props, condition?: Condit
     }
   });
 }
+
 function setStyleProps(node: HTMLElement, prevStyleProps: Props | null, styleProps: Props) {
   if (prevStyleProps) {
     Object.keys(prevStyleProps).forEach((styleProp) => {
@@ -87,6 +90,6 @@ function setStyleProps(node: HTMLElement, prevStyleProps: Props | null, stylePro
 
     // @ts-ignore
     node.style[styleProp] =
-      isNumber(value) && !reNonDimension.test(styleProp) ? `${value}px` : value;
+      typeof value === 'number' && !reNonDimension.test(styleProp) ? `${value}px` : value;
   });
 }

@@ -10,7 +10,6 @@ import {
   TextToken,
 } from '@toast-ui/toastmark';
 import { ProsemirrorNode, Mark } from 'prosemirror-model';
-import isArray from 'tui-code-snippet/type/isArray';
 import { getHTMLRenderConvertors } from '@/markdown/htmlRenderConvertors';
 import { ToDOMAdaptor } from '@t/convertor';
 import { includes, last } from '@/utils/common';
@@ -90,7 +89,7 @@ export class WwToDOMAdaptor implements ToDOMAdaptor {
 
     const convertor = this.convertors[node.type.name as MdNodeType]!;
     const converted = convertor(mdLikeNode as MdNode, context, this.convertors)!;
-    let tokens: HTMLToken[] = isArray(converted) ? converted : [converted];
+    let tokens: HTMLToken[] = Array.isArray(converted) ? converted : [converted];
 
     if (isContainer(node.type.name) || node.attrs.htmlInline) {
       context.entering = false;

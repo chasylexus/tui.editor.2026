@@ -1,5 +1,3 @@
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
-import addClass from 'tui-code-snippet/domUtil/addClass';
 import { HookCallback } from '@t/editor';
 import { Emitter } from '@t/event';
 import { ExecCommand, HidePopup, TabInfo } from '@t/ui';
@@ -45,7 +43,7 @@ export class ImagePopupBody extends Component<Props, State> {
     (this.refs.altText as HTMLInputElement).value = '';
     (this.refs.file as HTMLInputElement).value = '';
 
-    removeClass(urlEl, 'wrong');
+    urlEl.classList.remove('wrong');
 
     this.setState({ activeTab, file: null, fileNameElClassName: '' });
   };
@@ -72,10 +70,10 @@ export class ImagePopupBody extends Component<Props, State> {
     const imageUrl = imageUrlEl.value;
     const altText = altTextEl.value || 'image';
 
-    removeClass(imageUrlEl, 'wrong');
+    imageUrlEl.classList.remove('wrong');
 
     if (!imageUrl.length) {
-      addClass(imageUrlEl, 'wrong');
+      imageUrlEl.classList.add('wrong');
       return;
     }
 

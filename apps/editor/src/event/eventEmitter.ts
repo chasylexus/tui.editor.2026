@@ -1,5 +1,3 @@
-import isUndefined from 'tui-code-snippet/type/isUndefined';
-import isFalsy from 'tui-code-snippet/type/isFalsy';
 import { Emitter, EventTypes, Handler } from '@t/event';
 import Map from '@/utils/map';
 
@@ -103,7 +101,7 @@ class EventEmitter implements Emitter {
       eventHandlers.forEach((handler) => {
         const result = handler(...args);
 
-        if (!isUndefined(result)) {
+        if (typeof result !== 'undefined') {
           results.push(result);
         }
       });
@@ -125,7 +123,7 @@ class EventEmitter implements Emitter {
       eventHandlers.forEach((handler) => {
         const result = handler(source, ...args);
 
-        if (!isFalsy(result)) {
+        if (result) {
           source = result;
         }
       });
@@ -156,7 +154,7 @@ class EventEmitter implements Emitter {
    * @private
    */
   private hasEventType(type: string) {
-    return !isUndefined(this.eventTypes[this.getTypeInfo(type).type]);
+    return typeof this.eventTypes[this.getTypeInfo(type).type] !== 'undefined';
   }
 
   /**

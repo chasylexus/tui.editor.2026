@@ -1,8 +1,6 @@
 import { TextSelection, Transaction, EditorState } from 'prosemirror-state';
 import { ProsemirrorNode, Schema, Mark, ResolvedPos, Fragment } from 'prosemirror-model';
 
-import isString from 'tui-code-snippet/type/isString';
-
 interface ReplacePayload {
   state: EditorState;
   from: number;
@@ -17,7 +15,7 @@ export function createParagraph(schema: Schema, content?: string | ProsemirrorNo
   if (!content) {
     return paragraph.createAndFill()!;
   }
-  return paragraph.create(null, isString(content) ? schema.text(content) : content);
+  return paragraph.create(null, typeof content === 'string' ? schema.text(content) : content);
 }
 
 export function createTextNode(schema: Schema, text: string, marks?: Mark[]) {

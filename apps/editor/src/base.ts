@@ -6,7 +6,7 @@ import { baseKeymap } from 'prosemirror-commands';
 import { InputRule, inputRules } from 'prosemirror-inputrules';
 import { history } from 'prosemirror-history';
 import { Sourcepos } from '@toast-ui/toastmark';
-import css from 'tui-code-snippet/domUtil/css';
+import { css } from '@/utils/dom';
 import { WidgetStyle, EditorType, EditorPos, Base, NodeRangeInfo } from '@t/editor';
 import { Emitter } from '@t/event';
 import { Context, EditorAllCommandMap } from '@t/spec';

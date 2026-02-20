@@ -1,12 +1,4 @@
 import { DOMParser, Node as ProsemirrorNode } from 'prosemirror-model';
-import forEachOwnProperties from 'tui-code-snippet/collection/forEachOwnProperties';
-import extend from 'tui-code-snippet/object/extend';
-import css from 'tui-code-snippet/domUtil/css';
-import addClass from 'tui-code-snippet/domUtil/addClass';
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
-import isString from 'tui-code-snippet/type/isString';
-import isNumber from 'tui-code-snippet/type/isNumber';
-
 import { Emitter, Handler } from '@t/event';
 import {
   Base,
@@ -38,7 +30,7 @@ import { WwToDOMAdaptor } from './wysiwyg/adaptor/wwToDOMAdaptor';
 import { ScrollSync } from './markdown/scroll/scrollSync';
 import { addDefaultImageBlobHook } from './helper/image';
 import { setWidgetRules } from './widget/rules';
-import { cls, removeProseMirrorHackNodes, replaceBRWithEmptyBlock } from './utils/dom';
+import { cls, css, removeProseMirrorHackNodes, replaceBRWithEmptyBlock } from './utils/dom';
 import { sanitizeHTML } from './sanitizer/htmlSanitizer';
 import { createHTMLSchemaMap } from './wysiwyg/nodes/html';
 import { getHTMLRenderConvertors } from './markdown/htmlRenderConvertors';
@@ -266,7 +258,7 @@ class ToastUIEditorCore {
     this.initialHTML = options.el.innerHTML;
     options.el.innerHTML = '';
 
-    this.options = extend(
+    this.options = Object.assign(
       {
         previewStyle: 'tab',
         previewHighlight: true,
@@ -458,11 +450,11 @@ class ToastUIEditorCore {
     buildQuery(this);
 
     if (this.options.hooks) {
-      forEachOwnProperties(this.options.hooks, (fn, key) => this.addHook(key, fn));
+      Object.entries(this.options.hooks).forEach(([key, fn]) => this.addHook(key, fn));
     }
 
     if (this.options.events) {
-      forEachOwnProperties(this.options.events, (fn, key) => this.on(key, fn));
+      Object.entries(this.options.events).forEach(([key, fn]) => this.on(key, fn));
     }
 
     this.eventEmitter.emit('load', this);
@@ -1288,7 +1280,7 @@ class ToastUIEditorCore {
     this.setWwBaseline('snapshot-apply');
     this.setBaselineCanonicalMd('snapshot-apply');
     this.restoreSelection(selection, md);
-    if (isNumber(scrollTop)) {
+    if (typeof scrollTop === 'number') {
       this.getCurrentModeEditor().setScrollTop(scrollTop);
     }
   }
@@ -1448,11 +1440,11 @@ class ToastUIEditorCore {
   setHeight(height: string) {
     const { el } = this.options;
 
-    if (isString(height)) {
+    if (typeof height === 'string') {
       if (height === 'auto') {
-        addClass(el, 'auto-height');
+        el.classList.add('auto-height');
       } else {
-        removeClass(el, 'auto-height');
+        el.classList.remove('auto-height');
       }
       this.setMinHeight(this.getMinHeight());
     }
@@ -1638,7 +1630,7 @@ class ToastUIEditorCore {
         );
 
         this.wwEditor.setSelection(from, to, false);
-      } else if (this.isWysiwygMode() && isNumber(pos)) {
+      } else if (this.isWysiwygMode() && typeof pos === 'number') {
         this.wwEditor.setSelection(pos, pos, false);
       } else if (!this.isWysiwygMode() && mappedMdSelection) {
         const anchor = this.clampMdPos(this.canonicalMd, mappedMdSelection[0]);

@@ -1,11 +1,3 @@
-import toArray from 'tui-code-snippet/collection/toArray';
-import isArray from 'tui-code-snippet/type/isArray';
-import isString from 'tui-code-snippet/type/isString';
-import isUndefined from 'tui-code-snippet/type/isUndefined';
-import hasClass from 'tui-code-snippet/domUtil/hasClass';
-import addClass from 'tui-code-snippet/domUtil/addClass';
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
-import matches from 'tui-code-snippet/domUtil/matches';
 import { ALTERNATIVE_TAG_FOR_BR, HTML_TAG, OPEN_TAG, reBR } from './constants';
 import { isNil } from './common';
 
@@ -55,7 +47,7 @@ export function isElemNode(node: Node) {
 }
 
 export function findNodes(element: Element, selector: string) {
-  const nodeList = toArray(element.querySelectorAll(selector));
+  const nodeList = Array.from(element.querySelectorAll(selector));
 
   if (nodeList.length) {
     return nodeList;
@@ -65,7 +57,7 @@ export function findNodes(element: Element, selector: string) {
 }
 
 export function appendNodes(node: Node, nodesToAppend: Node | Node[]) {
-  nodesToAppend = isArray(nodesToAppend) ? toArray(nodesToAppend) : [nodesToAppend];
+  nodesToAppend = Array.isArray(nodesToAppend) ? Array.from(nodesToAppend) : [nodesToAppend];
 
   nodesToAppend.forEach((nodeToAppend) => {
     node.appendChild(nodeToAppend);
@@ -101,18 +93,20 @@ export function unwrapNode(node: Node) {
 }
 
 export function toggleClass(element: Element, className: string, state?: boolean) {
-  if (isUndefined(state)) {
-    state = !hasClass(element, className);
+  if (typeof state === 'undefined') {
+    state = !element.classList.contains(className);
   }
-  const toggleFn = state ? addClass : removeClass;
-
-  toggleFn(element, className);
+  if (state) {
+    element.classList.add(className);
+  } else {
+    element.classList.remove(className);
+  }
 }
 
 export function createElementWith(contents: string | HTMLElement, target?: HTMLElement) {
   const container = document.createElement('div');
 
-  if (isString(contents)) {
+  if (typeof contents === 'string') {
     container.innerHTML = contents;
   } else {
     container.appendChild(contents);
@@ -141,12 +135,12 @@ export function getOuterWidth(el: HTMLElement) {
 export function closest(node: Node, found: string | Node) {
   let condition;
 
-  if (isString(found)) {
+  if (typeof found === 'string') {
     const selector = /^[A-Za-z][A-Za-z0-9-]*$/.test(found) ? found.toLowerCase() : found;
 
     condition = (target: Node) => {
       try {
-        return matches(target as Element, selector);
+        return (target as Element).matches(selector);
       } catch (e) {
         return false;
       }
@@ -190,7 +184,7 @@ export function finalizeHtml(html: Element, needHtmlText: boolean) {
     result = html.innerHTML;
   } else {
     const frag = document.createDocumentFragment();
-    const childNodes = toArray(html.childNodes);
+    const childNodes = Array.from(html.childNodes);
     const { length } = childNodes;
 
     for (let i = 0; i < length; i += 1) {
@@ -209,11 +203,11 @@ export function empty(node: Node) {
 }
 
 export function appendNode(node: Element, appended: string | ArrayLike<Element> | Element) {
-  if (isString(appended)) {
+  if (typeof appended === 'string') {
     node.insertAdjacentHTML('beforeend', appended);
   } else {
     const nodes: Element[] = (appended as ArrayLike<Element>).length
-      ? toArray(appended as ArrayLike<Element>)
+      ? Array.from(appended as ArrayLike<Element>)
       : [appended as Element];
 
     for (let i = 0, len = nodes.length; i < len; i += 1) {
@@ -223,11 +217,11 @@ export function appendNode(node: Element, appended: string | ArrayLike<Element> 
 }
 
 export function prependNode(node: Element, appended: string | ArrayLike<Element> | Element) {
-  if (isString(appended)) {
+  if (typeof appended === 'string') {
     node.insertAdjacentHTML('afterbegin', appended);
   } else {
     const nodes: Element[] = (appended as ArrayLike<Element>).length
-      ? toArray(appended as ArrayLike<Element>)
+      ? Array.from(appended as ArrayLike<Element>)
       : [appended as Element];
 
     for (let i = nodes.length - 1, len = 0; i >= len; i -= 1) {
@@ -283,4 +277,14 @@ export function removeProseMirrorHackNodes(html: string) {
   resultHTML = resultHTML.replace(reProseMirrorTrailingBreak, '');
 
   return resultHTML;
+}
+
+export function css(element: HTMLElement, key: string | Record<string, string>, value?: string) {
+  if (typeof key === 'string') {
+    element.style[key as any] = value!;
+    return;
+  }
+  Object.keys(key).forEach((k) => {
+    element.style[k as any] = key[k];
+  });
 }

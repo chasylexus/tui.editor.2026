@@ -1,12 +1,15 @@
-import css from 'tui-code-snippet/domUtil/css';
-import addClass from 'tui-code-snippet/domUtil/addClass';
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
-import hasClass from 'tui-code-snippet/domUtil/hasClass';
-import toArray from 'tui-code-snippet/collection/toArray';
-import inArray from 'tui-code-snippet/array/inArray';
-
 import { isPositionInBox, removeNode, cls } from '@/utils/dom';
 import type { Emitter } from '@toast-ui/editor';
+
+function css(element: HTMLElement, key: string | Record<string, string>, value?: string) {
+  if (typeof key === 'string') {
+    (element.style as any)[key] = value!;
+    return;
+  }
+  Object.keys(key).forEach((k) => {
+    (element.style as any)[k] = key[k];
+  });
+}
 
 export const WRAPPER_CLASS_NAME = 'code-block-language';
 export const INPUT_CLASS_NANE = 'code-block-language-input';
@@ -53,7 +56,7 @@ export class LanguageSelectBox {
   private createElement() {
     this.wrapper = document.createElement('div');
 
-    addClass(this.wrapper, cls(WRAPPER_CLASS_NAME));
+    this.wrapper.classList.add(cls(WRAPPER_CLASS_NAME));
 
     this.createInputElement();
     this.createLanguageListElement();
@@ -66,7 +69,7 @@ export class LanguageSelectBox {
   private createInputElement() {
     const wrapper = document.createElement('span');
 
-    addClass(wrapper, cls(INPUT_CLASS_NANE));
+    wrapper.classList.add(cls(INPUT_CLASS_NANE));
 
     const input = document.createElement('input');
 
@@ -81,14 +84,14 @@ export class LanguageSelectBox {
 
   private createLanguageListElement() {
     this.list = document.createElement('div');
-    addClass(this.list, cls(LIST_CLASS_NAME));
+    this.list.classList.add(cls(LIST_CLASS_NAME));
 
     const buttonsContainer = document.createElement('div');
 
-    addClass(buttonsContainer, 'buttons');
+    buttonsContainer.classList.add('buttons');
     buttonsContainer.innerHTML = getButtonsHTML(this.languages);
 
-    this.buttons = toArray(buttonsContainer.children);
+    this.buttons = Array.from(buttonsContainer.children);
     this.list.appendChild(buttonsContainer);
     this.wrapper.appendChild(this.list);
 
@@ -166,18 +169,18 @@ export class LanguageSelectBox {
   };
 
   private activateSelectBox() {
-    addClass(this.wrapper, 'active');
+    this.wrapper.classList.add('active');
     css(this.list, { display: 'block' });
   }
 
   private inactivateSelectBox() {
     this.input!.value = this.prevStoredLanguage;
-    removeClass(this.wrapper, 'active');
+    this.wrapper.classList.remove('active');
     this.hideList();
   }
 
   private toggleFocus() {
-    if (hasClass(this.wrapper, 'active')) {
+    if (this.wrapper.classList.contains('active')) {
       this.input.blur();
     } else {
       this.input.focus();
@@ -195,13 +198,13 @@ export class LanguageSelectBox {
 
   private activateButtonByIndex(index: number) {
     if (this.currentButton) {
-      removeClass(this.currentButton, 'active');
+      this.currentButton.classList.remove('active');
     }
 
     if (this.buttons.length) {
       this.currentButton = this.buttons[index];
       this.input!.value = this.currentButton.getAttribute(LANG_ATTR)!;
-      addClass(this.currentButton, 'active');
+      this.currentButton.classList.add('active');
       this.currentButton.scrollIntoView();
     }
   }
@@ -212,7 +215,7 @@ export class LanguageSelectBox {
   }
 
   private selectPrevLanguage() {
-    let index = inArray(this.currentButton, this.buttons) - 1;
+    let index = this.buttons.indexOf(this.currentButton) - 1;
 
     if (index < 0) {
       index = this.buttons.length - 1;
@@ -222,7 +225,7 @@ export class LanguageSelectBox {
   }
 
   private selectNextLanguage() {
-    let index = inArray(this.currentButton, this.buttons) + 1;
+    let index = this.buttons.indexOf(this.currentButton) + 1;
 
     if (index >= this.buttons.length) {
       index = 0;
@@ -250,7 +253,7 @@ export class LanguageSelectBox {
     const item = this.buttons.filter((button) => button.getAttribute(LANG_ATTR) === language);
 
     if (item.length) {
-      const index = inArray(item[0], this.buttons);
+      const index = this.buttons.indexOf(item[0]);
 
       this.activateButtonByIndex(index);
     }

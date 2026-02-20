@@ -2,7 +2,6 @@
  * @fileoverview Implements i18n
  * @author NHN Cloud FE Development Lab <dl_javascript@nhn.com>
  */
-import extend from 'tui-code-snippet/object/extend';
 import Map from '../utils/map';
 
 const DEFAULT_CODE = 'en-US';
@@ -39,7 +38,7 @@ class I18n {
       } else {
         const langData = this.langs.get(code)!;
 
-        this.langs.set(code, extend(langData, data));
+        this.langs.set(code, Object.assign(langData, data));
       }
     });
   }

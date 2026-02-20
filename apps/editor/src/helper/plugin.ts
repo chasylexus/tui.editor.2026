@@ -1,4 +1,3 @@
-import isArray from 'tui-code-snippet/type/isArray';
 import { Plugin, PluginKey, Selection, TextSelection } from 'prosemirror-state';
 import { inputRules, InputRule, undoInputRule } from 'prosemirror-inputrules';
 import { Decoration, DecorationSet } from 'prosemirror-view';
@@ -31,7 +30,7 @@ function execPlugin(pluginInfo: EditorPluginInfo) {
     i18n,
   };
 
-  if (isArray(plugin)) {
+  if (Array.isArray(plugin)) {
     const [pluginFn, options = {}] = plugin;
 
     return pluginFn(context, options);

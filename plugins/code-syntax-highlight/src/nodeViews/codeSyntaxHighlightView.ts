@@ -2,9 +2,6 @@ import type { EditorView, NodeView } from 'prosemirror-view';
 import type { Node as ProsemirrorNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 
-import isFunction from 'tui-code-snippet/type/isFunction';
-import addClass from 'tui-code-snippet/domUtil/addClass';
-
 import { cls } from '@/utils/dom';
 import { LanguageSelectBox } from '@/nodeViews/languageSelectBox';
 import type { Emitter } from '@toast-ui/editor';
@@ -72,19 +69,19 @@ class CodeSyntaxHighlightView implements NodeView {
     const wrapper = document.createElement('div');
 
     wrapper.setAttribute('data-language', language || 'text');
-    addClass(wrapper, cls(WRAPPER_CLASS_NAME));
-    addClass(wrapper, 'has-toolbar');
+    wrapper.classList.add(cls(WRAPPER_CLASS_NAME));
+    wrapper.classList.add('has-toolbar');
 
     if (lineNumber !== null) {
-      addClass(wrapper, 'has-line-numbers');
+      wrapper.classList.add('has-line-numbers');
     }
 
     const pre = this.createCodeBlockElement();
     const code = pre.firstChild as HTMLElement;
 
     if (language) {
-      addClass(pre, `language-${language}`);
-      addClass(code, `language-${language}`);
+      pre.classList.add(`language-${language}`);
+      code.classList.add(`language-${language}`);
     }
 
     if (lineNumber !== null) {
@@ -252,7 +249,7 @@ class CodeSyntaxHighlightView implements NodeView {
   };
 
   private commitLineNumber = () => {
-    if (!this.lineNumberInput || !isFunction(this.getPos)) {
+    if (!this.lineNumberInput || typeof this.getPos !== 'function') {
       return;
     }
 
@@ -299,7 +296,7 @@ class CodeSyntaxHighlightView implements NodeView {
   private onClickLanguageBadge = (ev: MouseEvent) => {
     ev.stopPropagation();
 
-    if (isFunction(this.getPos)) {
+    if (typeof this.getPos === 'function') {
       const pos = this.view.coordsAtPos(this.getPos());
 
       this.openLanguageSelectBox(pos);
@@ -310,7 +307,7 @@ class CodeSyntaxHighlightView implements NodeView {
     const isSelectAllShortcut =
       (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === 'a';
 
-    if (!isSelectAllShortcut || !isFunction(this.getPos)) {
+    if (!isSelectAllShortcut || typeof this.getPos !== 'function') {
       return;
     }
 
@@ -377,7 +374,7 @@ class CodeSyntaxHighlightView implements NodeView {
   }
 
   private changeLanguage(language: string) {
-    if (isFunction(this.getPos)) {
+    if (typeof this.getPos === 'function') {
       this.reset();
 
       const pos = this.getPos();

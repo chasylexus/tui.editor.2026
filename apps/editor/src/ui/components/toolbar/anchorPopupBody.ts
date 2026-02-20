@@ -1,6 +1,3 @@
-import addClass from 'tui-code-snippet/domUtil/addClass';
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
-
 import { Emitter } from '@t/event';
 import { ExecCommand, HidePopup, PopupInitialValues } from '@t/ui';
 import i18n from '@/i18n/i18n';
@@ -21,7 +18,7 @@ export class AnchorPopupBody extends Component<Props> {
     const { anchorId } = this.props.initialValues;
     const anchorIdEl = this.refs.anchorId as HTMLInputElement;
 
-    removeClass(anchorIdEl, 'wrong');
+    anchorIdEl.classList.remove('wrong');
     anchorIdEl.value = anchorId || '';
     anchorIdEl.focus();
     anchorIdEl.setSelectionRange(0, anchorIdEl.value.length);
@@ -31,7 +28,7 @@ export class AnchorPopupBody extends Component<Props> {
     const anchorIdEl = this.refs.anchorId as HTMLInputElement;
     const { existingAnchor, anchorText } = this.props.initialValues;
 
-    removeClass(anchorIdEl, 'wrong');
+    anchorIdEl.classList.remove('wrong');
 
     if (anchorIdEl.value.trim().length < 1) {
       if (existingAnchor) {
@@ -39,7 +36,7 @@ export class AnchorPopupBody extends Component<Props> {
         return;
       }
 
-      addClass(anchorIdEl, 'wrong');
+      anchorIdEl.classList.add('wrong');
       return;
     }
 

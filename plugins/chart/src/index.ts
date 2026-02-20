@@ -34,13 +34,6 @@ import Chart, {
   PieChart,
   ColumnChart,
 } from '@toast-ui/chart';
-import isString from 'tui-code-snippet/type/isString';
-import isUndefined from 'tui-code-snippet/type/isUndefined';
-import inArray from 'tui-code-snippet/array/inArray';
-import extend from 'tui-code-snippet/object/extend';
-// @ts-ignore
-import ajax from 'tui-code-snippet/ajax/index.js';
-
 import { PluginOptions } from '@t/index';
 import csv from './csv';
 import { trimKeepingTabs, isNumeric, clamp } from './util';
@@ -120,15 +113,16 @@ export function parse(text: string, callback: ParserCallback) {
   const url = urlOptions?.editorChart?.url;
 
   // if first text is `options` and has `url` option, fetch data from url
-  if (isString(url)) {
-    // url option provided
-    // fetch data from url
+  if (typeof url === 'string') {
     const success: OnSuccess = ({ data }) => {
       callback({ data: parseToChartData(data), options: parseToChartOption(firstTexts) });
     };
     const error = () => callback();
 
-    ajax.get(url, { success, error });
+    fetch(url)
+      .then((res) => res.text())
+      .then((data) => success({ data }))
+      .catch(() => error());
   } else {
     const data = parseToChartData(firstTexts);
     const options = parseToChartOption(secondTexts);
@@ -205,7 +199,7 @@ function createOptionKeys(keyString: string) {
   const keys = keyString.trim().split('.');
   const [topKey] = keys;
 
-  if (inArray(topKey, RESERVED_KEYS) >= 0) {
+  if (RESERVED_KEYS.indexOf(topKey) >= 0) {
     // reserved keys for chart plugin option
     keys.unshift('editorChart');
   } else if (keys.length === 1) {
@@ -227,7 +221,7 @@ function createOptionKeys(keyString: string) {
 export function parseToChartOption(text: string) {
   const options: Record<string, any> = {};
 
-  if (!isUndefined(text)) {
+  if (typeof text !== 'undefined') {
     const lineTexts = text.split(reEOL);
 
     lineTexts.forEach((lineText) => {
@@ -292,7 +286,7 @@ function getChartDimension(
   pluginOptions: PluginOptions,
   chartContainer: HTMLElement
 ) {
-  const dimensionOptions = extend({ ...DEFAULT_DIMENSION_OPTIONS }, pluginOptions);
+  const dimensionOptions = Object.assign({ ...DEFAULT_DIMENSION_OPTIONS }, pluginOptions);
   const { maxWidth, minWidth, maxHeight, minHeight } = dimensionOptions;
   // if no width or height specified, set width and height to container width
   const containerWidth = getRenderableContainerWidth(chartContainer);
@@ -312,7 +306,7 @@ export function setDefaultOptions(
   pluginOptions: PluginOptions,
   chartContainer: HTMLElement
 ) {
-  chartOptions = extend(
+  chartOptions = Object.assign(
     {
       editorChart: {},
       chart: {},

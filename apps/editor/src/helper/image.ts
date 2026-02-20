@@ -1,5 +1,3 @@
-import toArray from 'tui-code-snippet/collection/toArray';
-
 import { HookCallback } from '@t/editor';
 import { Emitter } from '@t/event';
 
@@ -24,7 +22,7 @@ export function emitImageBlobHook(eventEmitter: Emitter, blob: File, type: strin
 }
 
 export function pasteImageOnly(items: DataTransferItemList) {
-  const images = toArray(items).filter(({ type }) => type.indexOf('image') !== -1);
+  const images = Array.from(items).filter(({ type }) => type.indexOf('image') !== -1);
 
   if (images.length === 1) {
     const [item] = images;

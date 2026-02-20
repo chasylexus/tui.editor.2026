@@ -1,4 +1,3 @@
-import css from 'tui-code-snippet/domUtil/css';
 import {
   ExecCommand,
   SetPopupInfo,
@@ -11,7 +10,7 @@ import {
 import { Emitter } from '@t/event';
 import html from '@/ui/vdom/template';
 import { Component } from '@/ui/vdom/component';
-import { closest, cls, getTotalOffset } from '@/utils/dom';
+import { closest, cls, css, getTotalOffset } from '@/utils/dom';
 
 interface Props {
   tooltipRef: { current: HTMLElement };

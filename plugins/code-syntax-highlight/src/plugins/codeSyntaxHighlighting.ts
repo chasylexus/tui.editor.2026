@@ -1,8 +1,6 @@
 import type { Node as ProsemirrorNode } from 'prosemirror-model';
 import type { Decoration } from 'prosemirror-view';
 
-import isString from 'tui-code-snippet/type/isString';
-
 import { flatten } from '@/utils/common';
 
 import type { PluginContext } from '@toast-ui/editor';
@@ -36,7 +34,7 @@ function parseTokens(
   tokens: (string | Prism.Token)[],
   classNames: string[] = []
 ): HighlightedNodeInfo[] {
-  if (isString(tokens)) {
+  if (typeof tokens === 'string') {
     return [{ text: tokens, classes: classNames }];
   }
 
@@ -51,12 +49,12 @@ function parseTokens(
     }
 
     if (alias) {
-      aliasClassNames = isString(alias) ? [alias] : alias;
+      aliasClassNames = typeof alias === 'string' ? [alias] : alias;
     }
 
     const classes: string[] = [...classNames, ...typeClassNames, ...aliasClassNames];
 
-    return isString(token)
+    return typeof token === 'string'
       ? {
           text: token,
           classes,

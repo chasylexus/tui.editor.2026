@@ -1,6 +1,3 @@
-import isString from 'tui-code-snippet/type/isString';
-import addClass from 'tui-code-snippet/domUtil/addClass';
-import removeClass from 'tui-code-snippet/domUtil/removeClass';
 import {
   PopupInfo,
   PopupOptions,
@@ -25,7 +22,7 @@ import { TablePopupBody } from './components/toolbar/tablePopupBody';
 import { CustomPopupBody } from './components/toolbar/customPopupBody';
 
 export function createToolbarItemInfo(type: string | ToolbarItemOptions): ToolbarItemInfo {
-  return isString(type) ? createDefaultToolbarItemInfo(type) : type;
+  return typeof type === 'string' ? createDefaultToolbarItemInfo(type) : type;
 }
 
 function createScrollSyncToolbarItem(): ToolbarItemInfo {
@@ -43,9 +40,9 @@ function createScrollSyncToolbarItem(): ToolbarItemInfo {
       const { checked } = ev.target as HTMLInputElement;
 
       if (checked) {
-        addClass(label, 'active');
+        label.classList.add('active');
       } else {
-        removeClass(label, 'active');
+        label.classList.remove('active');
       }
       execCommand('toggleScrollSync', { active: checked });
     });
