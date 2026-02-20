@@ -85,7 +85,7 @@ function setDevelopConfig(config) {
     host: '0.0.0.0',
     port: 8080,
     disableHostCheck: true,
-    contentBase: path.resolve(__dirname),
+    contentBase: [path.resolve(__dirname), path.resolve(__dirname, '../..')],
     watchContentBase: true,
   };
 }
