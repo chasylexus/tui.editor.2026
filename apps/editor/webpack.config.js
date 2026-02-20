@@ -66,7 +66,7 @@ function addAnalyzerPlugin(config, type) {
       new BundleAnalyzerPlugin({
         analyzerMode: 'static',
         reportFilename: `../../report/webpack/stats-${pkg.version}-${type}.html`,
-        openAnalyzer: true,
+        openAnalyzer: false,
       })
     );
   }
