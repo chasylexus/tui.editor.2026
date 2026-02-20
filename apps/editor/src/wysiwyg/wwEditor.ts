@@ -1,5 +1,7 @@
 import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode, Slice, Fragment, Mark, Schema } from 'prosemirror-model';
+import { Transaction } from 'prosemirror-state';
+import { wrapIn } from 'prosemirror-commands';
 import EditorBase from '@/base';
 import { getWwCommands } from '@/commands/wwCommands';
 
@@ -133,6 +135,76 @@ export default class WysiwygEditor extends EditorBase {
       .setSelection(createTextSelection(nextTr, from - 1 + text.length))
       .setStoredMarks([codeMark]);
     view.dispatch(nextTr.scrollIntoView());
+
+    return true;
+  }
+
+  private convertThematicBreak(view: EditorView, from: number, to: number, text: string) {
+    if (from !== to || text.length !== 1) {
+      return false;
+    }
+
+    const { state } = view;
+    const { doc, schema } = state;
+    const { $from } = state.selection;
+    const { parent } = $from;
+
+    if (parent.type !== schema.nodes.paragraph || $from.depth !== 1) {
+      return false;
+    }
+
+    const existing = parent.textContent;
+    const full = existing.slice(0, from - $from.start()) + text;
+
+    if (!/^(-{3}|\*{3}|_{3})$/.test(full)) {
+      return false;
+    }
+
+    const { thematicBreak, paragraph } = schema.nodes;
+    const blockStart = $from.before(1);
+    const blockEnd = $from.after(1);
+    const nodes: ProsemirrorNode[] = [thematicBreak.create()];
+    const isLast = doc.child(doc.childCount - 1) === parent;
+
+    if (isLast) {
+      nodes.push(paragraph.create());
+    }
+
+    view.dispatch(state.tr.replaceWith(blockStart, blockEnd, nodes).scrollIntoView());
+
+    return true;
+  }
+
+  private convertBlockquote(view: EditorView, from: number, to: number, text: string) {
+    if (from !== to || text !== ' ') {
+      return false;
+    }
+
+    const { state } = view;
+    const { schema } = state;
+    const { $from } = state.selection;
+    const { parent } = $from;
+
+    if (parent.type !== schema.nodes.paragraph) {
+      return false;
+    }
+
+    const textBefore = parent.textContent.slice(0, from - $from.start());
+
+    if (textBefore !== '>') {
+      return false;
+    }
+
+    const deleteFrom = $from.start();
+    const deleteTo = deleteFrom + 1;
+    const deleteTr = state.tr.delete(deleteFrom, deleteTo);
+    const newState = view.state.apply(deleteTr);
+
+    view.updateState(newState);
+
+    wrapIn(schema.nodes.blockQuote)(view.state, (wrappedTr: Transaction) => {
+      view.dispatch(wrappedTr.scrollIntoView());
+    });
 
     return true;
   }
@@ -295,6 +367,8 @@ export default class WysiwygEditor extends EditorBase {
         changePastedSlice(slice, this.schema, isInTableNode(this.view.state.selection.$from)),
       handlePaste: (view: EditorView, _: ClipboardEvent, slice: Slice) => pasteToTable(view, slice),
       handleTextInput: (view, from, to, text) =>
+        this.convertThematicBreak(view, from, to, text) ||
+        this.convertBlockquote(view, from, to, text) ||
         this.convertBacktickPairToInlineCode(view, from, to, text),
       handleKeyDown: (view, ev) => {
         this.eventEmitter.emit('keydown', this.editorType, ev);

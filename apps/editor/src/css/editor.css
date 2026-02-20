@@ -897,10 +897,11 @@
 }
 
 .toastui-editor-toolbar-icons.anchor::before {
-  content: '⚓';
+  content: '\2693\FE0E';
   display: block;
-  font-size: 14px;
+  font-size: 20px;
   line-height: 24px;
+  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols', serif;
 }
 
 .toastui-editor-toolbar-icons.anchor.active {
