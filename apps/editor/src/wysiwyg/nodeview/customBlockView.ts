@@ -6,9 +6,12 @@ import { newlineInCode, selectAll } from 'prosemirror-commands';
 import { redo, undo, undoDepth, history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import isFunction from 'tui-code-snippet/type/isFunction';
+import css from 'tui-code-snippet/domUtil/css';
 import { ToDOMAdaptor } from '@t/convertor';
 import { createTextSelection } from '@/helper/manipulation';
-import { cls } from '@/utils/dom';
+import { cls, removeNode } from '@/utils/dom';
+
+const CODE_FENCE_KINDS = new Set(['mermaid', 'uml', 'chart']);
 
 interface EventLike {
   emit(event: string, ...args: any[]): void;
@@ -37,6 +40,8 @@ export class CustomBlockView implements NodeView {
 
   private canceled: boolean;
 
+  private typeEditorEl: HTMLElement | null = null;
+
   constructor(
     node: ProsemirrorNode,
     view: EditorView,
@@ -62,8 +67,13 @@ export class CustomBlockView implements NodeView {
 
     this.dom.appendChild(this.innerViewContainer);
     this.dom.appendChild(this.wrapper);
-    this.dom.addEventListener('dblclick', this.openEditor);
+    this.dom.addEventListener('dblclick', this.handleDblClick);
   }
+
+  private handleDblClick = (ev: Event) => {
+    ev.preventDefault();
+    this.openEditor();
+  };
 
   private renderToolArea() {
     const tool = document.createElement('div');
@@ -74,11 +84,25 @@ export class CustomBlockView implements NodeView {
     span.textContent = this.node.attrs.info;
     span.className = 'info';
     button.type = 'button';
-    button.addEventListener('click', () => this.openEditor());
+    button.addEventListener('click', () => {
+      if (this.isCodeFenceBlock()) {
+        this.openTypeEditor();
+      } else {
+        this.openEditor();
+      }
+    });
 
     tool.appendChild(span);
     tool.appendChild(button);
     this.wrapper.appendChild(tool);
+  }
+
+  private isCodeFenceBlock() {
+    const info = String(this.node.attrs.info || '')
+      .trim()
+      .toLowerCase();
+
+    return CODE_FENCE_KINDS.has(info);
   }
 
   private renderCustomBlock() {
@@ -152,7 +176,11 @@ export class CustomBlockView implements NodeView {
         },
       },
     });
-    this.innerEditorView!.focus();
+    setTimeout(() => {
+      if (this.innerEditorView) {
+        this.innerEditorView.focus();
+      }
+    });
   };
 
   private closeEditor() {
@@ -257,7 +285,110 @@ export class CustomBlockView implements NodeView {
     return !kind || kind === 'latex';
   }
 
+  private openTypeEditor() {
+    if (this.typeEditorEl || !isFunction(this.getPos)) return;
+
+    const pos = this.getPos();
+    const { top, right } = this.editorView.coordsAtPos(pos);
+    const wrapper = document.createElement('span');
+
+    wrapper.className = 'toastui-editor-ww-code-block-language';
+
+    const label = document.createElement('label');
+
+    label.textContent = 'Type:';
+    label.className = 'toastui-editor-ww-code-block-label';
+
+    const input = document.createElement('input');
+
+    input.type = 'text';
+    input.value = this.node.attrs.info || '';
+    input.className = 'toastui-editor-ww-code-block-lang-input';
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(input);
+    this.editorView.dom.parentElement!.appendChild(wrapper);
+
+    const wrapperWidth = wrapper.clientWidth;
+
+    css(wrapper, {
+      top: `${top + 10}px`,
+      left: `${right - wrapperWidth - 10}px`,
+    });
+
+    this.typeEditorEl = wrapper;
+
+    const commit = () => {
+      if (!this.typeEditorEl) return;
+      this.commitTypeChange(input.value);
+    };
+
+    input.addEventListener('keydown', (ev: KeyboardEvent) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        commit();
+      }
+    });
+
+    wrapper.addEventListener('focusout', (ev: FocusEvent) => {
+      const related = ev.relatedTarget as HTMLElement | null;
+
+      if (!related || !wrapper.contains(related)) {
+        commit();
+      }
+    });
+
+    setTimeout(() => input.focus());
+  }
+
+  private commitTypeChange(newType: string) {
+    if (!isFunction(this.getPos)) return;
+
+    const lang = newType.trim().toLowerCase();
+
+    this.resetTypeEditor();
+
+    const pos = this.getPos();
+    const { tr } = this.editorView.state;
+
+    if (CODE_FENCE_KINDS.has(lang) || lang === 'latex' || lang === '') {
+      const info = lang || 'latex';
+
+      tr.setNodeMarkup(pos, null, { ...this.node.attrs, info });
+    } else {
+      const { codeBlock } = this.editorView.state.schema.nodes;
+
+      if (!codeBlock) return;
+
+      const { content } = this.node;
+      const newNode = codeBlock.create(
+        { language: lang, lineNumber: null },
+        content.size > 0 ? content : null
+      );
+
+      tr.replaceWith(pos, pos + this.node.nodeSize, newNode);
+    }
+
+    this.editorView.dispatch(tr);
+    this.editorView.focus();
+  }
+
+  private resetTypeEditor() {
+    if (this.typeEditorEl) {
+      removeNode(this.typeEditorEl);
+      this.typeEditorEl = null;
+    }
+  }
+
   stopEvent(event: Event): boolean {
+    if (
+      this.typeEditorEl &&
+      event.target instanceof Node &&
+      this.typeEditorEl.contains(event.target)
+    ) {
+      return true;
+    }
+
     return (
       !!this.innerEditorView &&
       !!event.target &&
@@ -270,7 +401,8 @@ export class CustomBlockView implements NodeView {
   }
 
   destroy() {
-    this.dom.removeEventListener('dblclick', this.openEditor);
+    this.dom.removeEventListener('dblclick', this.handleDblClick);
+    this.resetTypeEditor();
     this.closeEditor();
   }
 }
