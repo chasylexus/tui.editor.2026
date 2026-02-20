@@ -1,5 +1,5 @@
 {
-  "name": "@toast-ui/editor-plugin-table-merged-cell",
+  "name": "@techie_doubts/editor-plugin-table-merged-cell",
   "version": "3.1.0",
   "description": "TOAST UI Editor : Table Merged Cell Plugin",
   "keywords": [
@@ -13,7 +13,7 @@
     "table",
     "merged-cell"
   ],
-  "main": "dist/toastui-editor-plugin-table-merged-cell.js",
+  "main": "dist/td-editor-plugin-table-merged-cell.js",
   "files": [
     "dist/*.js",
     "dist/*.css",

@@ -31,13 +31,13 @@ The Viewer can be used by creating an instance with the constructor function. To
 - ES6 Modules
 
 ```javascript
-import Viewer from '@toast-ui/editor/dist/toastui-editor-viewer';
+import Viewer from '@techie_doubts/tui.editor.2026/dist/td-editor-viewer';
 ```
 
 - CommonJS
 
 ```javascript
-const Viewer = require('@toast-ui/dist/toastui-editor-viewer');
+const Viewer = require('@techie_doubts/tui.editor.2026/dist/td-editor-viewer');
 ```
 
 #### Using Namespace in Browser Environment
@@ -52,7 +52,7 @@ Note that the CDN file of the Viewer should use the following:
 ...
 <body>
   ...
-  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-viewer.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/td-editor-viewer.js"></script>
 </body>
 ...
 ```
@@ -66,13 +66,13 @@ You need to add the CSS files needed for the Viewer. Import CSS files in node en
 - ES6 Modules
 
 ```javascript
-import '@toast-ui/editor/dist/toastui-editor-viewer.css';
+import '@techie_doubts/tui.editor.2026/dist/td-editor-viewer.css';
 ```
 
 - CommonJS
 
 ```javascript
-require('@toast-ui/editor/dist/toastui-editor-viewer.css');
+require('@techie_doubts/tui.editor.2026/dist/td-editor-viewer.css');
 ```
 
 #### Using in Browser Environment by CDN
@@ -81,7 +81,7 @@ require('@toast-ui/editor/dist/toastui-editor-viewer.css');
 ...
 <head>
   ...
-  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor-viewer.min.css" />
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/td-editor-viewer.min.css" />
 </head>
 ...
 ```
@@ -112,7 +112,7 @@ Find out more options [here](https://nhn.github.io/tui.editor/latest/ToastUIEdit
 Be careful not to load both an editor and a viewer at the same time because an editor already contains a viewer function, you can initialize with `Editor.factory()` of an editor and set the `viewer` option to value `true` in order to make the a viewer.
 
 ```js
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 
 const viewer = Editor.factory({
   el: document.querySelector('#viewer'),

@@ -7,7 +7,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
 function getOutputConfig(isProduction, isCDN, minify) {
-  const filename = `toastui-${name.replace(/@toast-ui\//, '')}`;
+  const filename = `td-${name.replace(/@techie_doubts\//, '')}`;
   const defaultConfig = {
     library: {
       name: ['toastui', 'Editor', 'plugin', 'chart'],
@@ -44,10 +44,10 @@ function getOutputConfig(isProduction, isCDN, minify) {
 function getExternalsConfig() {
   return [
     {
-      '@toast-ui/chart': {
-        commonjs: '@toast-ui/chart',
-        commonjs2: '@toast-ui/chart',
-        amd: '@toast-ui/chart',
+      '@techie_doubts/tui.chart.2026': {
+        commonjs: '@techie_doubts/tui.chart.2026',
+        commonjs2: '@techie_doubts/tui.chart.2026',
+        amd: '@techie_doubts/tui.chart.2026',
         root: ['toastui', 'Chart'],
       },
     },

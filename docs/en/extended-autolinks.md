@@ -47,7 +47,7 @@ const editor = new Editor({
     if (matched) {
       return matched.map(m =>
         ({
-          text: 'toastui-editor',
+          text: 'td-editor',
           url: 'https://github.com/nhn/tui.editor',
           range: [0, 1]
         })

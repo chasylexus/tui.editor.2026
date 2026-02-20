@@ -8,7 +8,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
-const filename = `toastui-${name.replace(/@toast-ui\//, '')}`;
+const filename = `td-${name.replace(/@techie_doubts\//, '')}`;
 
 const ENTRY = './src/index.ts';
 const ENTRY_ALL_LANG = './src/indexAll.ts';

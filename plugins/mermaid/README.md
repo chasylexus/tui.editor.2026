@@ -5,14 +5,14 @@
 ## Install
 
 ```bash
-npm install --save @toast-ui/editor-plugin-mermaid
+npm install --save @techie_doubts/editor-plugin-mermaid
 ```
 
 ## Usage
 
 ```js
-import { Editor } from '@toast-ui/editor';
-import mermaidPlugin from '@toast-ui/editor-plugin-mermaid';
+import { Editor } from '@techie_doubts/tui.editor.2026';
+import mermaidPlugin from '@techie_doubts/editor-plugin-mermaid';
 
 const editor = new Editor({
   el: document.querySelector('#editor'),

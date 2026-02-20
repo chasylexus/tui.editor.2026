@@ -4,7 +4,7 @@ import { TextSelection } from 'prosemirror-state';
 
 import { cls } from '@/utils/dom';
 import { LanguageSelectBox } from '@/nodeViews/languageSelectBox';
-import type { Emitter } from '@toast-ui/editor';
+import type { Emitter } from '@techie_doubts/tui.editor.2026';
 
 type GetPos = (() => number) | boolean;
 

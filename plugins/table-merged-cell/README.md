@@ -2,7 +2,7 @@
 
 > This is a plugin of [TOAST UI Editor](https://github.com/nhn/tui.editor/tree/master/apps/editor) to merge table columns.
 
-[![npm version](https://img.shields.io/npm/v/@toast-ui/editor-plugin-table-merged-cell.svg)](https://www.npmjs.com/package/@toast-ui/editor-plugin-table-merged-cell)
+[![npm version](https://img.shields.io/npm/v/@techie_doubts/editor-plugin-table-merged-cell.svg)](https://www.npmjs.com/package/@techie_doubts/editor-plugin-table-merged-cell)
 
 ![table-merged-cell](https://user-images.githubusercontent.com/37766175/121814008-c0232480-cca9-11eb-8611-7ccc0fe8707f.png)
 
@@ -18,11 +18,11 @@
 
 ```
 - node_modules/
-  - @toast-ui/
+  - @techie_doubts/
     - editor-plugin-table-merged-cell/
       - dist/
-        - toastui-editor-plugin-table-merged-cell.js
-        - toastui-editor-plugin-table-merged-cell.css
+        - td-editor-plugin-table-merged-cell.js
+        - td-editor-plugin-table-merged-cell.css
 ```
 
 ### Files Distributed on CDN
@@ -33,22 +33,22 @@ The bundle files include all dependencies of this plugin.
 - uicdn.toast.com/
   - editor-plugin-table-merged-cell/
     - latest/
-      - toastui-editor-plugin-table-merged-cell.js
-      - toastui-editor-plugin-table-merged-cell.min.js
-      - toastui-editor-plugin-table-merged-cell.css
-      - toastui-editor-plugin-table-merged-cell.min.css
+      - td-editor-plugin-table-merged-cell.js
+      - td-editor-plugin-table-merged-cell.min.js
+      - td-editor-plugin-table-merged-cell.css
+      - td-editor-plugin-table-merged-cell.min.css
 ```
 
 ## 📦 Usage npm
 
-To use the plugin, [`@toast-ui/editor`](https://github.com/nhn/tui.editor/tree/master/apps/editor) must be installed.
+To use the plugin, [`@techie_doubts/tui.editor.2026`](https://github.com/nhn/tui.editor/tree/master/apps/editor) must be installed.
 
 > Ref. [Getting Started](https://github.com/nhn/tui.editor/blob/master/docs/en/getting-started.md)
 
 ### Install
 
 ```sh
-$ npm install @toast-ui/editor-plugin-table-merged-cell
+$ npm install @techie_doubts/editor-plugin-table-merged-cell
 ```
 
 ### Import Plugin
@@ -56,17 +56,17 @@ $ npm install @toast-ui/editor-plugin-table-merged-cell
 #### ES Modules
 
 ```js
-import '@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css';
+import '@techie_doubts/editor-plugin-table-merged-cell/dist/td-editor-plugin-table-merged-cell.css';
 
-import tableMergedCell from '@toast-ui/editor-plugin-table-merged-cell';
+import tableMergedCell from '@techie_doubts/editor-plugin-table-merged-cell';
 ```
 
 #### CommonJS
 
 ```js
-require('@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css');
+require('@techie_doubts/editor-plugin-table-merged-cell/dist/td-editor-plugin-table-merged-cell.css');
 
-const tableMergedCell = require('@toast-ui/editor-plugin-table-merged-cell');
+const tableMergedCell = require('@techie_doubts/editor-plugin-table-merged-cell');
 ```
 
 ### Create Instance
@@ -74,10 +74,10 @@ const tableMergedCell = require('@toast-ui/editor-plugin-table-merged-cell');
 #### Basic
 
 ```js
-import '@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css';
+import '@techie_doubts/editor-plugin-table-merged-cell/dist/td-editor-plugin-table-merged-cell.css';
 
-import Editor from '@toast-ui/editor';
-import tableMergedCell from '@toast-ui/editor-plugin-table-merged-cell';
+import Editor from '@techie_doubts/tui.editor.2026';
+import tableMergedCell from '@techie_doubts/editor-plugin-table-merged-cell';
 
 const editor = new Editor({
   // ...
@@ -88,10 +88,10 @@ const editor = new Editor({
 #### With Viewer
 
 ```js
-import '@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css';
+import '@techie_doubts/editor-plugin-table-merged-cell/dist/td-editor-plugin-table-merged-cell.css';
 
-import Viewer from '@toast-ui/editor/dist/toastui-editor-viewer';
-import tableMergedCell from '@toast-ui/editor-plugin-table-merged-cell';
+import Viewer from '@techie_doubts/tui.editor.2026/dist/td-editor-viewer';
+import tableMergedCell from '@techie_doubts/editor-plugin-table-merged-cell';
 
 const viewer = new Viewer({
   // ...
@@ -102,10 +102,10 @@ const viewer = new Viewer({
 or
 
 ```js
-import '@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css';
+import '@techie_doubts/editor-plugin-table-merged-cell/dist/td-editor-plugin-table-merged-cell.css';
 
-import Editor from '@toast-ui/editor';
-import tableMergedCell from '@toast-ui/editor-plugin-table-merged-cell';
+import Editor from '@techie_doubts/tui.editor.2026';
+import tableMergedCell from '@techie_doubts/editor-plugin-table-merged-cell';
 
 const viewer = Editor.factory({
   // ...
@@ -116,7 +116,7 @@ const viewer = Editor.factory({
 
 ## 🗂 Usage CDN
 
-To use the plugin, the CDN files(CSS, Script) of `@toast-ui/editor` must be included.
+To use the plugin, the CDN files(CSS, Script) of `@techie_doubts/tui.editor.2026` must be included.
 
 ### Include Files
 
@@ -126,16 +126,16 @@ To use the plugin, the CDN files(CSS, Script) of `@toast-ui/editor` must be incl
   ...
   <link
     rel="stylesheet"
-    href="https://uicdn.toast.com/editor-plugin-table-merged-cell/latest/toastui-editor-plugin-table-merged-cell.min.css"
+    href="https://uicdn.toast.com/editor-plugin-table-merged-cell/latest/td-editor-plugin-table-merged-cell.min.css"
   />
   ...
 </head>
 <body>
   ...
   <!-- Editor -->
-  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/td-editor-all.min.js"></script>
   <!-- Editor's Plugin -->
-  <script src="https://uicdn.toast.com/editor-plugin-table-merged-cell/latest/toastui-editor-plugin-table-merged-cell.min.js"></script>
+  <script src="https://uicdn.toast.com/editor-plugin-table-merged-cell/latest/td-editor-plugin-table-merged-cell.min.js"></script>
   ...
 </body>
 ...

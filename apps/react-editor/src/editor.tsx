@@ -1,5 +1,5 @@
 import React from 'react';
-import Editor, { EventMap } from '@toast-ui/editor';
+import Editor, { EventMap } from '@techie_doubts/tui.editor.2026';
 import type { EditorProps, EventNames } from '../index';
 
 class ToastUIEditor extends React.Component<EditorProps> {

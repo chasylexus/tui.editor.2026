@@ -1,5 +1,5 @@
 import type { Transaction } from 'prosemirror-state';
-import type { PluginContext } from '@toast-ui/editor';
+import type { PluginContext } from '@techie_doubts/tui.editor.2026';
 import type { TableOffsetMapFactory, TableOffsetMap, CommandFn } from '@t/index';
 import type { Fragment, Node } from 'prosemirror-model';
 import {

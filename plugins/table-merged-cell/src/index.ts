@@ -1,4 +1,4 @@
-import type { PluginContext, PluginInfo } from '@toast-ui/editor';
+import type { PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
 import { markdownParsers } from '@/markdown/parser';
 import { toHTMLRenderers } from '@/markdown/renderer';
 import { toMarkdownRenderers } from '@/wysiwyg/renderer';

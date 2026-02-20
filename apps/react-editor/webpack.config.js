@@ -6,20 +6,20 @@ const { version, author, license } = require('./package.json');
 const config = {
   entry: './src/index.ts',
   output: {
-    filename: 'toastui-react-editor.js',
+    filename: 'td-react-editor.js',
     path: path.resolve(__dirname, 'dist'),
     library: {
       type: 'commonjs2',
     },
   },
   externals: {
-    '@toast-ui/editor': {
-      commonjs: '@toast-ui/editor',
-      commonjs2: '@toast-ui/editor',
+    '@techie_doubts/tui.editor.2026': {
+      commonjs: '@techie_doubts/tui.editor.2026',
+      commonjs2: '@techie_doubts/tui.editor.2026',
     },
-    '@toast-ui/editor/dist/toastui-editor-viewer': {
-      commonjs: '@toast-ui/editor/dist/toastui-editor-viewer',
-      commonjs2: '@toast-ui/editor/dist/toastui-editor-viewer',
+    '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer': {
+      commonjs: '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer',
+      commonjs2: '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer',
     },
     react: {
       commonjs: 'react',

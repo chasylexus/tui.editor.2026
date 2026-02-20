@@ -5,9 +5,9 @@
     <title>20. Full Featured 2026</title>
     <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
     <!-- Editor -->
-    <link rel="stylesheet" href="../dist/cdn/toastui-editor.css" />
+    <link rel="stylesheet" href="../dist/cdn/td-editor.css" />
     <!-- Dark theme -->
-    <link rel="stylesheet" href="../dist/cdn/theme/toastui-editor-dark.css" />
+    <link rel="stylesheet" href="../dist/cdn/theme/td-editor-dark.css" />
     <!-- Chart -->
     <link rel="stylesheet" href="https://uicdn.toast.com/chart/v4.3.4/toastui-chart.css" />
     <!-- Code Highlight -->
@@ -17,7 +17,7 @@
     />
     <link
       rel="stylesheet"
-      href="/plugins/code-syntax-highlight/dist/cdn/toastui-editor-plugin-code-syntax-highlight.css"
+      href="/plugins/code-syntax-highlight/dist/cdn/td-editor-plugin-code-syntax-highlight.css"
     />
     <!-- Color syntax -->
     <link
@@ -26,17 +26,17 @@
     />
     <link
       rel="stylesheet"
-      href="/plugins/color-syntax/dist/cdn/toastui-editor-plugin-color-syntax.css"
+      href="/plugins/color-syntax/dist/cdn/td-editor-plugin-color-syntax.css"
     />
     <!-- Merged Table -->
     <link
       rel="stylesheet"
-      href="/plugins/table-merged-cell/dist/cdn/toastui-editor-plugin-table-merged-cell.css"
+      href="/plugins/table-merged-cell/dist/cdn/td-editor-plugin-table-merged-cell.css"
     />
     <!-- Export -->
     <link
       rel="stylesheet"
-      href="/plugins/export/dist/cdn/toastui-editor-plugin-export.css"
+      href="/plugins/export/dist/cdn/td-editor-plugin-export.css"
     />
     <!-- KaTeX -->
     <link rel="stylesheet" href="/node_modules/katex/dist/katex.min.css" />
@@ -69,7 +69,7 @@
         min-height: 0;
       }
 
-      .toastui-editor-defaultUI {
+      .td-editor-defaultUI {
         height: 100%;
       }
 
@@ -95,7 +95,7 @@
         border-radius: 3px;
       }
 
-      .toastui-editor-dark .export-split > .export-split-main:only-child {
+      .td-editor-dark .export-split > .export-split-main:only-child {
         border-right: 1px solid #232428;
       }
 
@@ -112,11 +112,11 @@
         display: block;
       }
 
-      .toastui-editor-defaultUI-toolbar .export-toolbar-group {
+      .td-editor-defaultUI-toolbar .export-toolbar-group {
         margin-left: auto;
       }
 
-      .toastui-editor-defaultUI-toolbar .export-toolbar-group .toastui-editor-toolbar-divider {
+      .td-editor-defaultUI-toolbar .export-toolbar-group .td-editor-toolbar-divider {
         display: none;
       }
     </style>
@@ -132,7 +132,7 @@
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <script src="./data/example20-full-featured-2026.js"></script>
     <!-- Editor -->
-    <script src="../dist/cdn/toastui-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-all.js"></script>
     <!-- Chart -->
     <script src="https://uicdn.toast.com/chart/v4.3.4/toastui-chart.js"></script>
     <!-- Color Picker -->
@@ -140,14 +140,14 @@
     <!-- Mermaid -->
     <script src="/node_modules/mermaid/dist/mermaid.min.js"></script>
     <!-- Editor's Plugin -->
-    <script src="/plugins/chart/dist/cdn/toastui-editor-plugin-chart.js"></script>
-    <script src="/plugins/code-syntax-highlight/dist/cdn/toastui-editor-plugin-code-syntax-highlight-all.js"></script>
-    <script src="/plugins/color-syntax/dist/cdn/toastui-editor-plugin-color-syntax.js"></script>
-    <script src="/plugins/table-merged-cell/dist/cdn/toastui-editor-plugin-table-merged-cell.js"></script>
-    <script src="/plugins/uml/dist/cdn/toastui-editor-plugin-uml.js"></script>
-    <script src="/plugins/mermaid/dist/cdn/toastui-editor-plugin-mermaid.js"></script>
-    <script src="/plugins/katex/dist/cdn/toastui-editor-plugin-katex.js"></script>
-    <script src="/plugins/export/dist/cdn/toastui-editor-plugin-export.js"></script>
+    <script src="/plugins/chart/dist/cdn/td-editor-plugin-chart.js"></script>
+    <script src="/plugins/code-syntax-highlight/dist/cdn/td-editor-plugin-code-syntax-highlight-all.js"></script>
+    <script src="/plugins/color-syntax/dist/cdn/td-editor-plugin-color-syntax.js"></script>
+    <script src="/plugins/table-merged-cell/dist/cdn/td-editor-plugin-table-merged-cell.js"></script>
+    <script src="/plugins/uml/dist/cdn/td-editor-plugin-uml.js"></script>
+    <script src="/plugins/mermaid/dist/cdn/td-editor-plugin-mermaid.js"></script>
+    <script src="/plugins/katex/dist/cdn/td-editor-plugin-katex.js"></script>
+    <script src="/plugins/export/dist/cdn/td-editor-plugin-export.js"></script>
     <script type="text/babel" class="code-js">
       const { Editor } = toastui;
       const {
@@ -196,7 +196,7 @@
         ]
       });
 
-      const rootEl = document.querySelector('.toastui-editor-defaultUI');
+      const rootEl = document.querySelector('.td-editor-defaultUI');
       const bodyEl = document.body;
       let currentMode = themeMode;
       const themeIcons = Editor.themeIcons;
@@ -209,7 +209,7 @@
       themeSplit.setAttribute('role', 'group');
 
       themeMainButton.type = 'button';
-      themeMainButton.className = 'toastui-editor-toolbar-icons export-split-main';
+      themeMainButton.className = 'td-editor-toolbar-icons export-split-main';
       themeMainButton.setAttribute('aria-label', 'Theme');
       themeMainButton.setAttribute('aria-haspopup', 'menu');
 
@@ -230,8 +230,8 @@
           const target = event.target;
 
           if (
-            target.closest('.toastui-editor-popup') ||
-            target.closest('.toastui-editor-toolbar-item-wrapper')
+            target.closest('.td-editor-popup') ||
+            target.closest('.td-editor-toolbar-item-wrapper')
           ) {
             return;
           }
@@ -244,7 +244,7 @@
       const applyTheme = (mode, shouldPersist = true) => {
         const useDark = mode === 'dark' || (mode === 'auto' && media.matches);
 
-        rootEl.classList.toggle('toastui-editor-dark', useDark);
+        rootEl.classList.toggle('td-editor-dark', useDark);
         bodyEl.classList.toggle('dark', useDark);
         themeIconWrap.textContent = '';
         themeIconWrap.appendChild(themeIcons[mode]());
@@ -315,13 +315,13 @@
           tooltip: 'Theme',
           popup: {
             body: themeMenu,
-            className: 'toastui-editor-popup-add-heading export-split-menu'
+            className: 'td-editor-popup-add-heading export-split-menu'
           }
         }
       );
 
       const openThemeMenu = () => {
-        const wrapper = themeSplit.closest('.toastui-editor-toolbar-item-wrapper');
+        const wrapper = themeSplit.closest('.td-editor-toolbar-item-wrapper');
 
         if (wrapper) {
           wrapper.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -371,11 +371,11 @@
 
       applyTheme(currentMode, false);
 
-      const toolbarEl = document.querySelector('.toastui-editor-defaultUI-toolbar');
+      const toolbarEl = document.querySelector('.td-editor-defaultUI-toolbar');
       const exportButton = toolbarEl && toolbarEl.querySelector('.export-split');
 
       if (exportButton) {
-        const exportGroup = exportButton.closest('.toastui-editor-toolbar-group');
+        const exportGroup = exportButton.closest('.td-editor-toolbar-group');
 
         if (exportGroup) {
           exportGroup.classList.add('export-toolbar-group');

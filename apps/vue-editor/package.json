@@ -1,8 +1,11 @@
 {
-  "name": "@toast-ui/vue-editor",
+  "name": "@techie_doubts/vue-editor",
   "version": "3.2.3",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "TOAST UI Editor for Vue",
-  "main": "dist/toastui-vue-editor.js",
+  "main": "dist/td-vue-editor.js",
   "module": "dist/esm/index.js",
   "files": [
     "dist",
@@ -34,6 +37,6 @@
     "vue": "^2.5.0"
   },
   "dependencies": {
-    "@toast-ui/editor": "^3.2.2"
+    "@techie_doubts/tui.editor.2026": "^3.2.2"
   }
 }

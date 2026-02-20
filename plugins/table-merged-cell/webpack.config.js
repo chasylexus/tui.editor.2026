@@ -8,7 +8,7 @@ const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
-const filename = `toastui-${name.replace(/@toast-ui\//, '')}`;
+const filename = `td-${name.replace(/@techie_doubts\//, '')}`;
 
 function getOutputConfig(isProduction, isCDN, minify) {
   const defaultConfig = {

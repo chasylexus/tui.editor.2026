@@ -5,14 +5,14 @@
 ## Install
 
 ```bash
-npm install --save @toast-ui/editor-plugin-export
+npm install --save @techie_doubts/editor-plugin-export
 ```
 
 ## Usage
 
 ```js
-import { Editor } from '@toast-ui/editor';
-import exportPlugin from '@toast-ui/editor-plugin-export';
+import { Editor } from '@techie_doubts/tui.editor.2026';
+import exportPlugin from '@techie_doubts/editor-plugin-export';
 
 const editor = new Editor({
   el: document.querySelector('#editor'),

@@ -1,4 +1,4 @@
-import { HTMLConvertorMap } from '@toast-ui/toastmark';
+import { HTMLConvertorMap } from '@techie_doubts/toastmark';
 import { history } from 'prosemirror-history';
 import { ProsemirrorNode } from 'prosemirror-model';
 import MarkdownEditor from '@/markdown/mdEditor';

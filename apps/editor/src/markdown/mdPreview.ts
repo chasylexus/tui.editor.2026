@@ -1,4 +1,4 @@
-import { EditResult, MdNode, MdPos, Renderer } from '@toast-ui/toastmark';
+import { EditResult, MdNode, MdPos, Renderer } from '@techie_doubts/toastmark';
 
 import { Emitter } from '@t/event';
 import { CustomHTMLRenderer, LinkAttributes } from '@t/editor';

@@ -11,7 +11,7 @@ import {
   HTMLConvertorMap,
   OpenTagToken,
   Renderer,
-} from '@toast-ui/toastmark';
+} from '@techie_doubts/toastmark';
 import { isElemNode } from '@/utils/dom';
 
 import {

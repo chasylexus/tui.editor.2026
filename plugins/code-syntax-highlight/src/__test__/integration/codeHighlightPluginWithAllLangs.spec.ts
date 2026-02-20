@@ -1,6 +1,6 @@
 import { source } from 'common-tags';
 
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 import codeSyntaxHighlightPlugin from '@/indexAll';
 
 describe('codeSyntaxHighlightPlugin', () => {

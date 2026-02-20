@@ -8,7 +8,7 @@ const ESLintPlugin = require('eslint-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
-const baseFilename = `toastui-${name.replace(/@toast-ui\//, '')}`;
+const baseFilename = `td-${name.replace(/@techie_doubts\//, '')}`;
 
 function getOutputConfig(isProduction, isCDN, minify) {
   const defaultConfig = {

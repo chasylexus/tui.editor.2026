@@ -1,6 +1,9 @@
 {
-  "name": "@toast-ui/editor",
+  "name": "@techie_doubts/tui.editor.2026",
   "version": "3.2.2",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "GFM  Markdown Wysiwyg Editor - Productive and Extensible",
   "keywords": [
     "nhn",
@@ -14,30 +17,30 @@
     "preview",
     "gfm"
   ],
-  "main": "dist/toastui-editor.js",
+  "main": "dist/td-editor.js",
   "module": "dist/esm/",
   "exports": {
     ".": {
       "import": "./dist/esm/index.js",
-      "require": "./dist/toastui-editor.js"
+      "require": "./dist/td-editor.js"
     },
     "./viewer": {
       "import": "./dist/esm/indexViewer.js",
-      "require": "./dist/toastui-editor-viewer.js"
+      "require": "./dist/td-editor-viewer.js"
     },
     "./dist/i18n/*": {
       "import": "./dist/esm/i18n/*.js",
       "require": "./dist/i18n/*.js"
     },
-    "./dist/toastui-editor-viewer": "./dist/toastui-editor-viewer.js",
-    "./dist/toastui-editor.css": "./dist/toastui-editor.css",
-    "./dist/toastui-editor-viewer.css": "./dist/toastui-editor-viewer.css",
-    "./dist/toastui-editor-only.css": "./dist/toastui-editor-only.css",
-    "./dist/theme/toastui-editor-dark.css": "./dist/theme/toastui-editor-dark.css",
-    "./toastui-editor.css": "./dist/toastui-editor.css",
-    "./toastui-editor-viewer.css": "./dist/toastui-editor-viewer.css",
-    "./toastui-editor-only.css": "./dist/toastui-editor-only.css",
-    "./toastui-editor-dark.css": "./dist/theme/toastui-editor-dark.css"
+    "./dist/td-editor-viewer": "./dist/td-editor-viewer.js",
+    "./dist/td-editor.css": "./dist/td-editor.css",
+    "./dist/td-editor-viewer.css": "./dist/td-editor-viewer.css",
+    "./dist/td-editor-only.css": "./dist/td-editor-only.css",
+    "./dist/theme/td-editor-dark.css": "./dist/theme/td-editor-dark.css",
+    "./td-editor.css": "./dist/td-editor.css",
+    "./td-editor-viewer.css": "./dist/td-editor-viewer.css",
+    "./td-editor-only.css": "./dist/td-editor-only.css",
+    "./td-editor-dark.css": "./dist/theme/td-editor-dark.css"
   },
   "types": "types/index.d.ts",
   "files": [
@@ -77,7 +80,7 @@
     "doc": "npm run ts2js && tuidoc"
   },
   "devDependencies": {
-    "@toast-ui/release-notes": "^2.0.1",
+    "@techie_doubts/tui.release-notes.2026": "file:../../../tui.release-notes.2026",
     "@types/dompurify": "2.3.3",
     "cross-env": "^6.0.3"
   },

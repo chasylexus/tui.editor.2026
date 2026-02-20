@@ -1,4 +1,4 @@
-import { MdPos } from '@toast-ui/toastmark';
+import { MdPos } from '@techie_doubts/toastmark';
 import { EditorType } from '@t/editor';
 
 export interface SnapshotSelection {

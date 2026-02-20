@@ -2,7 +2,7 @@
 
 > This is a plugin of [TOAST UI Editor](https://github.com/nhn/tui.editor/tree/master/apps/editor) to highlight code syntax.
 
-[![npm version](https://img.shields.io/npm/v/@toast-ui/editor-plugin-code-syntax-highlight.svg)](https://www.npmjs.com/package/@toast-ui/editor-plugin-code-syntax-highlight)
+[![npm version](https://img.shields.io/npm/v/@techie_doubts/editor-plugin-code-syntax-highlight.svg)](https://www.npmjs.com/package/@techie_doubts/editor-plugin-code-syntax-highlight)
 
 ![code-syntax-highlight](https://user-images.githubusercontent.com/37766175/121834103-de6c3d00-cd08-11eb-870f-6ff943f65f8b.png)
 
@@ -20,12 +20,12 @@
 
 ```
 - node_modules/
-  - @toast-ui/
+  - @techie_doubts/
     - editor-plugin-code-syntax-highlight/
       - dist/
-        - toastui-editor-plugin-code-syntax-highlight-all.js
-        - toastui-editor-plugin-code-syntax-highlight.js
-        - toastui-editor-plugin-code-syntax-highlight.css
+        - td-editor-plugin-code-syntax-highlight-all.js
+        - td-editor-plugin-code-syntax-highlight.js
+        - td-editor-plugin-code-syntax-highlight.css
 ```
 
 ### Files Distributed on CDN
@@ -34,24 +34,24 @@
 - uicdn.toast.com/
   - editor-plugin-code-syntax-highlight/
     - latest/
-      - toastui-editor-plugin-code-syntax-highlight.js
-      - toastui-editor-plugin-code-syntax-highlight.min.js
-      - toastui-editor-plugin-code-syntax-highlight-all.js
-      - toastui-editor-plugin-code-syntax-highlight-all.min.js
-      - toastui-editor-plugin-code-syntax-highlight.css
-      - toastui-editor-plugin-code-syntax-highlight.min.css
+      - td-editor-plugin-code-syntax-highlight.js
+      - td-editor-plugin-code-syntax-highlight.min.js
+      - td-editor-plugin-code-syntax-highlight-all.js
+      - td-editor-plugin-code-syntax-highlight-all.min.js
+      - td-editor-plugin-code-syntax-highlight.css
+      - td-editor-plugin-code-syntax-highlight.min.css
 ```
 
 ## 📦 Usage npm
 
-To use the plugin, [`@toast-ui/editor`](https://github.com/nhn/tui.editor/tree/master/apps/editor) must be installed.
+To use the plugin, [`@techie_doubts/tui.editor.2026`](https://github.com/nhn/tui.editor/tree/master/apps/editor) must be installed.
 
 > Ref. [Getting Started](https://github.com/nhn/tui.editor/blob/master/docs/en/getting-started.md)
 
 ### Install
 
 ```sh
-$ npm install @toast-ui/editor-plugin-code-syntax-highlight
+$ npm install @techie_doubts/editor-plugin-code-syntax-highlight
 ```
 
 ### Import Plugin
@@ -63,25 +63,25 @@ The `code-syntax-highlight` plugin has [`prismjs`](https://prismjs.com/) as a de
 
 ```js
 import 'prismjs/themes/prism.css';
-import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
+import '@techie_doubts/editor-plugin-code-syntax-highlight/dist/td-editor-plugin-code-syntax-highlight.css';
 
-import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight';
+import codeSyntaxHighlight from '@techie_doubts/editor-plugin-code-syntax-highlight';
 ```
 
 #### CommonJS
 
 ```js
 require('prismjs/themes/prism.css');
-require('@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css');
+require('@techie_doubts/editor-plugin-code-syntax-highlight/dist/td-editor-plugin-code-syntax-highlight.css');
 
-const codeSyntaxHighlight = require('@toast-ui/editor-plugin-code-syntax-highlight');
+const codeSyntaxHighlight = require('@techie_doubts/editor-plugin-code-syntax-highlight');
 ```
 
 ### Create Instance
 
 When you set up a plugin function, you must set it with an option. The option has `highlighter`, and you need to import [`prismjs`](https://www.npmjs.com/package/prismjs) before creating an instance and set it to the value of that option.
 
-The main bundle file of `prismjs` contains just several language pack it supports. So we provides the bundle file(`toastui-editor-plugin-code-syntax-highlight-all.js`) to import all languages you need in `prismjs`.
+The main bundle file of `prismjs` contains just several language pack it supports. So we provides the bundle file(`td-editor-plugin-code-syntax-highlight-all.js`) to import all languages you need in `prismjs`.
 
 #### Basic
 
@@ -90,10 +90,10 @@ The main bundle file of `prismjs` contains just several language pack it support
 ```js
 // ...
 import 'prismjs/themes/prism.css';
-import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
+import '@techie_doubts/editor-plugin-code-syntax-highlight/dist/td-editor-plugin-code-syntax-highlight.css';
 
-import Editor from '@toast-ui/editor';
-import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all.js';
+import Editor from '@techie_doubts/tui.editor.2026';
+import codeSyntaxHighlight from '@techie_doubts/editor-plugin-code-syntax-highlight/dist/td-editor-plugin-code-syntax-highlight-all.js';
 
 
 const editor = new Editor({
@@ -109,7 +109,7 @@ You need to import the language files you want to use in the code block and regi
 ```js
 // ...
 import 'prismjs/themes/prism.css';
-import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
+import '@techie_doubts/editor-plugin-code-syntax-highlight/dist/td-editor-plugin-code-syntax-highlight.css';
 
 // Step 1. Import prismjs
 import Prism from 'prismjs';
@@ -117,8 +117,8 @@ import Prism from 'prismjs';
 // Step 2. Import language files of prismjs that you need
 import 'prismjs/components/prism-clojure.js';
 
-import Editor from '@toast-ui/editor';
-import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight';
+import Editor from '@techie_doubts/tui.editor.2026';
+import codeSyntaxHighlight from '@techie_doubts/editor-plugin-code-syntax-highlight';
 
 const editor = new Editor({
   // ...
@@ -133,13 +133,13 @@ As with creating an editor instance, you need to import `prismjs` and pass it to
 ```js
 // ...
 import 'prismjs/themes/prism.css';
-import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
+import '@techie_doubts/editor-plugin-code-syntax-highlight/dist/td-editor-plugin-code-syntax-highlight.css';
 
 // Import prismjs
 import Prism from 'prismjs';
 
-import Viewer from '@toast-ui/editor/dist/toastui-editor-viewer';
-import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight';
+import Viewer from '@techie_doubts/tui.editor.2026/dist/td-editor-viewer';
+import codeSyntaxHighlight from '@techie_doubts/editor-plugin-code-syntax-highlight';
 
 
 const viewer = new Viewer({
@@ -153,13 +153,13 @@ or
 ```js
 // ...
 import 'prismjs/themes/prism.css';
-import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
+import '@techie_doubts/editor-plugin-code-syntax-highlight/dist/td-editor-plugin-code-syntax-highlight.css';
 
 // Import prismjs
 import Prism from 'prismjs';
 
-import Editor from '@toast-ui/editor';
-import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight';
+import Editor from '@techie_doubts/tui.editor.2026';
+import codeSyntaxHighlight from '@techie_doubts/editor-plugin-code-syntax-highlight';
 
 const viewer = Editor.factory({
   // ...
@@ -172,7 +172,7 @@ const viewer = Editor.factory({
 
 ### Include Files
 
-To use the plugin, the CDN files(CSS, Script) of `@toast-ui/editor` must be included.
+To use the plugin, the CDN files(CSS, Script) of `@techie_doubts/tui.editor.2026` must be included.
 
 ### Create Instance
 
@@ -194,16 +194,16 @@ By including the **all** version of the plugin, all languages ​​of `prismjs`
   />
   <link
     rel="stylesheet"
-    href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.css"
+    href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/td-editor-plugin-code-syntax-highlight.min.css"
   />
   ...
 </head>
 <body>
   ...
   <!-- Editor -->
-  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/td-editor-all.min.js"></script>
   <!-- Editor's Plugin -->
-  <script src="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight-all.min.js"></script>
+  <script src="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/td-editor-plugin-code-syntax-highlight-all.min.js"></script>
   ...
 </body>
 ...
@@ -235,19 +235,19 @@ If you include the **normal** version of the plugin, only the languages ​​yo
   />
   <link
     rel="stylesheet"
-    href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.css"
+    href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/td-editor-plugin-code-syntax-highlight.min.css"
   />
   ...
 </head>
 <body>
   ...
   <!-- Editor -->
-  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/td-editor-all.min.js"></script>
   <!-- prismjs Languages -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/components/prism-clojure.min.js"></script>
   <!-- Editor's Plugin -->
-  <script src="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.js"></script>
+  <script src="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/td-editor-plugin-code-syntax-highlight.min.js"></script>
   ...
 </body>
 ...
@@ -284,16 +284,16 @@ Include the Viewer file instead of the Editor.
   />
   <link
     rel="stylesheet"
-    href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.css"
+    href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/td-editor-plugin-code-syntax-highlight.min.css"
   />
   ...
 </head>
 <body>
   ...
   <!-- Viewer -->
-  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-viewer.min.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/td-editor-viewer.min.js"></script>
   <!-- Viewer's Plugin -->
-  <script src="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight-all.min.js"></script>
+  <script src="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/td-editor-plugin-code-syntax-highlight-all.min.js"></script>
   ...
 </body>
 ...

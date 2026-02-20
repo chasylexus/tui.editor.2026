@@ -9,21 +9,21 @@ TOAST UI Editor는 패키지 매니저를 이용하거나, 직접 소스 코드�
 각 패키지 매니저가 제공하는 CLI 도구를 사용하면 쉽게 패키지를 설치할 수 있다. npm 사용을 위해선 [Node.js](https://nodejs.org/ko/)를 미리 설치해야 한다.
 
 ```sh
-$ npm install --save @toast-ui/editor # 최신 버전
-$ npm install --save @toast-ui/editor@<version> # 특정 버전
+$ npm install --save @techie_doubts/tui.editor.2026 # 최신 버전
+$ npm install --save @techie_doubts/tui.editor.2026@<version> # 특정 버전
 ```
 
 npm을 통해 설치했다면, 아래와 같은 구조로 TOAST UI Editor가 설치된 것을 볼 수 있다.
 
 ```
 - node_modules/
-   ├─ @toast-ui/editor/
+   ├─ @techie_doubts/tui.editor.2026/
    │     ├─ dist/
-   │     │    ├─ toastui-editor.js
-   │     │    ├─ toastui-editor-viewer.js
-   │     │    ├─ toastui-editor.css
-   │     │    ├─ toastui-editor-viewer.css
-   │     │    └─ toastui-editor-only.css
+   │     │    ├─ td-editor.js
+   │     │    ├─ td-editor-viewer.js
+   │     │    ├─ td-editor.css
+   │     │    ├─ td-editor-viewer.css
+   │     │    └─ td-editor-only.css
 ```
 
 ### Contents Delivery Network (CDN) 사용하기
@@ -34,7 +34,7 @@ TOAST UI Editor는 CDN을 통해 사용할 수 있다.
 ...
 <body>
   ...
-  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/td-editor-all.min.js"></script>
 </body>
 ...
 ```
@@ -47,16 +47,16 @@ CDN은 아래와 같은 디렉토리 구조로 구성된다.
 - uicdn.toast.com/
    ├─ editor/
    │     ├─ latest/
-   │     │    ├─ toastui-editor-all.js
-   │     │    ├─ toastui-editor-all.min.js
-   │     │    ├─ toastui-editor-viewer.js
-   │     │    ├─ toastui-editor-viewer.min.js
-   │     │    ├─ toastui-editor-editor.js
-   │     │    ├─ toastui-editor-editor.min.js
-   │     │    ├─ toastui-editor-editor.css
-   │     │    ├─ toastui-editor-editor.min.css
-   │     │    ├─ toastui-editor-viewer.css
-   │     │    └─ toastui-editor-viewer.min.css
+   │     │    ├─ td-editor-all.js
+   │     │    ├─ td-editor-all.min.js
+   │     │    ├─ td-editor-viewer.js
+   │     │    ├─ td-editor-viewer.min.js
+   │     │    ├─ td-editor-editor.js
+   │     │    ├─ td-editor-editor.min.js
+   │     │    ├─ td-editor-editor.css
+   │     │    ├─ td-editor-editor.min.css
+   │     │    ├─ td-editor-viewer.css
+   │     │    └─ td-editor-viewer.min.css
    │     ├─ 3.0.0/
    │     │    └─ ...
 ```
@@ -84,13 +84,13 @@ TOAST UI Editor(이하 '에디터'로 명시)가 생성될 컨테이너 요소�
 - ES6 모듈
 
 ```javascript
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 ```
 
 - CommonJS
 
 ```javascript
-const Editor = require('@toast-ui/editor');
+const Editor = require('@techie_doubts/tui.editor.2026');
 ```
 
 #### 브라우저 환경에서의 namespace 사용
@@ -108,13 +108,13 @@ const Editor = toastui.Editor;
 - ES6 모듈
 
 ```javascript
-import '@toast-ui/editor/dist/toastui-editor.css'; // Editor 스타일
+import '@techie_doubts/tui.editor.2026/dist/td-editor.css'; // Editor 스타일
 ```
 
 - CommonJS
 
 ```javascript
-require('@toast-ui/editor/dist/toastui-editor.css');
+require('@techie_doubts/tui.editor.2026/dist/td-editor.css');
 ```
 
 #### CDN 환경
@@ -124,7 +124,7 @@ require('@toast-ui/editor/dist/toastui-editor.css');
 <head>
   ...
   <!-- Editor's Style -->
-  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/td-editor.min.css" />
 </head>
 ...
 ```

@@ -1,5 +1,5 @@
 /**
- * Chart plugin for @toast-ui/editor using @toast-ui/chart v4.
+ * Chart plugin for @techie_doubts/tui.editor.2026 using @techie_doubts/tui.chart.2026 v4.
  *
  * Shorthand option syntax (left) and what it maps to in the v4 API (right):
  *
@@ -27,7 +27,7 @@
  * y.thousands: true             => yAxis.label.formatter  (adds thousand separators)
  * ```
  */
-import type { PluginInfo, MdNode, PluginContext } from '@toast-ui/editor';
+import type { PluginInfo, MdNode, PluginContext } from '@techie_doubts/tui.editor.2026';
 import Chart, {
   BaseOptions,
   LineChart,
@@ -35,7 +35,7 @@ import Chart, {
   BarChart,
   PieChart,
   ColumnChart,
-} from '@toast-ui/chart';
+} from '@techie_doubts/tui.chart.2026';
 import { PluginOptions } from '@t/index';
 import csv from './csv';
 import { trimKeepingTabs, isNumeric, clamp } from './util';

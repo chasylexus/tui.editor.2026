@@ -1,5 +1,5 @@
 import { ProsemirrorNode } from 'prosemirror-model';
-import { MdNode } from '@toast-ui/toastmark';
+import { MdNode } from '@techie_doubts/toastmark';
 import { includes } from '@/utils/common';
 import { isStyledInlineNode, getMdEndLine, getMdStartLine } from '@/utils/markdown';
 

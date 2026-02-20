@@ -1,12 +1,15 @@
 {
-  "name": "@toast-ui/react-editor",
+  "name": "@techie_doubts/react-editor",
   "version": "3.2.3",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "TOAST UI Editor for React",
   "files": [
     "dist",
     "index.d.ts"
   ],
-  "main": "dist/toastui-react-editor.js",
+  "main": "dist/td-react-editor.js",
   "module": "dist/esm/index.js",
   "scripts": {
     "test:types": "tsc",
@@ -35,6 +38,6 @@
     "react-dom": "^17.0.1"
   },
   "dependencies": {
-    "@toast-ui/editor": "^3.2.2"
+    "@techie_doubts/tui.editor.2026": "^3.2.2"
   }
 }

@@ -1,4 +1,4 @@
-import type { PluginContext, PluginInfo } from '@toast-ui/editor';
+import type { PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
 import { NodeSelection, TextSelection } from 'prosemirror-state';
 
 const LATEX_KINDS = new Set(['latex']);

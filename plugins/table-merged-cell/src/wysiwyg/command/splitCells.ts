@@ -1,4 +1,4 @@
-import type { PluginContext } from '@toast-ui/editor';
+import type { PluginContext } from '@techie_doubts/tui.editor.2026';
 import type { TableOffsetMapFactory, TableOffsetMap, CommandFn, SelectionInfo } from '@t/index';
 import type { EditorView } from 'prosemirror-view';
 import type { Selection } from 'prosemirror-state';

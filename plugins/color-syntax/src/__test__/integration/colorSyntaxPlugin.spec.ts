@@ -1,5 +1,5 @@
-import Editor from '@toast-ui/editor';
-import colorPicker from 'tui-color-picker';
+import Editor from '@techie_doubts/tui.editor.2026';
+import colorPicker from '@techie_doubts/tui.color-picker.2026';
 import { oneLineTrim } from 'common-tags';
 import colorSyntaxPlugin from '@/index';
 import { removeProseMirrorHackNodes } from '@/utils/dom';

@@ -3,7 +3,7 @@ interface ColorPickerOption {
   preset?: string[];
 }
 
-declare module 'tui-color-picker' {
+declare module '@techie_doubts/tui.color-picker.2026' {
   interface ColorPicker {
     getColor(): string;
     slider: {

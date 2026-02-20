@@ -1,4 +1,4 @@
-import { MdNodeType } from '@toast-ui/toastmark';
+import { MdNodeType } from '@techie_doubts/toastmark';
 import { Mark, Node as ProsemirrorNode } from 'prosemirror-model';
 import { MdLikeNode } from '@t/markdown';
 import { includes } from '@/utils/common';

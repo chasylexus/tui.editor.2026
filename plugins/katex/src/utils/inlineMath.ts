@@ -1,5 +1,5 @@
 import katex from 'katex';
-import type { MdNode } from '@toast-ui/editor';
+import type { MdNode } from '@techie_doubts/tui.editor.2026';
 
 function escapeHtml(s: string) {
   return String(s)

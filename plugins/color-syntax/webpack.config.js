@@ -8,7 +8,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
-const filename = `toastui-${name.replace(/@toast-ui\//, '')}`;
+const filename = `td-${name.replace(/@techie_doubts\//, '')}`;
 
 function getOutputConfig(isProduction, isCDN, minify) {
   const defaultConfig = {
@@ -52,10 +52,10 @@ function getOutputConfig(isProduction, isCDN, minify) {
 function getExternalsConfig() {
   return [
     {
-      'tui-color-picker': {
-        commonjs: 'tui-color-picker',
-        commonjs2: 'tui-color-picker',
-        amd: 'tui-color-picker',
+      '@techie_doubts/tui.color-picker.2026': {
+        commonjs: '@techie_doubts/tui.color-picker.2026',
+        commonjs2: '@techie_doubts/tui.color-picker.2026',
+        amd: '@techie_doubts/tui.color-picker.2026',
         root: ['tui', 'colorPicker'],
       },
     },

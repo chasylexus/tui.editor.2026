@@ -1,7 +1,7 @@
 import { source } from 'common-tags';
 import type { Node as ProsemirrorNode } from 'prosemirror-model';
 
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 import codeSyntaxHighlightPlugin from '@/index';
 
 import Prism from 'prismjs';

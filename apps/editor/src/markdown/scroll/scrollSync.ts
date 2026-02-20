@@ -1,6 +1,6 @@
 import { ProsemirrorNode } from 'prosemirror-model';
 import { EditorView } from 'prosemirror-view';
-import { ToastMark } from '@toast-ui/toastmark';
+import { ToastMark } from '@techie_doubts/toastmark';
 import { Emitter } from '@t/event';
 import { isHTMLNode, getMdStartLine } from '@/utils/markdown';
 import MarkdownPreview from '../mdPreview';

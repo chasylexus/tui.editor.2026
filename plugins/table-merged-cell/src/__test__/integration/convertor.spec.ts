@@ -1,5 +1,5 @@
 import { oneLineTrim } from 'common-tags';
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 import mergedTableCellPlugin from '@/index';
 
 describe('convertor with merged table plugin', () => {

@@ -2,8 +2,8 @@
  * @fileoverview Implements KaTeX plugin
  * @author NHN FE Development Lab <dl_javascript@nhn.com>
  */
-import type { MdNode, PluginContext, PluginInfo } from '@toast-ui/editor';
-import type { HTMLToken } from '@toast-ui/toastmark';
+import type { MdNode, PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
+import type { HTMLToken } from '@techie_doubts/toastmark';
 import {
   fixInlineMathBackslashes,
   getInlineMath,

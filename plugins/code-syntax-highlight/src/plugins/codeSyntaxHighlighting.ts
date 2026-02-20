@@ -3,7 +3,7 @@ import type { Decoration } from 'prosemirror-view';
 
 import { flatten } from '@/utils/common';
 
-import type { PluginContext } from '@toast-ui/editor';
+import type { PluginContext } from '@techie_doubts/tui.editor.2026';
 import { PrismJs } from '@t/index';
 
 interface ChildNodeInfo {

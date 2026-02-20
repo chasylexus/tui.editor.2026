@@ -1,4 +1,4 @@
-import type { PluginContext, PluginInfo } from '@toast-ui/editor';
+import type { PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
 import type { Node as ProsemirrorNode } from 'prosemirror-model';
 import type { EditorView } from 'prosemirror-view';
 import { NodeSelection, EditorState, Selection } from 'prosemirror-state';

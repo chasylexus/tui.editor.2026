@@ -5,7 +5,7 @@ import {
   NodeSpec,
   MarkSpec,
 } from 'prosemirror-model';
-import { MdNode } from '@toast-ui/toastmark';
+import { MdNode } from '@techie_doubts/toastmark';
 import { Sanitizer, HTMLSchemaMap, CustomHTMLRenderer } from '@t/editor';
 import { ToDOMAdaptor } from '@t/convertor';
 import { registerTagWhitelistIfPossible } from '@/sanitizer/htmlSanitizer';

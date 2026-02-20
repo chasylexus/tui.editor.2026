@@ -70,7 +70,7 @@ describe('parseToChartOption()', () => {
     });
   });
 
-  it('should map y.min/y.max to yAxis.scale for @toast-ui/chart v4', () => {
+  it('should map y.min/y.max to yAxis.scale for @techie_doubts/tui.chart.2026 v4', () => {
     expect(
       parseToChartOption(`
           y.min: 0
@@ -136,7 +136,7 @@ describe('parseToChartOption()', () => {
 });
 
 describe('parseToChartData()', () => {
-  it('should parse csv to @toast-ui/chart data format', () => {
+  it('should parse csv to @techie_doubts/tui.chart.2026 data format', () => {
     expect(
       parseToChartData(
         `
@@ -161,7 +161,7 @@ describe('parseToChartData()', () => {
     });
   });
 
-  it('should parse tsv to @toast-ui/chart data format', () => {
+  it('should parse tsv to @techie_doubts/tui.chart.2026 data format', () => {
     expect(
       parseToChartData(
         `
@@ -186,7 +186,7 @@ describe('parseToChartData()', () => {
     });
   });
 
-  it('should parse whitespace separated values to @toast-ui/chart data format', () => {
+  it('should parse whitespace separated values to @techie_doubts/tui.chart.2026 data format', () => {
     expect(
       parseToChartData(
         ['\t"series a" "series b"', '"category 1" 1.234 2.345', '"category 2" 3.456 4.567'].join(
@@ -209,7 +209,7 @@ describe('parseToChartData()', () => {
     });
   });
 
-  it('should parse data with legends to @toast-ui/chart data format', () => {
+  it('should parse data with legends to @techie_doubts/tui.chart.2026 data format', () => {
     expect(
       parseToChartData(
         `
@@ -234,7 +234,7 @@ describe('parseToChartData()', () => {
     });
   });
 
-  it('should parse data with categories to @toast-ui/chart data format', () => {
+  it('should parse data with categories to @techie_doubts/tui.chart.2026 data format', () => {
     expect(
       parseToChartData(
         `

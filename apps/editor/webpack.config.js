@@ -25,10 +25,10 @@ function addFileManagerPlugin(config) {
   // These files are unnecessary, so use the FileManager plugin to delete them.
   const options = minify
     ? {
-        delete: ['./dist/cdn/toastui-editor-only.min.js'],
+        delete: ['./dist/cdn/td-editor-only.min.js'],
       }
     : {
-        delete: ['./dist/toastui-editor-only.js'],
+        delete: ['./dist/td-editor-only.js'],
         copy: [{ source: './dist/*.{js,css}', destination: './dist/cdn' }],
       };
 
@@ -38,10 +38,10 @@ function addFileManagerPlugin(config) {
 function addCopyPluginForThemeCss(config) {
   const options = minify
     ? {
-        patterns: [{ from: './src/css/theme/*.css', to: './theme/toastui-editor-[name].min.css' }],
+        patterns: [{ from: './src/css/theme/*.css', to: './theme/td-editor-[name].min.css' }],
       }
     : {
-        patterns: [{ from: './src/css/theme/*.css', to: './theme/toastui-editor-[name].css' }],
+        patterns: [{ from: './src/css/theme/*.css', to: './theme/td-editor-[name].css' }],
       };
 
   config.plugins.push(new CopyPlugin(options));
@@ -141,7 +141,7 @@ module.exports = (env) => {
             export: 'default',
           },
           path: path.resolve(__dirname, minify ? 'dist/cdn' : 'dist'),
-          filename: `toastui-[name]${minify ? '.min' : ''}.js`,
+          filename: `td-[name]${minify ? '.min' : ''}.js`,
         },
         module: {
           rules: [
@@ -177,7 +177,7 @@ module.exports = (env) => {
         plugins: [
           new MiniCssExtractPlugin({
             filename: ({ chunk }) =>
-              `toastui-${chunk.name.replace('-all', '')}${minify ? '.min' : ''}.css`,
+              `td-${chunk.name.replace('-all', '')}${minify ? '.min' : ''}.css`,
           }),
           new webpack.BannerPlugin({
             banner: [

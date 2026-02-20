@@ -1,4 +1,4 @@
-import { ToastMark } from '@toast-ui/toastmark';
+import { ToastMark } from '@techie_doubts/toastmark';
 import MarkdownEditor from '@/markdown/mdEditor';
 import EventEmitter from '@/event/eventEmitter';
 import { source } from 'common-tags';

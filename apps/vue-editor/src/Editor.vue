@@ -2,7 +2,7 @@
   <div ref="toastuiEditor"></div>
 </template>
 <script>
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 import { optionsMixin } from './mixin/option';
 
 export default {

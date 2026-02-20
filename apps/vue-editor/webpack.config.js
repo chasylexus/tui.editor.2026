@@ -7,7 +7,7 @@ const { version, author, license } = require('./package.json');
 module.exports = {
   entry: './src/index.js',
   output: {
-    filename: 'toastui-vue-editor.js',
+    filename: 'td-vue-editor.js',
     path: path.resolve(__dirname, 'dist'),
     library: {
       type: 'commonjs2',
@@ -18,13 +18,13 @@ module.exports = {
     },
   },
   externals: {
-    '@toast-ui/editor': {
-      commonjs: '@toast-ui/editor',
-      commonjs2: '@toast-ui/editor',
+    '@techie_doubts/tui.editor.2026': {
+      commonjs: '@techie_doubts/tui.editor.2026',
+      commonjs2: '@techie_doubts/tui.editor.2026',
     },
-    '@toast-ui/editor/dist/toastui-editor-viewer': {
-      commonjs: '@toast-ui/editor/dist/toastui-editor-viewer',
-      commonjs2: '@toast-ui/editor/dist/toastui-editor-viewer',
+    '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer': {
+      commonjs: '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer',
+      commonjs2: '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer',
     },
   },
   module: {

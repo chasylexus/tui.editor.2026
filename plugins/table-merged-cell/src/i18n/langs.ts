@@ -1,4 +1,4 @@
-import { I18n } from '@toast-ui/editor';
+import { I18n } from '@techie_doubts/tui.editor.2026';
 
 export function addLangs(i18n: I18n) {
   i18n.setLanguage(['ko', 'ko-KR'], {

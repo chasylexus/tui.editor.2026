@@ -1,6 +1,6 @@
 # ![TOAST UI Editor](https://uicdn.toast.com/toastui/img/tui-editor-bi.png)
 
-[![npm](https://img.shields.io/npm/v/@toast-ui/editor.svg)](https://www.npmjs.com/package/@toast-ui/editor)
+[![npm](https://img.shields.io/npm/v/@techie_doubts/tui.editor.2026.svg)](https://www.npmjs.com/package/@techie_doubts/tui.editor.2026)
 
 ## 🚩 Table of Contents
 
@@ -46,8 +46,8 @@ TOAST UI products are registered in two package managers, [npm](https://www.npmj
 #### npm
 
 ```sh
-$ npm install --save @toast-ui/editor # Latest Version
-$ npm install --save @toast-ui/editor@<version> # Specific Version
+$ npm install --save @techie_doubts/tui.editor.2026 # Latest Version
+$ npm install --save @techie_doubts/tui.editor.2026@<version> # Specific Version
 ```
 
 ### Via Contents Delivery Network (CDN)
@@ -60,7 +60,7 @@ You can use the CDN as below.
 ...
 <body>
   ...
-  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/td-editor-all.min.js"></script>
 </body>
 ...
 ```
@@ -73,19 +73,19 @@ The CDN directory has the following structure:
 - uicdn.toast.com/
    ├─ editor/
    │     ├─ latest/
-   │     │    ├─ toastui-editor-all.js
-   │     │    ├─ toastui-editor-all.min.js
-   │     │    ├─ toastui-editor-viewer.js
-   │     │    ├─ toastui-editor-viewer.min.js
-   │     │    ├─ toastui-editor.css
-   │     │    ├─ toastui-editor.min.css
-   │     │    ├─ toastui-editor-viewer.css
-   │     │    ├─ toastui-editor-viewer.min.css
-   │     │    ├─ toastui-editor-only.css
-   │     │    ├─ toastui-editor-only.min.css
+   │     │    ├─ td-editor-all.js
+   │     │    ├─ td-editor-all.min.js
+   │     │    ├─ td-editor-viewer.js
+   │     │    ├─ td-editor-viewer.min.js
+   │     │    ├─ td-editor.css
+   │     │    ├─ td-editor.min.css
+   │     │    ├─ td-editor-viewer.css
+   │     │    ├─ td-editor-viewer.min.css
+   │     │    ├─ td-editor-only.css
+   │     │    ├─ td-editor-only.min.css
    │     │    └─ theme/
-   │     │         ├─ toastui-editor-dark.css
-   │     │         └─ toastui-editor-dark.min.css
+   │     │         ├─ td-editor-dark.css
+   │     │         └─ td-editor-dark.min.css
    │     │    └─ i18n/
    │     │         └─ ...
    │     ├─ 2.0.0/
@@ -111,13 +111,13 @@ The editor can be used by creating an instance with the constructor function. To
 - ES6 Modules
 
 ```javascript
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 ```
 
 - CommonJS
 
 ```javascript
-const Editor = require('@toast-ui/editor');
+const Editor = require('@techie_doubts/tui.editor.2026');
 ```
 
 ### Using Namespace in Browser Environment
@@ -131,7 +131,7 @@ Then, you need to add the CSS files needed for the Editor. Import CSS files in n
 ### Using in Node Environment
 
 ```javascript
-import '@toast-ui/editor/dist/toastui-editor.css'; // Editor's Style
+import '@techie_doubts/tui.editor.2026/dist/td-editor.css'; // Editor's Style
 ```
 
 ### Using in Browser Environment by CDN
@@ -141,7 +141,7 @@ import '@toast-ui/editor/dist/toastui-editor.css'; // Editor's Style
 <head>
   ...
   <!-- Editor's Style -->
-  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/td-editor.min.css" />
 </head>
 ...
 ```

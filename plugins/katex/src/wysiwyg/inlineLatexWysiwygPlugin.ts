@@ -1,4 +1,4 @@
-import type { PluginInfo, PluginContext } from '@toast-ui/editor';
+import type { PluginInfo, PluginContext } from '@techie_doubts/tui.editor.2026';
 import type { Node as ProsemirrorNode, Mark as ProsemirrorMark } from 'prosemirror-model';
 import type { EditorState } from 'prosemirror-state';
 import { renderKatexInline } from '../utils/inlineMath';

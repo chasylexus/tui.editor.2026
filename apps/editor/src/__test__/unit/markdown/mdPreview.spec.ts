@@ -1,4 +1,4 @@
-import { MdPos, ToastMark } from '@toast-ui/toastmark';
+import { MdPos, ToastMark } from '@techie_doubts/toastmark';
 import MarkdownPreview, { CLASS_HIGHLIGHT } from '@/markdown/mdPreview';
 import MarkdownEditor from '@/markdown/mdEditor';
 import EventEmitter from '@/event/eventEmitter';

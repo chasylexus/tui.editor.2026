@@ -1,5 +1,5 @@
 {
-  "name": "@toast-ui/editor-plugin-export",
+  "name": "@techie_doubts/editor-plugin-export",
   "version": "3.0.1",
   "description": "TOAST UI Editor : Export Plugin",
   "keywords": [
@@ -12,7 +12,7 @@
     "plugin",
     "export"
   ],
-  "main": "dist/toastui-editor-plugin-export.js",
+  "main": "dist/td-editor-plugin-export.js",
   "types": "types/index.d.ts",
   "files": [
     "dist/*.js",

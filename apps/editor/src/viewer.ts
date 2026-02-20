@@ -1,4 +1,4 @@
-import { ToastMark } from '@toast-ui/toastmark';
+import { ToastMark } from '@techie_doubts/toastmark';
 import { CustomHTMLRenderer, ViewerOptions } from '@t/editor';
 import { Emitter, Handler } from '@t/event';
 import MarkdownPreview from './markdown/mdPreview';

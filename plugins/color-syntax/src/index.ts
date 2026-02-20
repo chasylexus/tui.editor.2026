@@ -1,6 +1,6 @@
-import ColorPicker from 'tui-color-picker';
-import type { Context } from '@toast-ui/toastmark';
-import type { PluginContext, PluginInfo, HTMLMdNode, I18n } from '@toast-ui/editor';
+import ColorPicker from '@techie_doubts/tui.color-picker.2026';
+import type { Context } from '@techie_doubts/toastmark';
+import type { PluginContext, PluginInfo, HTMLMdNode, I18n } from '@techie_doubts/tui.editor.2026';
 import type { Selection } from 'prosemirror-state';
 import { PluginOptions } from '@t/index';
 import { addLangs } from './i18n/langs';

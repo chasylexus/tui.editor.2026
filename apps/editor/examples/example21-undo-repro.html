@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>21. Undo/Redo Repro</title>
     <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
-    <link rel="stylesheet" href="../dist/cdn/toastui-editor.css" />
+    <link rel="stylesheet" href="../dist/cdn/td-editor.css" />
     <style>
       .undo-repro {
         display: grid;
@@ -39,7 +39,7 @@
     </div>
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <script src="./data/example21-undo-repro.js"></script>
-    <script src="../dist/cdn/toastui-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-all.js"></script>
   </body>
 </html>
 <!DOCTYPE html>
@@ -48,7 +48,7 @@
     <meta charset="UTF-8" />
     <title>21. Undo Repro</title>
     <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
-    <link rel="stylesheet" href="../dist/cdn/toastui-editor.css" />
+    <link rel="stylesheet" href="../dist/cdn/td-editor.css" />
     <style>
       body {
         margin: 0;
@@ -99,7 +99,7 @@
 
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <script src="./data/example21-undo-repro.js"></script>
-    <script src="../dist/cdn/toastui-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-all.js"></script>
     <script type="text/babel" class="code-js">
       const { Editor } = toastui;
 
@@ -119,7 +119,7 @@
       });
 
       const getRoot = (editor) =>
-        editor.getEditorElements().wwEditor.closest('.toastui-editor-defaultUI');
+        editor.getEditorElements().wwEditor.closest('.td-editor-defaultUI');
 
       const logState = (label, editor) => {
         const root = getRoot(editor);

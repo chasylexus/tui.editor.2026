@@ -8,7 +8,7 @@ import {
   RawHTMLToken,
   Renderer,
   TextToken,
-} from '@toast-ui/toastmark';
+} from '@techie_doubts/toastmark';
 import { ProsemirrorNode, Mark } from 'prosemirror-model';
 import { getHTMLRenderConvertors } from '@/markdown/htmlRenderConvertors';
 import { ToDOMAdaptor } from '@t/convertor';

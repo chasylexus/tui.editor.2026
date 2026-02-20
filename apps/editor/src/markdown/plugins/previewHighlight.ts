@@ -1,4 +1,4 @@
-import { MdNode, MdPos, ToastMark } from '@toast-ui/toastmark';
+import { MdNode, MdPos, ToastMark } from '@techie_doubts/toastmark';
 import { Plugin } from 'prosemirror-state';
 import { MdContext } from '@t/spec';
 import { ToolbarStateMap, ToolbarStateKeys } from '@t/ui';

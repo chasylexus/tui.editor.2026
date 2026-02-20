@@ -2,7 +2,7 @@ import { Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { Fragment, Slice } from 'prosemirror-model';
 import { ReplaceAroundStep } from 'prosemirror-transform';
-import { MdPos, ToastMark } from '@toast-ui/toastmark';
+import { MdPos, ToastMark } from '@techie_doubts/toastmark';
 
 import { MdContext } from '@t/spec';
 import { Emitter } from '@t/event';

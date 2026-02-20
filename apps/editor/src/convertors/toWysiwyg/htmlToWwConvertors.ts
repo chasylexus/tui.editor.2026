@@ -1,4 +1,4 @@
-import { MdNode } from '@toast-ui/toastmark';
+import { MdNode } from '@techie_doubts/toastmark';
 import { sanitizeHTML } from '@/sanitizer/htmlSanitizer';
 
 import {

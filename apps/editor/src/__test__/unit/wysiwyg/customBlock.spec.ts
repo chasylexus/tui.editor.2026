@@ -1,5 +1,5 @@
 import { oneLineTrim } from 'common-tags';
-import { HTMLConvertorMap } from '@toast-ui/toastmark';
+import { HTMLConvertorMap } from '@techie_doubts/toastmark';
 import { DOMParser } from 'prosemirror-model';
 import { NodeSelection } from 'prosemirror-state';
 import { ToDOMAdaptor } from '@t/convertor';

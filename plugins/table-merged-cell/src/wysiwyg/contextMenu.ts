@@ -1,4 +1,4 @@
-import type { PluginContext } from '@toast-ui/editor';
+import type { PluginContext } from '@techie_doubts/tui.editor.2026';
 
 const TABLE_CELL_SELECT_CLASS = '.toastui-editor-cell-selected';
 

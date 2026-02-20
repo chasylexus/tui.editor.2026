@@ -1,5 +1,5 @@
 {
-  "name": "@toast-ui/editor-plugin-chart",
+  "name": "@techie_doubts/editor-plugin-chart",
   "version": "3.0.1",
   "description": "TOAST UI Editor : Chart Plugin",
   "keywords": [
@@ -12,7 +12,7 @@
     "plugin",
     "chart"
   ],
-  "main": "dist/toastui-editor-plugin-chart.js",
+  "main": "dist/td-editor-plugin-chart.js",
   "types": "types/index.d.ts",
   "files": [
     "dist/*.js",
@@ -47,7 +47,7 @@
     "stream-browserify": "^3.0.0"
   },
   "dependencies": {
-    "@toast-ui/chart": "^4.1.4"
+    "@techie_doubts/tui.chart.2026": "file:../../../tui.chart.2026/apps/chart"
   },
   "publishConfig": {
     "access": "public"

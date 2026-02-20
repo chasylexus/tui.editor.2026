@@ -64,7 +64,7 @@ const editor = new Editor({
       tooltip: 'myItem',
       command: 'bold',
       text: '@',
-      className: 'toastui-editor-toolbar-icons',
+      className: 'td-editor-toolbar-icons',
       style: { backgroundImage: 'none', color: 'red' }
     }]
   ],
@@ -169,7 +169,7 @@ const editor = new Editor({
       tooltip: 'myItem',
       command: 'bold',
       text: '@',
-      className: 'toastui-editor-toolbar-icons',
+      className: 'td-editor-toolbar-icons',
       style: { backgroundImage: 'none', color: 'red' },
       // `strong` 노드에 위치할 경우 툴바 요소에 'active' 클래스가 추가된다.
       state: 'strong',

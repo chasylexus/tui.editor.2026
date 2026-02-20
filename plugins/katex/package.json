@@ -1,5 +1,5 @@
 {
-  "name": "@toast-ui/editor-plugin-katex",
+  "name": "@techie_doubts/editor-plugin-katex",
   "version": "3.0.1",
   "description": "TOAST UI Editor : KaTeX Plugin",
   "keywords": [
@@ -14,7 +14,7 @@
     "latex",
     "math"
   ],
-  "main": "dist/toastui-editor-plugin-katex.js",
+  "main": "dist/td-editor-plugin-katex.js",
   "types": "types/index.d.ts",
   "files": [
     "dist/*.js",

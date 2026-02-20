@@ -1,5 +1,5 @@
 import type { EditorCore as Editor, EditorPos, EditorType } from '@t/editor';
-import type { LinkMdNode, MdNode, MdPos } from '@toast-ui/toastmark';
+import type { LinkMdNode, MdNode, MdPos } from '@techie_doubts/toastmark';
 import { MarkType, Node as ProsemirrorNode } from 'prosemirror-model';
 import { getChildrenText } from '@/utils/markdown';
 import {

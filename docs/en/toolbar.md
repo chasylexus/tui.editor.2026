@@ -65,7 +65,7 @@ const editor = new Editor({
       tooltip: 'myItem',
       command: 'bold',
       text: '@',
-      className: 'toastui-editor-toolbar-icons',
+      className: 'td-editor-toolbar-icons',
       style: { backgroundImage: 'none', color: 'red' }
     }]
   ],
@@ -170,7 +170,7 @@ const editor = new Editor({
       tooltip: 'myItem',
       command: 'bold',
       text: '@',
-      className: 'toastui-editor-toolbar-icons',
+      className: 'td-editor-toolbar-icons',
       style: { backgroundImage: 'none', color: 'red' },
       // If it is located on the `strong` node, the `active` CSS class is added to this toolbar element.
       state: 'strong',

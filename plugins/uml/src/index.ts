@@ -5,8 +5,8 @@
 import plantumlEncoder from 'plantuml-encoder';
 import { PluginOptions } from '../index';
 
-import type { MdNode, PluginContext, PluginInfo } from '@toast-ui/editor';
-import type { HTMLToken } from '@toast-ui/toastmark';
+import type { MdNode, PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
+import type { HTMLToken } from '@techie_doubts/toastmark';
 
 const DEFAULT_RENDERER_URL = '//www.plantuml.com/plantuml/png/';
 const DARK_PLANTUML_THEME = 'cyborg';

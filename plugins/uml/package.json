@@ -1,5 +1,5 @@
 {
-  "name": "@toast-ui/editor-plugin-uml",
+  "name": "@techie_doubts/editor-plugin-uml",
   "version": "3.0.1",
   "description": "TOAST UI Editor : UML Plugin",
   "keywords": [
@@ -12,7 +12,7 @@
     "plugin",
     "uml"
   ],
-  "main": "dist/toastui-editor-plugin-uml.js",
+  "main": "dist/td-editor-plugin-uml.js",
   "types": "index.d.ts",
   "files": [
     "dist/*.js",

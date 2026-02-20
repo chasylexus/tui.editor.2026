@@ -1,5 +1,5 @@
 {
-  "name": "@toast-ui/editor-plugin-code-syntax-highlight",
+  "name": "@techie_doubts/editor-plugin-code-syntax-highlight",
   "version": "3.1.0",
   "description": "TOAST UI Editor : Code Syntax Highlight Plugin",
   "keywords": [
@@ -13,7 +13,7 @@
     "codeblock",
     "highlight"
   ],
-  "main": "dist/toastui-editor-plugin-code-syntax-highlight.js",
+  "main": "dist/td-editor-plugin-code-syntax-highlight.js",
   "types": "types/index.d.ts",
   "files": [
     "dist/*.js",

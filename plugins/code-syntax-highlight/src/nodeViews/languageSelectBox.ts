@@ -1,5 +1,5 @@
 import { isPositionInBox, removeNode, cls } from '@/utils/dom';
-import type { Emitter } from '@toast-ui/editor';
+import type { Emitter } from '@techie_doubts/tui.editor.2026';
 
 function css(element: HTMLElement, key: string | Record<string, string>, value?: string) {
   if (typeof key === 'string') {

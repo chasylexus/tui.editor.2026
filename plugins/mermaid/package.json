@@ -1,5 +1,5 @@
 {
-  "name": "@toast-ui/editor-plugin-mermaid",
+  "name": "@techie_doubts/editor-plugin-mermaid",
   "version": "3.0.1",
   "description": "TOAST UI Editor : Mermaid Plugin",
   "keywords": [
@@ -13,7 +13,7 @@
     "mermaid",
     "diagram"
   ],
-  "main": "dist/toastui-editor-plugin-mermaid.js",
+  "main": "dist/td-editor-plugin-mermaid.js",
   "types": "types/index.d.ts",
   "files": [
     "dist/*.js",

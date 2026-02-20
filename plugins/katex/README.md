@@ -5,14 +5,14 @@
 ## Install
 
 ```bash
-npm install --save @toast-ui/editor-plugin-katex
+npm install --save @techie_doubts/editor-plugin-katex
 ```
 
 ## Usage
 
 ```js
-import { Editor } from '@toast-ui/editor';
-import katexPlugin from '@toast-ui/editor-plugin-katex';
+import { Editor } from '@techie_doubts/tui.editor.2026';
+import katexPlugin from '@techie_doubts/editor-plugin-katex';
 
 const editor = new Editor({
   el: document.querySelector('#editor'),

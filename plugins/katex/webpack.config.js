@@ -7,7 +7,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
 function getOutputConfig(isProduction, isCDN, minify) {
-  const filename = `toastui-${name.replace(/@toast-ui\//, '')}`;
+  const filename = `td-${name.replace(/@techie_doubts\//, '')}`;
   const defaultConfig = {
     library: {
       name: ['toastui', 'Editor', 'plugin', 'katex'],

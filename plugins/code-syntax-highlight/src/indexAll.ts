@@ -1,5 +1,5 @@
 import Prism from 'prismjs';
-import type { PluginContext, PluginInfo } from '@toast-ui/editor';
+import type { PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
 import { codeSyntaxHighlightPlugin } from '@/plugin';
 import { PrismJs } from '@t/index';
 

@@ -1,4 +1,4 @@
-import Editor from '@toast-ui/editor';
+import Editor from '@techie_doubts/tui.editor.2026';
 import mergedTableCellPlugin from '@/index';
 
 export function assertWYSIWYGHTML(editor: Editor, html: string) {

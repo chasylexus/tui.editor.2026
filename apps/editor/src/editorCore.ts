@@ -11,7 +11,7 @@ import {
 } from '@t/editor';
 import { PluginCommandMap, PluginInfoResult, CommandFn } from '@t/plugin';
 import { Pos, MdPos } from '@t/toastmark';
-import { MdNode, ToastMark } from '@toast-ui/toastmark';
+import { MdNode, ToastMark } from '@techie_doubts/toastmark';
 
 import { sendHostName, sanitizeLinkAttribute, deepMergedCopy } from './utils/common';
 

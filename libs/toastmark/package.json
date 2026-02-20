@@ -1,6 +1,9 @@
 {
-  "name": "@toast-ui/toastmark",
+  "name": "@techie_doubts/toastmark",
   "version": "0.0.1-alpha.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "ToastMark - Incremental markdown parser extended from CommonMark.js",
   "scripts": {
     "lint": "eslint .",

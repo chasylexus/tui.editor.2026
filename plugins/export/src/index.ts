@@ -2,7 +2,7 @@
  * @fileoverview Implements export plugin
  * @author NHN FE Development Lab <dl_javascript@nhn.com>
  */
-import type { PluginContext, PluginInfo } from '@toast-ui/editor';
+import type { PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
 
 import './css/plugin.css';
 import { resolveExportTheme } from './theme';

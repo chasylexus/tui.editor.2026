@@ -2,7 +2,7 @@
   <div ref="toastuiEditorViewer"></div>
 </template>
 <script>
-import Viewer from '@toast-ui/editor/dist/toastui-editor-viewer';
+import Viewer from '@techie_doubts/tui.editor.2026/dist/td-editor-viewer';
 import { optionsMixin } from './mixin/option';
 
 export default {

@@ -8,7 +8,7 @@ import {
   CodeBlockMdNode,
   CustomBlockMdNode,
   ListItemMdNode,
-} from '@toast-ui/toastmark';
+} from '@techie_doubts/toastmark';
 import {
   getMdStartLine,
   getMdStartCh,

@@ -2,7 +2,7 @@ import { getHTMLRenderers } from '@/renderers/toHTMLRenderers';
 import { codeSyntaxHighlighting } from '@/plugins/codeSyntaxHighlighting';
 import { createCodeSyntaxHighlightView } from '@/nodeViews/codeSyntaxHighlightView';
 
-import type { PluginContext, PluginInfo } from '@toast-ui/editor';
+import type { PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
 import { PluginOptions } from '@t/index';
 
 export function codeSyntaxHighlightPlugin(
