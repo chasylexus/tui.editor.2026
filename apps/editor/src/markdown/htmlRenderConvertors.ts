@@ -153,6 +153,8 @@ const baseConvertors: HTMLConvertorMap = {
   },
 };
 
+const PLUGIN_LANGUAGES = ['mermaid', 'uml', 'chart'];
+
 export function getHTMLRenderConvertors(
   linkAttributes: LinkAttributes | null,
   customConvertors: CustomHTMLRenderer
@@ -213,6 +215,24 @@ export function getHTMLRenderConvertors(
         convertors[nodeType] = customConvertor as HTMLConvertor;
       }
     });
+
+    const mergedCodeBlock = convertors.codeBlock!;
+
+    convertors.codeBlock = (node: MdNode, context: Context) => {
+      const { info } = node as CodeBlockMdNode;
+      const lang = info
+        ? info
+            .split(/\s+/)[0]
+            .replace(/[=]\d*$/, '')
+            .toLowerCase()
+        : '';
+
+      if (PLUGIN_LANGUAGES.includes(lang) && isFunction(customConvertors[lang])) {
+        return (customConvertors[lang] as HTMLConvertor)(node, context);
+      }
+
+      return mergedCodeBlock(node, context);
+    };
   }
 
   return convertors;
