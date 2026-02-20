@@ -47,7 +47,7 @@
     "stream-browserify": "^3.0.0"
   },
   "dependencies": {
-    "@techie_doubts/tui.chart.2026": "file:../../../tui.chart.2026/apps/chart"
+    "@techie_doubts/tui.chart.2026": "^4.6.1"
   },
   "publishConfig": {
     "access": "public"

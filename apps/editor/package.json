@@ -80,7 +80,7 @@
     "doc": "npm run ts2js && tuidoc"
   },
   "devDependencies": {
-    "@techie_doubts/tui.release-notes.2026": "file:../../../tui.release-notes.2026",
+    "@techie_doubts/tui.release-notes.2026": "^2.0.1",
     "@types/dompurify": "2.3.3",
     "cross-env": "^6.0.3"
   },
