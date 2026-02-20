@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
   plugins: ['prettier', '@typescript-eslint'],
-  extends: ['tui/es6', 'plugin:prettier/recommended', 'plugin:@typescript-eslint/recommended'],
+  extends: ['./.eslintrc-base', 'plugin:prettier/recommended', 'plugin:@typescript-eslint/recommended'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     parser: 'typescript-eslint-parser',
