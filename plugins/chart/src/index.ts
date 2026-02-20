@@ -103,7 +103,7 @@ export type ChartOptions = BaseOptions & { editorChart: { type?: ChartType; url?
 type ChartInstance = BarChart | ColumnChart | AreaChart | LineChart | PieChart;
 type ChartData = {
   categories: string[];
-  series: { data: number[]; name?: string }[];
+  series: { data: (number | null)[]; name?: string }[];
 };
 type ParserCallback = (parsedInfo?: { data: ChartData; options?: ChartOptions }) => void;
 type OnSuccess = (res: { data: any }) => void;

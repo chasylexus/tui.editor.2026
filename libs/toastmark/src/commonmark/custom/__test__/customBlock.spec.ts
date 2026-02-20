@@ -64,23 +64,19 @@ describe('customBlock', () => {
     expect(html).toBe(`${output}\n`);
   });
 
-  it('$$mermaid should NOT be parsed as custom block', () => {
+  it('$$mermaid should be parsed as custom block', () => {
     const input = source`
       $$mermaid
       graph TD
       $$
     `;
-    // $$mermaid is not recognized, so the first two lines become a paragraph.
-    // The trailing $$ starts a new (empty) latex block.
-    const output = source`
-      <p>$$mermaid
-      graph TD</p>
-      <div class="latex-block"></div>
-    `;
 
     const root = reader.parse(input);
-    const html = renderer.render(root);
-    expect(html).toBe(`${output}\n`);
+    const block = root.firstChild!;
+
+    expect(block.type).toBe('customBlock');
+    expect((block as any).info).toBe('mermaid');
+    expect(block.literal).toBe('graph TD\n');
   });
 
   it('should handle whitespace around latex keyword', () => {

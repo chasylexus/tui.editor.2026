@@ -98,12 +98,17 @@ function appendMarkTr(tr: Transaction, schema: Schema, marks: MarkInfo[]) {
   const { doc } = tr;
   const { paragraph } = schema.nodes;
 
+  if (doc.childCount === 0) {
+    return;
+  }
+
+  const maxPos = doc.content.size;
   // get start position per line for lazy calculation
   const startPosListPerLine = getStartPosListPerLine(doc, doc.childCount);
 
   marks.forEach(({ start, end, spec, lineBackground }) => {
-    const startIndex = Math.min(start[0], doc.childCount) - 1;
-    const endIndex = Math.min(end[0], doc.childCount) - 1;
+    const startIndex = Math.min(Math.max(start[0], 1), doc.childCount) - 1;
+    const endIndex = Math.min(Math.max(end[0], 1), doc.childCount) - 1;
     const startNode = doc.child(startIndex);
     const endNode = doc.child(endIndex);
 
@@ -115,15 +120,18 @@ function appendMarkTr(tr: Transaction, schema: Schema, marks: MarkInfo[]) {
     from += start[1] + getWidgetNodePos(startNode, start[1] - 1);
     to += end[1] + getWidgetNodePos(endNode, end[1] - 1);
 
+    from = Math.max(0, Math.min(from, maxPos));
+    to = Math.max(0, Math.min(to, maxPos));
+
     if (spec) {
       if (lineBackground) {
         const posInfo = { from, to, startIndex, endIndex };
 
         addLineBackground(tr, doc, paragraph, posInfo, spec.attrs);
-      } else {
+      } else if (from < to) {
         tr.addMark(from, to, schema.mark(spec.type!, spec.attrs));
       }
-    } else {
+    } else if (from < to) {
       tr.removeMark(from, to);
     }
   });
@@ -138,6 +146,11 @@ function removeBlockBackground(
 ) {
   Object.keys(removingBackgroundIndexMap).forEach((index) => {
     const startIndex = Number(index);
+
+    if (startIndex < 0 || startIndex >= tr.doc.childCount) {
+      return;
+    }
+
     // get the end position of the current line with the next node start position.
     const endIndex = Math.min(Number(index) + 1, tr.doc.childCount - 1);
 
@@ -149,6 +162,10 @@ function removeBlockBackground(
       to += 2;
     }
 
+    if (typeof from !== 'number' || to <= from) {
+      return;
+    }
+
     tr.setBlockType(from, to, paragraph);
   });
 }
@@ -158,7 +175,10 @@ function cacheIndexToRemoveBackground(doc: ProsemirrorNode, start: MdPos, end: M
 
   removingBackgroundIndexMap = {};
 
-  for (let i = start[0] - 1; i < end[0]; i += 1) {
+  const loopStart = Math.max(start[0] - 1, 0);
+  const loopEnd = Math.min(end[0], doc.childCount);
+
+  for (let i = loopStart; i < loopEnd; i += 1) {
     const node = doc.child(i);
     let { codeEnd } = node.attrs as CodeBlockPos;
     const { codeStart } = node.attrs as CodeBlockPos;

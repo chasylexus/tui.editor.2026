@@ -450,7 +450,11 @@ class ToastUIEditorCore {
     buildQuery(this);
 
     if (this.options.hooks) {
-      Object.entries(this.options.hooks).forEach(([key, fn]) => this.addHook(key, fn));
+      Object.entries(this.options.hooks).forEach(([key, fn]) => {
+        if (fn) {
+          this.addHook(key, fn);
+        }
+      });
     }
 
     if (this.options.events) {

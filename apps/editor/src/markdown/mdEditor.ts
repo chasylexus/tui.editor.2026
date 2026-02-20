@@ -249,7 +249,20 @@ export default class MdEditor extends EditorBase {
         if (step.slice && !(step instanceof ReplaceAroundStep)) {
           const doc = tr.docs[index];
           const [from, to] = [step.from, step.to];
-          const [startPos, endPos] = getEditorToMdPos(doc, from, to);
+
+          let startPos: [number, number];
+          let endPos: [number, number];
+
+          if (from === 0 && to === doc.content.size) {
+            const lineTexts = this.toastMark.getLineTexts();
+            const lastLine = lineTexts[lineTexts.length - 1] ?? '';
+
+            startPos = [1, 1];
+            endPos = [lineTexts.length, lastLine.length + 1];
+          } else {
+            [startPos, endPos] = getEditorToMdPos(doc, from, to);
+          }
+
           let changed = this.getChanged(step.slice);
 
           if (startPos[0] === endPos[0] && startPos[1] === endPos[1] && changed === '') {
