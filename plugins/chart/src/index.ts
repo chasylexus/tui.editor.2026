@@ -19,10 +19,12 @@
  * x.max: 9000                  => xAxis.scale.max
  * x.stepSize: 1000             => xAxis.scale.stepSize
  * x.suffix: $                  => xAxis.label.formatter  (appends suffix)
+ * x.thousands: true             => xAxis.label.formatter  (adds thousand separators)
  * y.title: Month               => yAxis.title
  * y.min: 0                     => yAxis.scale.min
  * y.max: 100                   => yAxis.scale.max
  * y.suffix: %                  => yAxis.label.formatter  (appends suffix)
+ * y.thousands: true             => yAxis.label.formatter  (adds thousand separators)
  * ```
  */
 import type { PluginInfo, MdNode, PluginContext } from '@toast-ui/editor';
@@ -178,7 +180,13 @@ export function parseToChartData(text: string, delimiter?: string | RegExp) {
   // [['1','2','3']    [[1,4,7]
   //  ['4','5','6'] =>  [2,5,8]
   //  ['7','8','9']]    [3,6,9]]
-  const tdsv = dsv[0].map((_, i) => dsv.map((x) => parseFloat(x[i])));
+  const tdsv = dsv[0].map((_, i) =>
+    dsv.map((x) => {
+      const v = parseFloat(x[i]);
+
+      return Number.isNaN(v) ? null : v;
+    })
+  );
 
   // make series
   const series = tdsv.map((data, i) =>
@@ -328,12 +336,30 @@ export function setDefaultOptions(
   (['xAxis', 'yAxis'] as const).forEach((axis) => {
     const axisOpts = (chartOptions as any)[axis];
 
-    if (axisOpts && axisOpts.suffix) {
-      const { suffix } = axisOpts;
+    if (!axisOpts) {
+      return;
+    }
 
+    const { suffix, thousands } = axisOpts;
+
+    delete axisOpts.suffix;
+    delete axisOpts.thousands;
+
+    if (suffix || thousands) {
       axisOpts.label = axisOpts.label || {};
-      axisOpts.label.formatter = (value: string) => `${value}${suffix}`;
-      delete axisOpts.suffix;
+      axisOpts.label.formatter = (value: string) => {
+        let result = String(value);
+
+        if (thousands) {
+          result = result.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        }
+
+        if (suffix) {
+          result = `${result}${suffix}`;
+        }
+
+        return result;
+      };
     }
   });
 
