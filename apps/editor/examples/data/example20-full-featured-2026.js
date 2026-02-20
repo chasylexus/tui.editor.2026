@@ -12,15 +12,15 @@ Code block (should NOT render): $\\sum$
 \`\`\`
 
 ## Mermaid (flowchart)
-$$mermaid
+\`\`\`mermaid
 flowchart TD
   A[Client] --> B[LB]
   B --> C[Server1]
   B --> D[Server2]
-$$
+\`\`\`
 
 ## Chart (official, preview)
-$$chart
+\`\`\`chart
 ,category1,category2
 Jan,21,23
 Feb,31,17
@@ -33,16 +33,16 @@ y.title: Amount
 y.min: 0
 y.max: 40
 y.suffix: $
-$$
+\`\`\`
 
 ## UML (official, preview)
-$$uml
+\`\`\`uml
 Alice -> Bob: Hello
 Bob --> Alice: Hi
-$$
+\`\`\`
 
 ## LaTeX (block)
-$$latex
+$$
 
 \\begin{align*}
 \\LaTeX\\\\
