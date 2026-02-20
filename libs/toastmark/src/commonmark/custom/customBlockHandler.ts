@@ -34,7 +34,7 @@ export const customBlock: BlockHandler = {
     const rest = content.slice(newlinePos + 1);
     const infoString = firstLine.match(/^(\s*)(.*)/);
 
-    block.info = unescapeString(infoString![2].trim());
+    block.info = unescapeString(infoString![2].trim()) || 'latex';
     block.literal = rest;
     block.stringContent = null;
   },

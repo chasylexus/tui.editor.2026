@@ -1,8 +1,8 @@
 import { BlockStart, Matched } from '../blockStarts';
 import { CustomBlockNode } from '../node';
 
-const reCustomBlock = /^(\$\$)(\s*[a-zA-Z])+/;
-const reCanBeCustomInline = /^(\$\$)(\s*[a-zA-Z])+.*(\$\$)/;
+const reCustomBlock = /^(\$\$)(\s*latex)?\s*$/i;
+const reCanBeCustomInline = /^\$\$.+\$\$/;
 
 export const customBlock: BlockStart = (parser) => {
   let match;

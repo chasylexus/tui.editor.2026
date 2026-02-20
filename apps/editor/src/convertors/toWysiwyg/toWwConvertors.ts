@@ -353,7 +353,7 @@ const toWwConvertors: ToWwConvertorMap = {
     const { customBlock, paragraph } = state.schema.nodes;
     const { info, literal } = node as CustomBlockMdNode;
 
-    state.openNode(customBlock, { info });
+    state.openNode(customBlock, { info: info || 'latex' });
     state.addText(getTextWithoutTrailingNewline(literal || ''));
     state.closeNode();
     // add empty line to edit the content in next line

@@ -5,12 +5,13 @@ const LATEX_KINDS = new Set(['latex']);
 const CODE_FENCE_KINDS = new Set(['mermaid', 'uml', 'chart']);
 
 function matchLatexInfo(text: string): string | null {
-  const match = text.match(/^\s*\$\$(\w+)\s*$/);
+  const trimmed = text.trim();
 
-  if (!match) return null;
-  const info = match[1].toLowerCase();
+  if (trimmed === '$$') return 'latex';
 
-  return LATEX_KINDS.has(info) ? info : null;
+  const match = trimmed.match(/^\$\$\s*(latex)\s*$/i);
+
+  return match ? 'latex' : null;
 }
 
 function isBlockEnd(text: string): boolean {
