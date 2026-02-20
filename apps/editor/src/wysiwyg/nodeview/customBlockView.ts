@@ -62,6 +62,7 @@ export class CustomBlockView implements NodeView {
 
     this.dom.appendChild(this.innerViewContainer);
     this.dom.appendChild(this.wrapper);
+    this.dom.addEventListener('dblclick', this.openEditor);
   }
 
   private renderToolArea() {
@@ -105,7 +106,7 @@ export class CustomBlockView implements NodeView {
 
   private openEditor = () => {
     if (this.innerEditorView) {
-      throw new Error('The editor is already opened.');
+      return;
     }
 
     this.dom.draggable = false;

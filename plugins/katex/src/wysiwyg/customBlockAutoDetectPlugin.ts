@@ -75,7 +75,13 @@ export function createCustomBlockAutoDetectPlugin(context: PluginContext): Plugi
                 if (CODE_FENCE_KINDS.has(lang)) {
                   const content = node.content.size > 0 ? node.content : null;
                   const blockNode = customBlock.create({ info: lang }, content);
-                  const tr = newState.tr.replaceWith(from, from + node.nodeSize, blockNode);
+                  const nextNode = i + 1 < doc.childCount ? doc.child(i + 1) : null;
+                  const needsTail = !nextNode || nextNode.type !== paragraph;
+                  const tail = paragraph.createAndFill() || paragraph.create();
+                  const replacement = needsTail
+                    ? Fragment.fromArray([blockNode, tail])
+                    : Fragment.from(blockNode);
+                  const tr = newState.tr.replaceWith(from, from + node.nodeSize, replacement);
 
                   tr.setSelection(NodeSelection.create(tr.doc, from));
                   tr.setMeta(pluginKey, true);
