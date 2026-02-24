@@ -421,4 +421,57 @@ describe('setDefaultOptions', () => {
 
     rectSpy.mockRestore();
   });
+
+  it('should deep-merge plugin chartOptions and codeblock options', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: {},
+        tooltip: {
+          offsetX: 12,
+        },
+        yAxis: {
+          suffix: '%',
+        },
+      } as ChartOptions,
+      {
+        chartOptions: {
+          tooltip: {
+            transition: '0.2s',
+          },
+          yAxis: {
+            thousands: true,
+          },
+        },
+      } as PluginOptions,
+      container
+    );
+
+    expect(chartOptions.tooltip!.offsetX).toBe(12);
+    expect(chartOptions.tooltip!.transition).toBe('0.2s');
+    expect((chartOptions as any).yAxis.__editorThousands).toBe(true);
+    expect((chartOptions as any).yAxis.label.formatter('1000')).toBe('1 000%');
+  });
+
+  it('should configure default tooltip formatter/template only when missing', () => {
+    const customTemplate = jest.fn(() => '<div>custom</div>');
+    const customFormatter = jest.fn(() => 'custom');
+    const withDefaults = setDefaultOptions({} as ChartOptions, {} as PluginOptions, container);
+    const withCustom = setDefaultOptions(
+      {
+        editorChart: {},
+        tooltip: {
+          template: customTemplate,
+          formatter: customFormatter,
+        },
+      } as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect(withDefaults.tooltip!.transition).toBe(false);
+    expect(typeof withDefaults.tooltip!.formatter).toBe('function');
+    expect(typeof withDefaults.tooltip!.template).toBe('function');
+    expect(withCustom.tooltip!.template).toBe(customTemplate);
+    expect(withCustom.tooltip!.formatter).toBe(customFormatter);
+  });
 });

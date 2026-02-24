@@ -25,6 +25,9 @@
  * y.max: 100                   => yAxis.scale.max
  * y.suffix: %                  => yAxis.label.formatter  (appends suffix)
  * y.thousands: true             => yAxis.label.formatter  (adds thousand separators)
+ * series.lineWidth: 3          => series.lineWidth (global line thickness)
+ * series.lineStyle: "dashed"   => series.lineStyle (global line dash preset)
+ * series.styles: {"Plan":{"lineStyle":"dashDot","lineWidth":2}} => per-series line style/width
  * ```
  */
 import type { PluginInfo, MdNode, PluginContext } from '@techie_doubts/tui.editor.2026';
@@ -62,6 +65,7 @@ const DEFAULT_DIMENSION_OPTIONS = {
 };
 const FALLBACK_CONTAINER_WIDTH = 600;
 const RESERVED_KEYS = ['type', 'url'];
+const TOOLTIP_FRACTION_DIGITS = 2;
 const chart = {
   bar: Chart.barChart,
   column: Chart.columnChart,
@@ -309,16 +313,306 @@ function getChartDimension(
   };
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeChartOptions(
+  baseOptions: Record<string, unknown> | undefined,
+  overrideOptions: Record<string, unknown> | undefined
+) {
+  const base = isPlainObject(baseOptions) ? baseOptions : {};
+  const override = isPlainObject(overrideOptions) ? overrideOptions : {};
+  const merged: Record<string, unknown> = { ...base };
+
+  Object.keys(override).forEach((key) => {
+    const baseValue = merged[key];
+    const overrideValue = override[key];
+
+    merged[key] =
+      isPlainObject(baseValue) && isPlainObject(overrideValue)
+        ? mergeChartOptions(baseValue, overrideValue)
+        : overrideValue;
+  });
+
+  return merged;
+}
+
+function getPluginChartOptions(pluginOptions: PluginOptions) {
+  const { chartOptions } = pluginOptions as PluginOptions & { chartOptions?: ChartOptions };
+
+  return isPlainObject(chartOptions) ? (chartOptions as Record<string, unknown>) : {};
+}
+
+function escapeHTML(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function isNil(value: unknown): value is null | undefined {
+  return value === null || typeof value === 'undefined';
+}
+
+function getTooltipFontStyle(themePart: any) {
+  if (!themePart || typeof themePart !== 'object') {
+    return '';
+  }
+
+  const declarations: string[] = [];
+
+  if (!isNil(themePart.fontWeight)) {
+    declarations.push(`font-weight: ${themePart.fontWeight}`);
+  }
+  if (themePart.fontFamily) {
+    declarations.push(`font-family: ${themePart.fontFamily}`);
+  }
+  if (!isNil(themePart.fontSize)) {
+    declarations.push(`font-size: ${themePart.fontSize}px`);
+  }
+  if (themePart.color) {
+    declarations.push(`color: ${themePart.color}`);
+  }
+
+  return declarations.join('; ');
+}
+
+function hasYAxisThousandsPreference(tooltipComponent: any) {
+  const chartOptions = tooltipComponent?.store?.state?.options;
+  const yAxisOptions = Array.isArray(chartOptions?.yAxis)
+    ? chartOptions.yAxis[0]
+    : chartOptions?.yAxis;
+
+  if (!isPlainObject(yAxisOptions)) {
+    return false;
+  }
+
+  if ((yAxisOptions as Record<string, unknown>).__editorThousands === true) {
+    return true;
+  }
+
+  const yAxisFormatter = (yAxisOptions as any).label?.formatter;
+
+  if (typeof yAxisFormatter === 'function') {
+    try {
+      const probe = String(yAxisFormatter('1000'));
+
+      return /\d\s\d{3}/.test(probe);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+function formatTooltipNumber(value: unknown, tooltipComponent: any): string {
+  const useSpaceThousands = hasYAxisThousandsPreference(tooltipComponent);
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const formatted = value.toLocaleString([], {
+      minimumFractionDigits: TOOLTIP_FRACTION_DIGITS,
+      maximumFractionDigits: TOOLTIP_FRACTION_DIGITS,
+    });
+
+    return useSpaceThousands ? formatted.replace(/,/g, ' ') : formatted;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => formatTooltipNumber(item, tooltipComponent)).join(' - ');
+  }
+
+  return String(value ?? '');
+}
+
+function getTooltipSeriesCollection(tooltipComponent: any) {
+  const seriesState = tooltipComponent?.store?.state?.series;
+
+  if (!seriesState || typeof seriesState !== 'object') {
+    return [];
+  }
+
+  const supportedSeriesTypes = ['line', 'area', 'column', 'bar', 'scatter', 'bubble', 'radar'];
+
+  for (const seriesType of supportedSeriesTypes) {
+    const seriesCollection = seriesState[seriesType];
+
+    if (Array.isArray(seriesCollection?.data) && seriesCollection.data.length) {
+      return seriesCollection.data;
+    }
+  }
+
+  return [];
+}
+
+function getTooltipCategoryIndex(model: any) {
+  if (!Array.isArray(model?.data)) {
+    return null;
+  }
+
+  const indexOwner = model.data.find((item: any) => Number.isInteger(item?.index));
+
+  return indexOwner ? indexOwner.index : null;
+}
+
+function getTooltipSeriesColor(colorValue: unknown) {
+  if (Array.isArray(colorValue)) {
+    const firstColor = colorValue.find((value) => typeof value === 'string' && value.trim());
+
+    return firstColor || '#8ea0bf';
+  }
+
+  if (typeof colorValue === 'string' && colorValue.trim()) {
+    return colorValue;
+  }
+
+  return '#8ea0bf';
+}
+
+function normalizeTooltipSeriesValue(rawValue: any): string | number | null {
+  if (isNil(rawValue)) {
+    return null;
+  }
+
+  if (typeof rawValue === 'number') {
+    return Number.isFinite(rawValue) ? rawValue : null;
+  }
+
+  if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const asNumber = Number(trimmed);
+
+    return Number.isFinite(asNumber) ? asNumber : trimmed;
+  }
+
+  if (Array.isArray(rawValue)) {
+    if (!rawValue.length) {
+      return null;
+    }
+
+    if (rawValue.length >= 2) {
+      const secondValue = normalizeTooltipSeriesValue(rawValue[1]);
+
+      if (!isNil(secondValue)) {
+        return secondValue;
+      }
+    }
+
+    for (let index = rawValue.length - 1; index >= 0; index -= 1) {
+      const candidate = normalizeTooltipSeriesValue(rawValue[index]);
+
+      if (!isNil(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  if (typeof rawValue === 'object') {
+    if ('y' in rawValue) {
+      return normalizeTooltipSeriesValue(rawValue.y);
+    }
+
+    if ('value' in rawValue) {
+      return normalizeTooltipSeriesValue(rawValue.value);
+    }
+  }
+
+  return null;
+}
+
+function wrapTooltipTemplate(theme: any, headerMarkup: string, bodyMarkup: string) {
+  const borderWidth = Number.isFinite(theme?.borderWidth) ? theme.borderWidth : 1;
+  const borderStyle = theme?.borderStyle || 'solid';
+  const borderColor = theme?.borderColor || '#d7dce8';
+  const borderRadius = Number.isFinite(theme?.borderRadius) ? theme.borderRadius : 8;
+  const background = theme?.background || '#ffffff';
+  const containerStyle = `border: ${borderWidth}px ${borderStyle} ${borderColor};border-radius: ${borderRadius}px;background: ${background};`;
+
+  return `<div class="td-chart-tooltip" style="${containerStyle}">${headerMarkup}${bodyMarkup}</div>`;
+}
+
+function buildFullSeriesTooltip(
+  tooltipComponent: any,
+  model: any,
+  defaultTemplate: { header: string; body: string },
+  theme: any
+) {
+  const seriesCollection = getTooltipSeriesCollection(tooltipComponent);
+  const categoryIndex = getTooltipCategoryIndex(model);
+
+  if (!seriesCollection.length || isNil(categoryIndex) || categoryIndex < 0) {
+    return wrapTooltipTemplate(theme, defaultTemplate?.header || '', defaultTemplate?.body || '');
+  }
+
+  const visibleModelSeries = new Map<number, any>();
+
+  for (const tooltipData of model.data || []) {
+    if (Number.isInteger(tooltipData?.seriesIndex)) {
+      visibleModelSeries.set(tooltipData.seriesIndex, tooltipData);
+    }
+  }
+
+  const seriesRows = seriesCollection
+    .map((seriesItem: any, seriesIndex: number) => {
+      const tooltipData = visibleModelSeries.get(seriesIndex);
+      const label = tooltipData?.label || seriesItem?.name || `Series ${seriesIndex + 1}`;
+      const color = getTooltipSeriesColor(tooltipData?.color ?? seriesItem?.color);
+      const rawSeriesValue = Array.isArray(seriesItem?.rawData)
+        ? seriesItem.rawData[categoryIndex]
+        : null;
+      const rawValue = tooltipData?.value ?? rawSeriesValue;
+      const normalizedValue = normalizeTooltipSeriesValue(rawValue);
+      const valueMarkup = isNil(normalizedValue)
+        ? '<span class="td-chart-tooltip-none">None</span>'
+        : escapeHTML(formatTooltipNumber(normalizedValue, tooltipComponent));
+
+      return `<div class="td-chart-tooltip-series">
+        <span class="td-chart-series-name">
+          <i class="td-chart-icon" style="background: ${escapeHTML(color)}"></i>
+          <span class="td-chart-name">${escapeHTML(label)}</span>
+        </span>
+        <span class="td-chart-series-value">${valueMarkup}</span>
+      </div>`;
+    })
+    .join('');
+
+  const headerMarkup = model.category
+    ? `<div class="td-chart-tooltip-category" style="${getTooltipFontStyle(
+        theme?.header
+      )}">${escapeHTML(model.category)}</div>`
+    : '';
+  const bodyMarkup = `<div class="td-chart-tooltip-series-wrapper" style="${getTooltipFontStyle(
+    theme?.body
+  )}">${seriesRows}</div>`;
+
+  return wrapTooltipTemplate(theme, headerMarkup, bodyMarkup);
+}
+
 export function setDefaultOptions(
   chartOptions: ChartOptions,
   pluginOptions: PluginOptions,
   chartContainer: HTMLElement
 ) {
+  chartOptions = (mergeChartOptions(
+    getPluginChartOptions(pluginOptions),
+    chartOptions as any
+  ) as unknown) as ChartOptions;
   chartOptions = Object.assign(
     {
       editorChart: {},
       chart: {},
       exportMenu: {},
+      tooltip: {},
     },
     chartOptions
   );
@@ -332,6 +626,19 @@ export function setDefaultOptions(
   chartOptions.editorChart.type = chartOptions.editorChart.type || 'column';
   // default visibility of export menu
   chartOptions.exportMenu!.visible = !!chartOptions.exportMenu!.visible;
+  if (typeof chartOptions.tooltip!.transition === 'undefined') {
+    chartOptions.tooltip!.transition = false;
+  }
+  if (typeof chartOptions.tooltip!.formatter !== 'function') {
+    chartOptions.tooltip!.formatter = function formatter(value: unknown) {
+      return formatTooltipNumber(value, this);
+    };
+  }
+  if (typeof chartOptions.tooltip!.template !== 'function') {
+    chartOptions.tooltip!.template = function template(model, defaultTemplate, theme) {
+      return buildFullSeriesTooltip(this, model, defaultTemplate, theme);
+    };
+  }
 
   (['xAxis', 'yAxis'] as const).forEach((axis) => {
     const axisOpts = (chartOptions as any)[axis];
@@ -341,6 +648,8 @@ export function setDefaultOptions(
     }
 
     const { suffix, thousands } = axisOpts;
+
+    axisOpts.__editorThousands = !!thousands;
 
     delete axisOpts.suffix;
     delete axisOpts.thousands;

@@ -56,5 +56,6 @@ export type EventTypes =
   | 'keydown'
   | 'keyup'
   | 'wwUserEdit'
+  | 'pasteMarkdownInWysiwyg'
   | 'beforeExportHtml'
   | 'afterExportHtml';

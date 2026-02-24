@@ -193,7 +193,11 @@ export default class MdEditor extends EditorBase {
       },
       handleKeyDown: (_, ev) => {
         if ((ev.metaKey || ev.ctrlKey) && ev.key.toUpperCase() === 'V') {
-          this.clipboard.focus();
+          try {
+            this.clipboard.focus({ preventScroll: true });
+          } catch (_error) {
+            this.clipboard.focus();
+          }
         }
         this.eventEmitter.emit('keydown', this.editorType, ev);
         return false;

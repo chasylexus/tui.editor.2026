@@ -1,4 +1,4 @@
-import { DOMParser, Node as ProsemirrorNode } from 'prosemirror-model';
+import { DOMParser, Node as ProsemirrorNode, Slice } from 'prosemirror-model';
 import { Emitter, Handler } from '@t/event';
 import {
   Base,
@@ -396,6 +396,9 @@ class ToastUIEditorCore {
       }
       this.scheduleWwSerialize();
     });
+    this.eventEmitter.listen('pasteMarkdownInWysiwyg', (markdownText: string) =>
+      this.pasteMarkdownInWysiwyg(markdownText)
+    );
     this.eventEmitter.listen('change', (editorType: EditorType) => {
       if (editorType === 'markdown') {
         const nextMd = this.mdEditor.getMarkdown();
@@ -870,6 +873,32 @@ class ToastUIEditorCore {
 
   private createToastMark(markdown: string) {
     return new ToastMark(markdown, this.toastMarkOptions);
+  }
+
+  private pasteMarkdownInWysiwyg(markdownText: string) {
+    if (!this.isWysiwygMode()) {
+      return false;
+    }
+
+    const normalized = markdownText.replace(/\r\n/g, '\n');
+
+    if (!normalized.trim()) {
+      return false;
+    }
+
+    const mdNode = this.createToastMark(normalized).getRootNode();
+    const wwNode = this.convertor.toWysiwygModel(mdNode);
+
+    if (!wwNode || wwNode.content.size === 0) {
+      return false;
+    }
+
+    const { tr } = this.wwEditor.view.state;
+    const nextTr = tr.replaceSelection(new Slice(wwNode.content, 0, 0)).scrollIntoView();
+
+    this.wwEditor.view.dispatch(nextTr);
+
+    return true;
   }
 
   private addWwEditRange(range: WwEditRange) {

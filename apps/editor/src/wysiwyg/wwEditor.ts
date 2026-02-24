@@ -19,6 +19,7 @@ import { CodeBlockView } from './nodeview/codeBlockView';
 
 import { changePastedHTML, changePastedSlice } from './clipboard/paste';
 import { pasteToTable } from './clipboard/pasteToTable';
+import { looksLikeMarkdownPaste } from './clipboard/markdownPaste';
 import { createSpecs } from './specCreator';
 
 import { Emitter } from '@t/event';
@@ -413,9 +414,26 @@ export default class WysiwygEditor extends EditorBase {
                 ev.preventDefault();
 
                 emitImageBlobHook(this.eventEmitter, imageBlob, ev.type);
+
+                return true;
               }
             }
           }
+
+          const plainText = clipboardData?.getData('text/plain') ?? '';
+
+          if (looksLikeMarkdownPaste(plainText)) {
+            const handled = this.eventEmitter
+              .emit('pasteMarkdownInWysiwyg', plainText)
+              .some(Boolean);
+
+            if (handled) {
+              ev.preventDefault();
+
+              return true;
+            }
+          }
+
           return false;
         },
         keyup: (_, ev: KeyboardEvent) => {
