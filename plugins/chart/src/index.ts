@@ -344,6 +344,57 @@ function getPluginChartOptions(pluginOptions: PluginOptions) {
   return isPlainObject(chartOptions) ? (chartOptions as Record<string, unknown>) : {};
 }
 
+function normalizeSeriesStyleKey(value: string) {
+  const normalized = typeof value.normalize === 'function' ? value.normalize('NFKC') : value;
+
+  return normalized
+    .replace(/\uFEFF/g, '')
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function assignSeriesStyleByIndex(chartOptions: ChartOptions, chartData?: ChartData) {
+  if (!chartData || !isPlainObject(chartOptions.series)) {
+    return;
+  }
+
+  const seriesOptions = chartOptions.series as Record<string, unknown>;
+
+  if (!isPlainObject(seriesOptions.styles)) {
+    return;
+  }
+
+  const styles = seriesOptions.styles as Record<string, unknown>;
+  const indexBySeriesName = new Map<string, number>();
+
+  chartData.series.forEach((seriesItem, seriesIndex) => {
+    if (typeof seriesItem?.name === 'string' && seriesItem.name.trim()) {
+      indexBySeriesName.set(normalizeSeriesStyleKey(seriesItem.name), seriesIndex);
+    }
+  });
+
+  Object.keys(styles).forEach((styleKey) => {
+    if (/^\d+$/.test(styleKey.trim())) {
+      return;
+    }
+
+    const seriesIndex = indexBySeriesName.get(normalizeSeriesStyleKey(styleKey));
+
+    if (typeof seriesIndex !== 'number') {
+      return;
+    }
+
+    const indexKey = String(seriesIndex);
+
+    if (typeof styles[indexKey] === 'undefined') {
+      styles[indexKey] = styles[styleKey];
+    }
+  });
+}
+
 function escapeHTML(value: unknown) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -355,6 +406,126 @@ function escapeHTML(value: unknown) {
 
 function isNil(value: unknown): value is null | undefined {
   return value === null || typeof value === 'undefined';
+}
+
+type ThousandsMode = 'none' | 'locale' | 'custom';
+type ThousandsOptions = { mode: ThousandsMode; separator?: string };
+
+function isThousandsOptions(value: unknown): value is ThousandsOptions {
+  return (
+    isPlainObject(value) &&
+    typeof (value as ThousandsOptions).mode === 'string' &&
+    ['none', 'locale', 'custom'].includes((value as ThousandsOptions).mode)
+  );
+}
+
+function resolveThousandsOptions(value: unknown): ThousandsOptions {
+  if (typeof value === 'string') {
+    return value.length ? { mode: 'custom', separator: value } : { mode: 'none' };
+  }
+
+  if (value === true || value === 1) {
+    return { mode: 'locale' };
+  }
+
+  return { mode: 'none' };
+}
+
+function splitNumericText(value: string) {
+  const matched = value.match(/^([+-]?)(\d+)(\.\d+)?$/);
+
+  if (!matched) {
+    return null;
+  }
+
+  return {
+    sign: matched[1] || '',
+    integer: matched[2],
+    fraction: matched[3] || '',
+  };
+}
+
+function applyCustomThousandsSeparator(value: string, separator: string) {
+  const parts = splitNumericText(value);
+
+  if (!parts) {
+    return value;
+  }
+
+  return `${parts.sign}${parts.integer.replace(/\B(?=(\d{3})+(?!\d))/g, separator)}${
+    parts.fraction
+  }`;
+}
+
+function formatAxisValueWithThousands(value: string, options: ThousandsOptions) {
+  if (options.mode === 'none') {
+    return value;
+  }
+
+  if (options.mode === 'custom') {
+    return applyCustomThousandsSeparator(value, options.separator || ' ');
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return value;
+  }
+
+  const fractionMatched = value.match(/\.(\d+)$/);
+  const fractionLength = fractionMatched ? fractionMatched[1].length : 0;
+
+  return numericValue.toLocaleString([], {
+    useGrouping: true,
+    minimumFractionDigits: fractionLength,
+    maximumFractionDigits: fractionLength,
+  });
+}
+
+function inferThousandsOptionsFromFormatter(
+  formatter: (value: string) => string
+): ThousandsOptions {
+  try {
+    const probe = String(formatter('1000'));
+    const matched = probe.match(/1([^0-9])000/);
+
+    if (matched) {
+      return { mode: 'custom', separator: matched[1] };
+    }
+  } catch (error) {
+    return { mode: 'none' };
+  }
+
+  return { mode: 'none' };
+}
+
+function getYAxisThousandsOptions(tooltipComponent: any): ThousandsOptions {
+  const chartOptions = tooltipComponent?.store?.state?.options;
+  const yAxisOptions = Array.isArray(chartOptions?.yAxis)
+    ? chartOptions.yAxis[0]
+    : chartOptions?.yAxis;
+
+  if (!isPlainObject(yAxisOptions)) {
+    return { mode: 'none' };
+  }
+
+  const metadata = (yAxisOptions as Record<string, unknown>).__editorThousands;
+
+  if (isThousandsOptions(metadata)) {
+    return metadata;
+  }
+
+  if (metadata === true) {
+    return { mode: 'locale' };
+  }
+
+  const yAxisFormatter = (yAxisOptions as any).label?.formatter;
+
+  if (typeof yAxisFormatter === 'function') {
+    return inferThousandsOptionsFromFormatter(yAxisFormatter);
+  }
+
+  return { mode: 'none' };
 }
 
 function getTooltipFontStyle(themePart: any) {
@@ -380,45 +551,25 @@ function getTooltipFontStyle(themePart: any) {
   return declarations.join('; ');
 }
 
-function hasYAxisThousandsPreference(tooltipComponent: any) {
-  const chartOptions = tooltipComponent?.store?.state?.options;
-  const yAxisOptions = Array.isArray(chartOptions?.yAxis)
-    ? chartOptions.yAxis[0]
-    : chartOptions?.yAxis;
-
-  if (!isPlainObject(yAxisOptions)) {
-    return false;
-  }
-
-  if ((yAxisOptions as Record<string, unknown>).__editorThousands === true) {
-    return true;
-  }
-
-  const yAxisFormatter = (yAxisOptions as any).label?.formatter;
-
-  if (typeof yAxisFormatter === 'function') {
-    try {
-      const probe = String(yAxisFormatter('1000'));
-
-      return /\d\s\d{3}/.test(probe);
-    } catch (error) {
-      return false;
-    }
-  }
-
-  return false;
-}
-
 function formatTooltipNumber(value: unknown, tooltipComponent: any): string {
-  const useSpaceThousands = hasYAxisThousandsPreference(tooltipComponent);
+  const thousandsOptions = getYAxisThousandsOptions(tooltipComponent);
 
   if (typeof value === 'number' && Number.isFinite(value)) {
-    const formatted = value.toLocaleString([], {
-      minimumFractionDigits: TOOLTIP_FRACTION_DIGITS,
-      maximumFractionDigits: TOOLTIP_FRACTION_DIGITS,
-    });
+    if (thousandsOptions.mode === 'locale') {
+      return value.toLocaleString([], {
+        useGrouping: true,
+        minimumFractionDigits: TOOLTIP_FRACTION_DIGITS,
+        maximumFractionDigits: TOOLTIP_FRACTION_DIGITS,
+      });
+    }
 
-    return useSpaceThousands ? formatted.replace(/,/g, ' ') : formatted;
+    const formatted = value.toFixed(TOOLTIP_FRACTION_DIGITS);
+
+    if (thousandsOptions.mode === 'custom') {
+      return applyCustomThousandsSeparator(formatted, thousandsOptions.separator || ' ');
+    }
+
+    return formatted;
   }
 
   if (Array.isArray(value)) {
@@ -601,7 +752,8 @@ function buildFullSeriesTooltip(
 export function setDefaultOptions(
   chartOptions: ChartOptions,
   pluginOptions: PluginOptions,
-  chartContainer: HTMLElement
+  chartContainer: HTMLElement,
+  chartData?: ChartData
 ) {
   chartOptions = (mergeChartOptions(
     getPluginChartOptions(pluginOptions),
@@ -647,30 +799,43 @@ export function setDefaultOptions(
       return;
     }
 
-    const { suffix, thousands } = axisOpts;
+    const axisList = Array.isArray(axisOpts) ? axisOpts : [axisOpts];
 
-    axisOpts.__editorThousands = !!thousands;
+    axisList.forEach((axisOption) => {
+      if (!isPlainObject(axisOption)) {
+        return;
+      }
 
-    delete axisOpts.suffix;
-    delete axisOpts.thousands;
-
-    if (suffix || thousands) {
-      axisOpts.label = axisOpts.label || {};
-      axisOpts.label.formatter = (value: string) => {
-        let result = String(value);
-
-        if (thousands) {
-          result = result.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-        }
-
-        if (suffix) {
-          result = `${result}${suffix}`;
-        }
-
-        return result;
+      const normalizedAxisOption = axisOption as Record<string, any>;
+      const { suffix, thousands } = normalizedAxisOption as {
+        suffix?: string;
+        thousands?: unknown;
       };
-    }
+      const thousandsOptions = resolveThousandsOptions(thousands);
+
+      normalizedAxisOption.__editorThousands = thousandsOptions;
+
+      delete normalizedAxisOption.suffix;
+      delete normalizedAxisOption.thousands;
+
+      if (suffix || thousandsOptions.mode !== 'none') {
+        normalizedAxisOption.label = normalizedAxisOption.label || {};
+        normalizedAxisOption.label.formatter = (value: string) => {
+          let result = String(value);
+
+          result = formatAxisValueWithThousands(result, thousandsOptions);
+
+          if (suffix) {
+            result = `${result}${suffix}`;
+          }
+
+          return result;
+        };
+      }
+    });
   });
+
+  assignSeriesStyleByIndex(chartOptions, chartData);
 
   return chartOptions;
 }
@@ -683,7 +848,7 @@ function isDarkMode(el: HTMLElement): boolean {
 
 function destroyChart() {
   Object.keys(chartMap).forEach((id) => {
-    const container = document.querySelector<HTMLElement>(`[data-chart-id=${id}]`);
+    const container = document.querySelector<HTMLElement>(`[data-chart-id="${id}"]`);
 
     if (!container) {
       chartMap[id].destroy();
@@ -705,7 +870,7 @@ function doRenderChart(
   try {
     parse(text, (parsedInfo) => {
       const { data, options } = parsedInfo || {};
-      const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer);
+      const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer, data);
       const chartType = chartOptions.editorChart.type!;
       const dark = effectiveDarkMode !== null ? effectiveDarkMode : isDarkMode(chartContainer);
 
@@ -738,16 +903,24 @@ function renderChart(
   id: string,
   text: string,
   usageStatistics: boolean,
-  pluginOptions: PluginOptions
+  pluginOptions: PluginOptions,
+  retryCount = 0
 ) {
   // should draw the chart after rendering container element
-  const chartContainer = document.querySelector<HTMLElement>(`[data-chart-id=${id}]`)!;
+  const chartContainer = document.querySelector<HTMLElement>(`[data-chart-id="${id}"]`);
+
+  if (!chartContainer) {
+    if (retryCount < 8) {
+      requestAnimationFrame(() => {
+        renderChart(id, text, usageStatistics, pluginOptions, retryCount + 1);
+      });
+    }
+    return;
+  }
 
   destroyChart();
 
-  if (chartContainer) {
-    doRenderChart(id, text, usageStatistics, pluginOptions, chartContainer);
-  }
+  doRenderChart(id, text, usageStatistics, pluginOptions, chartContainer);
 }
 
 function reRenderAllCharts(
@@ -779,15 +952,6 @@ function generateId() {
   return `chart-${Math.random().toString(36).substr(2, 10)}`;
 }
 
-let timer: NodeJS.Timeout | null = null;
-
-function clearTimer() {
-  if (timer) {
-    clearTimeout(timer);
-    timer = null;
-  }
-}
-
 function getEditorRoot(instance: any) {
   let elements: any = null;
 
@@ -797,13 +961,27 @@ function getEditorRoot(instance: any) {
     elements = null;
   }
 
-  return (elements?.mdPreview?.closest('.toastui-editor-defaultUI') ||
-    elements?.wwEditor?.closest('.toastui-editor-defaultUI') ||
-    document.querySelector('.toastui-editor-defaultUI')) as HTMLElement | null;
+  const selectors = ['.toastui-editor-defaultUI', '.td-editor-defaultUI'];
+
+  return (selectors
+    .map(
+      (selector) => elements?.mdPreview?.closest(selector) || elements?.wwEditor?.closest(selector)
+    )
+    .find(Boolean) ||
+    selectors.map((selector) => document.querySelector(selector)).find(Boolean) ||
+    null) as HTMLElement | null;
 }
 
 function detectDarkMode(instance: any) {
-  return !!getEditorRoot(instance)?.classList.contains('toastui-editor-dark');
+  const root = getEditorRoot(instance);
+
+  if (!root) {
+    return false;
+  }
+
+  return (
+    root.classList.contains('toastui-editor-dark') || root.classList.contains('td-editor-dark')
+  );
 }
 
 /**
@@ -885,8 +1063,13 @@ export default function chartPlugin(context: PluginContext, options: PluginOptio
     rootObserver.observe(root, { attributes: true, attributeFilter: ['class'] });
   };
 
-  context.eventEmitter.listen('changeTheme', (theme: string) => {
-    scheduleReRender({ themeOverride: theme === 'dark' });
+  context.eventEmitter.listen('changeTheme', (theme: unknown) => {
+    if (theme === 'dark' || theme === 'light') {
+      scheduleReRender({ themeOverride: theme === 'dark' });
+      return;
+    }
+
+    scheduleReRender({ deferFrames: 2 });
   });
   context.eventEmitter.listen('changeMode', () => {
     bindThemeObserver();
@@ -909,10 +1092,9 @@ export default function chartPlugin(context: PluginContext, options: PluginOptio
     toHTMLRenderers: {
       chart(node: MdNode) {
         const id = generateId();
+        const encodedText = encodeURIComponent(node.literal || '');
 
-        clearTimer();
-
-        timer = setTimeout(() => {
+        requestAnimationFrame(() => {
           renderChart(id, node.literal!, usageStatistics, options);
         });
         return [
@@ -920,7 +1102,7 @@ export default function chartPlugin(context: PluginContext, options: PluginOptio
             type: 'openTag',
             tagName: 'div',
             outerNewLine: true,
-            attributes: { 'data-chart-id': id },
+            attributes: { 'data-chart-id': id, 'data-chart-text': encodedText },
           },
           { type: 'closeTag', tagName: 'div', outerNewLine: true },
         ];

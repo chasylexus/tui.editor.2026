@@ -59,6 +59,26 @@ function findContentsRoot(root: HTMLElement | null) {
   return root.querySelector<HTMLElement>('.toastui-editor-contents') || root;
 }
 
+function isDarkEditorRoot(root: HTMLElement | null) {
+  if (!root) return false;
+
+  return (
+    root.classList.contains('toastui-editor-dark') || root.classList.contains('td-editor-dark')
+  );
+}
+
+function detectDarkFromRoots(previewRoot: HTMLElement | null, wysiwygRoot: HTMLElement | null) {
+  const rootSelectors = ['.toastui-editor-defaultUI', '.td-editor-defaultUI'];
+  const candidates: (HTMLElement | null)[] = [];
+
+  rootSelectors.forEach((selector) => {
+    candidates.push(previewRoot?.closest<HTMLElement>(selector) || null);
+    candidates.push(wysiwygRoot?.closest<HTMLElement>(selector) || null);
+  });
+
+  return candidates.some((root) => isDarkEditorRoot(root));
+}
+
 function updateUmlImagesIn(root: HTMLElement | null, rendererURL: string, isDark: boolean) {
   if (!root) return;
   const containers = root.querySelectorAll<HTMLElement>('[data-plantuml-source]');
@@ -125,7 +145,7 @@ export default function umlPlugin(context: PluginContext, options: PluginOptions
   let scheduled = false;
   let pendingThemeOverride: boolean | null = null;
 
-  const scheduleUpdate = (themeOverride?: boolean) => {
+  const scheduleUpdate = (themeOverride?: boolean, deferFrames = 1) => {
     if (typeof themeOverride === 'boolean') {
       pendingThemeOverride = themeOverride;
     }
@@ -136,26 +156,32 @@ export default function umlPlugin(context: PluginContext, options: PluginOptions
 
     scheduled = true;
 
-    requestAnimationFrame(() => {
+    const framesToWait = Math.max(1, deferFrames);
+    let frameCount = 0;
+
+    const run = () => {
+      frameCount += 1;
+
+      if (frameCount < framesToWait) {
+        requestAnimationFrame(run);
+        return;
+      }
+
       scheduled = false;
 
       const { previewRoot, wysiwygRoot } = getEditorRoots();
       const dark =
         pendingThemeOverride !== null
           ? pendingThemeOverride
-          : previewRoot
-              ?.closest('.toastui-editor-defaultUI')
-              ?.classList.contains('toastui-editor-dark') ||
-            wysiwygRoot
-              ?.closest('.toastui-editor-defaultUI')
-              ?.classList.contains('toastui-editor-dark') ||
-            false;
+          : detectDarkFromRoots(previewRoot, wysiwygRoot);
 
       pendingThemeOverride = null;
 
       updateUmlImagesIn(previewRoot, rendererURL, dark);
       updateUmlImagesIn(wysiwygRoot, rendererURL, dark);
-    });
+    };
+
+    requestAnimationFrame(run);
   };
 
   context.eventEmitter.listen('changeTheme', (theme: string) => {
@@ -165,6 +191,7 @@ export default function umlPlugin(context: PluginContext, options: PluginOptions
   context.eventEmitter.listen('changeMode', () => scheduleUpdate());
   context.eventEmitter.listen('load', () => scheduleUpdate());
   context.eventEmitter.listen('loadUI', () => scheduleUpdate());
+  context.eventEmitter.listen('afterPreviewRender', () => scheduleUpdate());
 
   return {
     toHTMLRenderers: {

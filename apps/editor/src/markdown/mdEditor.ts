@@ -97,6 +97,20 @@ export default class MdEditor extends EditorBase {
     }
   }
 
+  private focusElementWithoutPageScroll(element: HTMLElement) {
+    const { scrollX, scrollY } = window;
+
+    try {
+      (element as any).focus({ preventScroll: true });
+    } catch (_error) {
+      element.focus();
+    }
+
+    if (window.scrollX !== scrollX || window.scrollY !== scrollY) {
+      window.scrollTo(scrollX, scrollY);
+    }
+  }
+
   private createClipboard() {
     this.clipboard = document.createElement('textarea');
     this.clipboard.className = cls('pseudo-clipboard');
@@ -125,7 +139,7 @@ export default class MdEditor extends EditorBase {
     this.clipboard.addEventListener('input', (ev) => {
       const text = (ev.target as HTMLTextAreaElement).value;
 
-      this.replaceSelection(text);
+      this.replaceSelection(text, undefined, undefined, false);
       ev.preventDefault();
       (ev.target as HTMLTextAreaElement).value = '';
     });
@@ -193,11 +207,7 @@ export default class MdEditor extends EditorBase {
       },
       handleKeyDown: (_, ev) => {
         if ((ev.metaKey || ev.ctrlKey) && ev.key.toUpperCase() === 'V') {
-          try {
-            this.clipboard.focus({ preventScroll: true });
-          } catch (_error) {
-            this.clipboard.focus();
-          }
+          this.focusElementWithoutPageScroll(this.clipboard);
         }
         this.eventEmitter.emit('keydown', this.editorType, ev);
         return false;
@@ -306,7 +316,7 @@ export default class MdEditor extends EditorBase {
     this.view.dispatch(scrollIntoView ? nextTr.scrollIntoView() : nextTr);
   }
 
-  replaceSelection(text: string, start?: MdPos, end?: MdPos) {
+  replaceSelection(text: string, start?: MdPos, end?: MdPos, scrollIntoView = true) {
     let newTr;
     const { tr, schema, doc } = this.view.state;
     const lineTexts = text.split(reLineEnding);
@@ -315,7 +325,7 @@ export default class MdEditor extends EditorBase {
     );
     const slice = new Slice(Fragment.from(nodes), 1, 1);
 
-    this.focus();
+    this.focusElementWithoutPageScroll(this.view.dom as HTMLElement);
 
     if (start && end) {
       const [from, to] = getMdToEditorPos(doc, start, end);
@@ -324,7 +334,7 @@ export default class MdEditor extends EditorBase {
     } else {
       newTr = tr.replaceSelection(slice);
     }
-    this.view.dispatch(newTr.scrollIntoView());
+    this.view.dispatch(scrollIntoView ? newTr.scrollIntoView() : newTr);
   }
 
   deleteSelection(start?: MdPos, end?: MdPos) {

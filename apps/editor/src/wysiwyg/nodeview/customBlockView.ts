@@ -2,7 +2,7 @@ import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode } from 'prosemirror-model';
 import { StepMap } from 'prosemirror-transform';
 import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
-import { newlineInCode, selectAll } from 'prosemirror-commands';
+import { baseKeymap, newlineInCode } from 'prosemirror-commands';
 import { redo, undo, undoDepth, history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import { ToDOMAdaptor } from '@t/convertor';
@@ -10,6 +10,7 @@ import { createTextSelection } from '@/helper/manipulation';
 import { cls, css, removeNode } from '@/utils/dom';
 
 const CODE_FENCE_KINDS = new Set(['mermaid', 'uml', 'chart']);
+const LIVE_PREVIEW_KINDS = new Set(['mermaid', 'uml', 'plantuml']);
 
 interface EventLike {
   emit(event: string, ...args: any[]): void;
@@ -84,7 +85,15 @@ export class CustomBlockView implements NodeView {
     button.type = 'button';
     button.addEventListener('click', () => {
       if (this.isCodeFenceBlock()) {
-        this.openTypeEditor();
+        if (this.isLivePreviewBlock()) {
+          if (this.innerEditorView) {
+            this.openTypeEditor();
+          } else {
+            this.openEditor();
+          }
+        } else {
+          this.openTypeEditor();
+        }
       } else {
         this.openEditor();
       }
@@ -96,11 +105,17 @@ export class CustomBlockView implements NodeView {
   }
 
   private isCodeFenceBlock() {
-    const info = String(this.node.attrs.info || '')
-      .trim()
-      .toLowerCase();
+    const info = String(this.node.attrs.info || '').trim();
+    const [kind = ''] = info.split(/\s+/);
 
-    return CODE_FENCE_KINDS.has(info);
+    return CODE_FENCE_KINDS.has(kind.toLowerCase());
+  }
+
+  private isLivePreviewBlock() {
+    const info = String(this.node.attrs.info || '').trim();
+    const [kind = ''] = info.split(/\s+/);
+
+    return LIVE_PREVIEW_KINDS.has(kind.toLowerCase());
   }
 
   private renderCustomBlock() {
@@ -132,7 +147,7 @@ export class CustomBlockView implements NodeView {
     }
 
     this.dom.draggable = false;
-    this.wrapper.style.display = 'none';
+    this.wrapper.style.display = this.isLivePreviewBlock() ? 'block' : 'none';
     this.innerViewContainer.style.display = 'block';
 
     this.innerEditorView = new EditorView(this.innerViewContainer, {
@@ -155,8 +170,20 @@ export class CustomBlockView implements NodeView {
               this.saveAndFinishEditing();
               return true;
             },
-            'Mod-a': selectAll,
+            'Mod-a': (state: EditorState, dispatch?: (tr: Transaction) => void) => {
+              if (!dispatch) {
+                return true;
+              }
+
+              const from = 0;
+              const to = state.doc.content.size;
+
+              dispatch(state.tr.setSelection(TextSelection.create(state.doc, from, to)));
+
+              return true;
+            },
           }),
+          keymap(baseKeymap),
           history(),
         ],
       }),
@@ -242,6 +269,10 @@ export class CustomBlockView implements NodeView {
       }
       if (outerTr.docChanged) {
         this.editorView.dispatch(outerTr);
+
+        if (this.innerEditorView && this.isLivePreviewBlock()) {
+          this.renderCustomBlock();
+        }
       }
     }
   }

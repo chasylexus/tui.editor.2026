@@ -69,6 +69,7 @@
         min-height: 0;
       }
 
+      .toastui-editor-defaultUI,
       .td-editor-defaultUI {
         height: 100%;
       }
@@ -95,6 +96,7 @@
         border-radius: 3px;
       }
 
+      .toastui-editor-dark .export-split > .export-split-main:only-child,
       .td-editor-dark .export-split > .export-split-main:only-child {
         border-right: 1px solid #232428;
       }
@@ -112,10 +114,12 @@
         display: block;
       }
 
+      .toastui-editor-defaultUI-toolbar .export-toolbar-group,
       .td-editor-defaultUI-toolbar .export-toolbar-group {
         margin-left: auto;
       }
 
+      .toastui-editor-defaultUI-toolbar .export-toolbar-group .toastui-editor-toolbar-divider,
       .td-editor-defaultUI-toolbar .export-toolbar-group .td-editor-toolbar-divider {
         display: none;
       }
@@ -196,27 +200,49 @@
         ]
       });
 
-      const rootEl = document.querySelector('.td-editor-defaultUI');
       const bodyEl = document.body;
       let currentMode = themeMode;
       const themeIcons = Editor.themeIcons;
+      const getRootEl = () =>
+        document.querySelector('.toastui-editor-defaultUI, .td-editor-defaultUI');
+      const getThemeIcon = (mode) => {
+        const iconFactory = themeIcons && themeIcons[mode];
+
+        if (typeof iconFactory === 'function') {
+          return iconFactory();
+        }
+
+        const fallback = document.createElement('span');
+        fallback.textContent = String(mode || 'T').slice(0, 1).toUpperCase();
+        fallback.style.fontSize = '12px';
+        fallback.style.lineHeight = '1';
+
+        return fallback;
+      };
 
       const themeSplit = document.createElement('div');
       const themeMainButton = document.createElement('button');
+      const themeCaretButton = document.createElement('button');
       const themeIconWrap = document.createElement('span');
 
       themeSplit.className = 'export-split';
       themeSplit.setAttribute('role', 'group');
 
       themeMainButton.type = 'button';
-      themeMainButton.className = 'td-editor-toolbar-icons export-split-main';
+      themeMainButton.className = 'toastui-editor-toolbar-icons export-split-main';
       themeMainButton.setAttribute('aria-label', 'Theme');
-      themeMainButton.setAttribute('aria-haspopup', 'menu');
 
       themeIconWrap.className = 'export-split-icon theme-split-icon';
       themeMainButton.appendChild(themeIconWrap);
 
+      themeCaretButton.type = 'button';
+      themeCaretButton.className = 'toastui-editor-toolbar-icons export-split-caret';
+      themeCaretButton.setAttribute('aria-label', 'Theme options');
+      themeCaretButton.setAttribute('aria-haspopup', 'menu');
+      themeCaretButton.textContent = '▾';
+
       themeSplit.appendChild(themeMainButton);
+      themeSplit.appendChild(themeCaretButton);
 
       const menuStateKey = '__toastuiToolbarMenuState';
       const menuState = window[menuStateKey] || { openId: null };
@@ -230,8 +256,10 @@
           const target = event.target;
 
           if (
-            target.closest('.td-editor-popup') ||
-            target.closest('.td-editor-toolbar-item-wrapper')
+            target.closest('.toastui-editor-popup, .td-editor-popup') ||
+            target.closest(
+              '.toastui-editor-toolbar-item-wrapper, .td-editor-toolbar-item-wrapper'
+            )
           ) {
             return;
           }
@@ -243,12 +271,20 @@
 
       const applyTheme = (mode, shouldPersist = true) => {
         const useDark = mode === 'dark' || (mode === 'auto' && media.matches);
+        const rootEl = getRootEl();
 
-        rootEl.classList.toggle('td-editor-dark', useDark);
+        if (rootEl) {
+          rootEl.classList.toggle('toastui-editor-dark', useDark);
+          rootEl.classList.toggle('td-editor-dark', useDark);
+        }
+
+        if (typeof editor.setTheme === 'function') {
+          editor.setTheme(useDark ? 'dark' : 'light');
+        }
+
         bodyEl.classList.toggle('dark', useDark);
         themeIconWrap.textContent = '';
-        themeIconWrap.appendChild(themeIcons[mode]());
-        editor.eventEmitter.emit('change');
+        themeIconWrap.appendChild(getThemeIcon(mode));
         currentMode = mode;
 
         if (shouldPersist) {
@@ -270,7 +306,7 @@
         item.setAttribute('role', 'menuitem');
         item.tabIndex = 0;
         icon.className = 'export-menu-icon theme-menu-icon';
-        icon.appendChild(themeIcons[mode]());
+        icon.appendChild(getThemeIcon(mode));
         text.textContent = label;
         item.appendChild(icon);
         item.appendChild(text);
@@ -299,7 +335,7 @@
 
       const themeMenu = document.createElement('ul');
 
-      themeIconWrap.appendChild(themeIcons[currentMode]());
+      themeIconWrap.appendChild(getThemeIcon(currentMode));
 
       themeMenu.className = 'menu-group';
       themeMenu.setAttribute('role', 'menu');
@@ -315,13 +351,15 @@
           tooltip: 'Theme',
           popup: {
             body: themeMenu,
-            className: 'td-editor-popup-add-heading export-split-menu'
+            className: 'toastui-editor-popup-add-heading export-split-menu'
           }
         }
       );
 
       const openThemeMenu = () => {
-        const wrapper = themeSplit.closest('.td-editor-toolbar-item-wrapper');
+        const wrapper = themeSplit.closest(
+          '.toastui-editor-toolbar-item-wrapper, .td-editor-toolbar-item-wrapper'
+        );
 
         if (wrapper) {
           wrapper.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -339,22 +377,26 @@
         openThemeMenu();
       };
 
-      themeMainButton.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleThemeMenu();
-      });
-
-      themeMainButton.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
+      const bindToggle = (button) => {
+        button.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
           toggleThemeMenu();
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          closeThemePopup();
-        }
-      });
+        });
+        button.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleThemeMenu();
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closeThemePopup();
+          }
+        });
+      };
+
+      bindToggle(themeMainButton);
+      bindToggle(themeCaretButton);
 
 
       const handleMediaChange = () => {
@@ -371,11 +413,15 @@
 
       applyTheme(currentMode, false);
 
-      const toolbarEl = document.querySelector('.td-editor-defaultUI-toolbar');
+      const toolbarEl = document.querySelector(
+        '.toastui-editor-defaultUI-toolbar, .td-editor-defaultUI-toolbar'
+      );
       const exportButton = toolbarEl && toolbarEl.querySelector('.export-split');
 
       if (exportButton) {
-        const exportGroup = exportButton.closest('.td-editor-toolbar-group');
+        const exportGroup = exportButton.closest(
+          '.toastui-editor-toolbar-group, .td-editor-toolbar-group'
+        );
 
         if (exportGroup) {
           exportGroup.classList.add('export-toolbar-group');

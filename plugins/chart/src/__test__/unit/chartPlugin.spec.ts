@@ -133,6 +133,23 @@ describe('parseToChartOption()', () => {
       },
     });
   });
+
+  it('should parse series.styles with unicode series key as plain object', () => {
+    expect(
+      parseToChartOption(`
+          series.styles: {"План со сдвигом":{"lineStyle":"dashDot","lineWidth":3}}
+        `)
+    ).toEqual({
+      series: {
+        styles: {
+          'План со сдвигом': {
+            lineStyle: 'dashDot',
+            lineWidth: 3,
+          },
+        },
+      },
+    });
+  });
 });
 
 describe('parseToChartData()', () => {
@@ -448,8 +465,83 @@ describe('setDefaultOptions', () => {
 
     expect(chartOptions.tooltip!.offsetX).toBe(12);
     expect(chartOptions.tooltip!.transition).toBe('0.2s');
-    expect((chartOptions as any).yAxis.__editorThousands).toBe(true);
-    expect((chartOptions as any).yAxis.label.formatter('1000')).toBe('1 000%');
+    expect((chartOptions as any).yAxis.__editorThousands).toEqual({ mode: 'locale' });
+    expect((chartOptions as any).yAxis.label.formatter('1000')).toMatch(/^1\D000%$/);
+  });
+
+  it('should use custom thousands separator for axis and tooltip', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: {},
+        tooltip: {},
+        yAxis: {
+          thousands: '_',
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect((chartOptions as any).yAxis.__editorThousands).toEqual({
+      mode: 'custom',
+      separator: '_',
+    });
+    expect((chartOptions as any).yAxis.label.formatter('1000000')).toBe('1_000_000');
+
+    const tooltipFormatter = chartOptions.tooltip!.formatter as Function;
+    const formatted = tooltipFormatter.call({ store: { state: { options: chartOptions } } }, 1234567.8);
+
+    expect(formatted).toBe('1_234_567.80');
+  });
+
+  it('should not add thousands separator when y.thousands is not set', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: {},
+        tooltip: {},
+        yAxis: {},
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect((chartOptions as any).yAxis.__editorThousands).toEqual({ mode: 'none' });
+    expect((chartOptions as any).yAxis.label).toBeUndefined();
+
+    const tooltipFormatter = chartOptions.tooltip!.formatter as Function;
+    const formatted = tooltipFormatter.call({ store: { state: { options: chartOptions } } }, 1234567.8);
+
+    expect(formatted).toBe('1234567.80');
+  });
+
+  it('should alias series.styles by normalized series name to index keys', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+        series: {
+          styles: {
+            ' "План   со сдвигом" ': {
+              lineStyle: 'dashDot',
+              lineWidth: 4,
+            },
+          },
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container,
+      {
+        categories: ['A', 'B'],
+        series: [
+          { name: 'План со сдвигом', data: [1, 2] },
+          { name: 'Факт', data: [3, 4] },
+        ],
+      }
+    );
+
+    expect((chartOptions as any).series.styles['0']).toEqual({
+      lineStyle: 'dashDot',
+      lineWidth: 4,
+    });
   });
 
   it('should configure default tooltip formatter/template only when missing', () => {
