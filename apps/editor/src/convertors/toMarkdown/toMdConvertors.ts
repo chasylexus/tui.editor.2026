@@ -195,7 +195,17 @@ export const toMdConvertors: ToMdConvertorMap = {
     const info = String(attrs.info || '')
       .trim()
       .toLowerCase();
-    const codeFenceKinds = ['mermaid', 'uml', 'chart'];
+    const codeFenceKinds = [
+      'mermaid',
+      'uml',
+      'chart',
+      'sequence',
+      'flow',
+      'flowchart',
+      'graphviz',
+      'dot',
+      'abc',
+    ];
     const useCodeFence = codeFenceKinds.includes(info);
 
     return {

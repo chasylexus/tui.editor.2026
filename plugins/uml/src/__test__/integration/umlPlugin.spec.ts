@@ -45,7 +45,7 @@ describe('uml plugin', () => {
 
     editor.setMarkdown(`$$${lang}\nAlice -> Bob: Hello\n$$`);
 
-    assertMdPreviewHTML('src="//www.plantuml.com/plantuml/png');
+    assertMdPreviewHTML('src="https://www.plantuml.com/plantuml/png');
   });
 
   it('should render plant uml image in markdown preview', () => {
@@ -53,14 +53,14 @@ describe('uml plugin', () => {
 
     editor.setMarkdown(`$$${lang}\nAlice -> Bob: Hello\n$$`);
 
-    assertMdPreviewHTML('src="//www.plantuml.com/plantuml/png');
+    assertMdPreviewHTML('src="https://www.plantuml.com/plantuml/png');
   });
 
   it('should render uml image in wysiwyg', () => {
     editor.setMarkdown('$$uml\nAlice -> Bob: Hello\n$$');
     editor.changeMode('wysiwyg');
 
-    assertWwEditorHTML('src="//www.plantuml.com/plantuml/png');
+    assertWwEditorHTML('src="https://www.plantuml.com/plantuml/png');
   });
 
   it('should update uml image src when changeTheme event is emitted', async () => {

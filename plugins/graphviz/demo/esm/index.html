@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Graphviz Plugin (ESM)</title>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <script type="module">
+      import { Editor } from 'http://localhost:8080/dist/index.js';
+      import graphvizPlugin from '/dist/index.js';
+
+      const content = ['```graphviz', 'digraph G { A -> B; B -> C; }', '```'].join('\n');
+
+      new Editor({
+        el: document.querySelector('#editor'),
+        previewStyle: 'vertical',
+        height: '500px',
+        initialValue: content,
+        plugins: [graphvizPlugin]
+      });
+    </script>
+  </body>
+</html>

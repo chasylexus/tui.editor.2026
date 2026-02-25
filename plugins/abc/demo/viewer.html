@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>ABC Viewer</title>
+    <link rel="stylesheet" href="http://localhost:8080/dist/cdn/td-editor.css" />
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <script src="http://localhost:8080/dist/cdn/td-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-plugin-abc.js"></script>
+    <script>
+      const content = ['```abc', 'X:1', 'T:Scale', 'M:4/4', 'L:1/4', 'K:C', 'C D E F|', '```'].join('\n');
+      const { Editor } = toastui;
+      const { abc } = Editor.plugin;
+      Editor.factory({
+        el: document.querySelector('#viewer'),
+        viewer: true,
+        initialValue: content,
+        plugins: [abc]
+      });
+    </script>
+  </body>
+</html>

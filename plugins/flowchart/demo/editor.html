@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>Flowchart Plugin</title>
+    <link rel="stylesheet" href="http://localhost:8080/dist/cdn/td-editor.css" />
+  </head>
+  <body>
+    <div class="code-html">
+      <h2>Editor</h2>
+      <div id="editor"></div>
+    </div>
+    <script src="http://localhost:8080/dist/cdn/td-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-plugin-flowchart.js"></script>
+    <script>
+      const content = [
+        '```flow',
+        'st=>start: Start',
+        'op=>operation: Your Operation',
+        'cond=>condition: Yes or No?',
+        'e=>end',
+        '',
+        'st->op->cond',
+        'cond(yes)->e',
+        'cond(no)->op',
+        '```'
+      ].join('\n');
+
+      const { Editor } = toastui;
+      const { flowchart } = Editor.plugin;
+
+      new Editor({
+        el: document.querySelector('#editor'),
+        previewStyle: 'vertical',
+        height: '500px',
+        initialValue: content,
+        plugins: [flowchart]
+      });
+    </script>
+  </body>
+</html>

@@ -9,8 +9,28 @@ import { ToDOMAdaptor } from '@t/convertor';
 import { createTextSelection } from '@/helper/manipulation';
 import { cls, css, removeNode } from '@/utils/dom';
 
-const CODE_FENCE_KINDS = new Set(['mermaid', 'uml', 'chart']);
-const LIVE_PREVIEW_KINDS = new Set(['mermaid', 'uml', 'plantuml']);
+const CODE_FENCE_KINDS = new Set([
+  'mermaid',
+  'uml',
+  'chart',
+  'sequence',
+  'flow',
+  'flowchart',
+  'graphviz',
+  'dot',
+  'abc',
+]);
+const LIVE_PREVIEW_KINDS = new Set([
+  'mermaid',
+  'uml',
+  'plantuml',
+  'sequence',
+  'flow',
+  'flowchart',
+  'graphviz',
+  'dot',
+  'abc',
+]);
 
 interface EventLike {
   emit(event: string, ...args: any[]): void;

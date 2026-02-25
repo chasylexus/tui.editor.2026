@@ -75,6 +75,7 @@ const chart = {
 };
 const chartMap: Record<string, ChartInstance> = {};
 let effectiveDarkMode: boolean | null = null;
+let chartStyleInjected = false;
 
 const DARK_CHART_THEME = {
   chart: { backgroundColor: '#1a1a1a' },
@@ -101,6 +102,34 @@ const DARK_CHART_THEME = {
     body: { color: '#d1d5db' },
   },
 };
+
+function ensureChartStyles() {
+  if (chartStyleInjected || typeof document === 'undefined') {
+    return;
+  }
+
+  const style = document.createElement('style');
+
+  style.setAttribute('data-toastui-chart-plugin', '1');
+  style.textContent = `
+.toastui-chart-block {
+  text-align: center;
+}
+
+.toastui-chart-block > * {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.toastui-chart-block svg,
+.toastui-chart-block canvas {
+  max-width: 100%;
+}
+  `.trim();
+
+  document.head.appendChild(style);
+  chartStyleInjected = true;
+}
 
 type ChartType = keyof typeof chart;
 export type ChartOptions = BaseOptions & { editorChart: { type?: ChartType; url?: string } };
@@ -996,6 +1025,7 @@ function detectDarkMode(instance: any) {
  * @param {number|string} [options.height='auto'] - default height
  */
 export default function chartPlugin(context: PluginContext, options: PluginOptions): PluginInfo {
+  ensureChartStyles();
   const { usageStatistics = true } = context;
   const instance = context.instance as any;
 
@@ -1102,7 +1132,11 @@ export default function chartPlugin(context: PluginContext, options: PluginOptio
             type: 'openTag',
             tagName: 'div',
             outerNewLine: true,
-            attributes: { 'data-chart-id': id, 'data-chart-text': encodedText },
+            attributes: {
+              class: 'toastui-chart-block',
+              'data-chart-id': id,
+              'data-chart-text': encodedText,
+            },
           },
           { type: 'closeTag', tagName: 'div', outerNewLine: true },
         ];

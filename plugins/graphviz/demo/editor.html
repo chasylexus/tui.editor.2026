@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>Graphviz Plugin</title>
+    <link rel="stylesheet" href="http://localhost:8080/dist/cdn/td-editor.css" />
+  </head>
+  <body>
+    <div id="editor"></div>
+    <script src="http://localhost:8080/dist/cdn/td-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-plugin-graphviz.js"></script>
+    <script>
+      const content = [
+        '```graphviz',
+        'digraph G {',
+        '  rankdir=LR;',
+        '  A -> B;',
+        '  B -> C;',
+        '  C -> A;',
+        '}',
+        '```'
+      ].join('\n');
+      const { Editor } = toastui;
+      const { graphviz } = Editor.plugin;
+      new Editor({
+        el: document.querySelector('#editor'),
+        previewStyle: 'vertical',
+        height: '500px',
+        initialValue: content,
+        plugins: [graphviz]
+      });
+    </script>
+  </body>
+</html>

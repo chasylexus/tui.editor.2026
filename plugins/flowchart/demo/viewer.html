@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>Flowchart Viewer</title>
+    <link rel="stylesheet" href="http://localhost:8080/dist/cdn/td-editor.css" />
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <script src="http://localhost:8080/dist/cdn/td-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-plugin-flowchart.js"></script>
+    <script>
+      const content = [
+        '```flow',
+        'st=>start: Start',
+        'op=>operation: Work',
+        'e=>end',
+        'st->op->e',
+        '```'
+      ].join('\n');
+      const { Editor } = toastui;
+      const { flowchart } = Editor.plugin;
+      Editor.factory({
+        el: document.querySelector('#viewer'),
+        viewer: true,
+        initialValue: content,
+        plugins: [flowchart]
+      });
+    </script>
+  </body>
+</html>

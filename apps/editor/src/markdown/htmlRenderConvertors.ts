@@ -152,7 +152,17 @@ const baseConvertors: HTMLConvertorMap = {
   },
 };
 
-const PLUGIN_LANGUAGES = ['mermaid', 'uml', 'chart'];
+const PLUGIN_LANGUAGES = [
+  'mermaid',
+  'uml',
+  'chart',
+  'sequence',
+  'flow',
+  'flowchart',
+  'graphviz',
+  'dot',
+  'abc',
+];
 
 export function getHTMLRenderConvertors(
   linkAttributes: LinkAttributes | null,

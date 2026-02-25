@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <title>Editor</title>
+    <link rel="stylesheet" href="http://localhost:8080/dist/cdn/td-editor.css" />
+  </head>
+  <body>
+    <div class="code-html">
+      <h2>Editor</h2>
+      <div id="editor"></div>
+      <h2>Viewer</h2>
+      <div id="viewer"></div>
+    </div>
+    <script src="http://localhost:8080/dist/cdn/td-editor-all.js"></script>
+    <script src="../dist/cdn/td-editor-plugin-sequence.js"></script>
+    <script class="code-js">
+      const content = [
+        '```sequence',
+        'Alice->Bob: Hello Bob, how are you?',
+        'Note right of Bob: Bob thinks',
+        'Bob-->Alice: I am good thanks!',
+        'Note left of Alice: Alice responds',
+        'Alice->Bob: Where have you been?',
+        '```'
+      ].join('\n');
+
+      const { Editor } = toastui;
+      const { sequence } = Editor.plugin;
+
+      new Editor({
+        el: document.querySelector('#editor'),
+        previewStyle: 'vertical',
+        height: '500px',
+        initialValue: content,
+        plugins: [sequence]
+      });
+
+      Editor.factory({
+        el: document.querySelector('#viewer'),
+        viewer: true,
+        height: '500px',
+        initialValue: content,
+        plugins: [sequence]
+      });
+    </script>
+  </body>
+</html>

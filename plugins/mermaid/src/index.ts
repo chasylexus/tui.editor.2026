@@ -73,6 +73,17 @@ function ensureMermaidStyles() {
   padding: 6px 8px;
 }
 
+.toastui-mermaid {
+  text-align: center;
+}
+
+.toastui-mermaid svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
 .toastui-editor-dark .toastui-mermaid svg {
   background: #111111 !important;
 }

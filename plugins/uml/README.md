@@ -167,7 +167,7 @@ The following option is available in the `uml` plugin.
 
 | Name          | Type     | Default Value                             | Description               |
 | ------------- | -------- | ----------------------------------------- | ------------------------- |
-| `rendererURL` | `string` | `'http://www.plantuml.com/plantuml/png/'` | URL of plant uml renderer |
+| `rendererURL` | `string` | `'https://www.plantuml.com/plantuml/png/'` | URL of plant uml renderer |
 
 ```js
 // ...

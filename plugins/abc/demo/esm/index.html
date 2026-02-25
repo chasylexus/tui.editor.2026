@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>ABC Plugin (ESM)</title>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <script type="module">
+      import { Editor } from 'http://localhost:8080/dist/index.js';
+      import abcPlugin from '/dist/index.js';
+
+      const content = ['```abc', 'X:1', 'T:Scale', 'M:4/4', 'L:1/4', 'K:C', 'C D E F|', '```'].join('\n');
+
+      new Editor({
+        el: document.querySelector('#editor'),
+        previewStyle: 'vertical',
+        height: '500px',
+        initialValue: content,
+        plugins: [abcPlugin]
+      });
+    </script>
+  </body>
+</html>

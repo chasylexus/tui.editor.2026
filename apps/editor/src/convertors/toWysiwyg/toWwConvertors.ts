@@ -81,7 +81,17 @@ const toWwConvertors: ToWwConvertorMap = {
   codeBlock(state, node, customAttrs) {
     const { codeBlock, customBlock, paragraph } = state.schema.nodes;
     const { info, literal } = node as CodeBlockMdNode;
-    const CUSTOM_BLOCK_LANGUAGES = ['mermaid', 'uml', 'chart'];
+    const CUSTOM_BLOCK_LANGUAGES = [
+      'mermaid',
+      'uml',
+      'chart',
+      'sequence',
+      'flow',
+      'flowchart',
+      'graphviz',
+      'dot',
+      'abc',
+    ];
     const baseLang = info
       ? info
           .replace(/[=]\d*$/, '')

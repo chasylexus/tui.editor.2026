@@ -8,8 +8,14 @@ import { PluginOptions } from '../index';
 import type { MdNode, PluginContext, PluginInfo } from '@techie_doubts/tui.editor.2026';
 import type { HTMLToken } from '@techie_doubts/toastmark';
 
-const DEFAULT_RENDERER_URL = '//www.plantuml.com/plantuml/png/';
+const DEFAULT_RENDERER_URL = 'https://www.plantuml.com/plantuml/png/';
 const DARK_PLANTUML_THEME = 'cyborg';
+const PNG_FALLBACK_RENDERER_URL = 'https://www.plantuml.com/plantuml/png/';
+let styleInjected = false;
+
+function normalizeRendererURL(rendererURL: string) {
+  return rendererURL.endsWith('/') ? rendererURL : `${rendererURL}/`;
+}
 
 function applyThemeDirective(text: string, theme: string): string {
   const directive = `!theme ${theme}\n`;
@@ -25,7 +31,7 @@ function applyThemeDirective(text: string, theme: string): string {
 function buildImgSrc(text: string, rendererURL: string, isDark: boolean): string {
   const themed = isDark ? applyThemeDirective(text, DARK_PLANTUML_THEME) : text;
 
-  return `${rendererURL}${plantumlEncoder.encode(themed)}`;
+  return `${normalizeRendererURL(rendererURL)}${plantumlEncoder.encode(themed)}`;
 }
 
 function createUMLTokens(text: string, rendererURL: string, isDark: boolean): HTMLToken[] {
@@ -36,7 +42,11 @@ function createUMLTokens(text: string, rendererURL: string, isDark: boolean): HT
     if (!plantumlEncoder) {
       throw new Error('plantuml-encoder dependency required');
     }
-    renderedHTML = `<img src="${buildImgSrc(text, rendererURL, isDark)}" />`;
+    renderedHTML = `<img src="${buildImgSrc(
+      text,
+      rendererURL,
+      isDark
+    )}" alt="UML diagram" decoding="async" />`;
   } catch (err) {
     renderedHTML = `Error occurred on encoding uml: ${err.message}`;
   }
@@ -79,6 +89,47 @@ function detectDarkFromRoots(previewRoot: HTMLElement | null, wysiwygRoot: HTMLE
   return candidates.some((root) => isDarkEditorRoot(root));
 }
 
+function ensureUmlStyles() {
+  if (styleInjected || typeof document === 'undefined') {
+    return;
+  }
+
+  const style = document.createElement('style');
+
+  style.setAttribute('data-toastui-uml-plugin', '1');
+  style.textContent = `
+[data-plantuml-source] {
+  text-align: center;
+}
+
+[data-plantuml-source] > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+  `.trim();
+
+  document.head.appendChild(style);
+  styleInjected = true;
+}
+
+function bindUmlImgFallback(img: HTMLImageElement, source: string) {
+  if (img.dataset.umlFallbackBound === '1') {
+    return;
+  }
+
+  img.dataset.umlFallbackBound = '1';
+
+  img.addEventListener('error', () => {
+    const fallback = buildImgSrc(source, PNG_FALLBACK_RENDERER_URL, false);
+
+    if (img.src !== fallback) {
+      img.src = fallback;
+    }
+  });
+}
+
 function updateUmlImagesIn(root: HTMLElement | null, rendererURL: string, isDark: boolean) {
   if (!root) return;
   const containers = root.querySelectorAll<HTMLElement>('[data-plantuml-source]');
@@ -101,6 +152,7 @@ function updateUmlImagesIn(root: HTMLElement | null, rendererURL: string, isDark
     if (!img) return;
 
     try {
+      bindUmlImgFallback(img, text);
       img.src = buildImgSrc(text, rendererURL, isDark);
     } catch (e) {
       // encoding error — leave the current image
@@ -115,6 +167,7 @@ function updateUmlImagesIn(root: HTMLElement | null, rendererURL: string, isDark
  * @param {string} [options.rendererURL] - url of plant uml renderer
  */
 export default function umlPlugin(context: PluginContext, options: PluginOptions = {}): PluginInfo {
+  ensureUmlStyles();
   const { rendererURL = DEFAULT_RENDERER_URL } = options;
   const instance = context.instance as any;
 

@@ -41,6 +41,47 @@ Alice -> Bob: Hello
 Bob --> Alice: Hi
 \`\`\`
 
+## Sequence (HedgeDoc-style)
+\`\`\`sequence
+Alice->Bob: Hello Bob, how are you?
+Note right of Bob: Bob thinks
+Bob-->Alice: I am good thanks!
+Note left of Alice: Alice responds
+Alice->Bob: Where have you been?
+\`\`\`
+
+## Flowchart (HedgeDoc-style)
+\`\`\`flow
+st=>start: Start
+op=>operation: Work
+cond=>condition: Done?
+e=>end: End
+
+st->op->cond
+cond(yes)->e
+cond(no)->op
+\`\`\`
+
+## Graphviz (HedgeDoc-style)
+\`\`\`graphviz
+digraph G {
+  rankdir=LR;
+  A -> B;
+  B -> C;
+  C -> A;
+}
+\`\`\`
+
+## ABC Music Notation (HedgeDoc-style)
+\`\`\`abc
+X:1
+T:Simple Scale
+M:4/4
+L:1/4
+K:C
+C D E F | G A B c |
+\`\`\`
+
 ## LaTeX (block)
 $$
 
