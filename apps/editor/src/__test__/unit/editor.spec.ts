@@ -276,6 +276,20 @@ describe('editor', () => {
         expect(getPreviewHTML()).toBe('<h1>heading</h1><p>CRLF</p>');
       });
 
+      it('should render images with no-referrer policy in markdown and wysiwyg', () => {
+        editor.setMarkdown('![imgur](https://i.imgur.com/9cgQVqD.png)');
+
+        const previewImg = mdPreview.querySelector('img') as HTMLImageElement;
+
+        expect(previewImg.getAttribute('referrerpolicy')).toBe('no-referrer');
+
+        editor.changeMode('wysiwyg');
+
+        const wwImg = wwEditor.querySelector('img') as HTMLImageElement;
+
+        expect(wwImg.getAttribute('referrerpolicy')).toBe('no-referrer');
+      });
+
       it('should keep ```! as wrapped code block when changing to wysiwyg', () => {
         const markdown = source`
           \`\`\`!

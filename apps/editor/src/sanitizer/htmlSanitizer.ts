@@ -16,7 +16,7 @@ export function sanitizeHTML<T extends string | HTMLElement | DocumentFragment =
 ) {
   return DOMPurify.sanitize(html, {
     ADD_TAGS: whiteTagList,
-    ADD_ATTR: ['rel', 'target', 'hreflang', 'type'],
+    ADD_ATTR: ['rel', 'target', 'hreflang', 'type', 'referrerpolicy'],
     FORBID_TAGS: [
       'input',
       'script',

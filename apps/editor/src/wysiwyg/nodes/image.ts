@@ -48,6 +48,7 @@ export class Image extends NodeSchema {
             src: escapeXml(attrs.imageUrl),
             ...(attrs.altText && { alt: attrs.altText }),
             ...getCustomAttrs(attrs),
+            referrerpolicy: 'no-referrer',
           },
         ];
       },

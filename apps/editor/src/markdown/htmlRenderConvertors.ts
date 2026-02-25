@@ -86,6 +86,19 @@ const baseConvertors: HTMLConvertorMap = {
     ];
   },
 
+  image(_, { origin }: Context) {
+    const result = origin!() as OpenTagToken | null;
+
+    if (result && result.type === 'openTag') {
+      result.attributes = {
+        ...(result.attributes || {}),
+        referrerpolicy: 'no-referrer',
+      };
+    }
+
+    return result;
+  },
+
   codeBlock(node: MdNode) {
     const { fenceLength, info } = node as CodeBlockMdNode;
     const parsedInfo = parseCodeBlockInfo(info);
