@@ -10,6 +10,7 @@ import {
   removeProseMirrorHackNodes,
   toggleClass,
 } from '@/utils/dom';
+import { findFragmentTarget } from '@/utils/link';
 import { getHTMLRenderConvertors } from '@/markdown/htmlRenderConvertors';
 import { isInlineNode, findClosestNode, getMdStartCh } from '@/utils/markdown';
 import { findAdjacentElementToScrollTop } from './scroll/dom';
@@ -69,6 +70,8 @@ class MarkdownPreview {
 
   private scrollHandler: ((event: Event) => void) | null = null;
 
+  private fragmentClickHandler: ((event: MouseEvent) => void) | null = null;
+
   constructor(eventEmitter: Emitter, options: Options) {
     const el = document.createElement('div');
 
@@ -106,6 +109,10 @@ class MarkdownPreview {
     if (!this.isViewer) {
       this.el!.appendChild(this.previewContent);
     }
+
+    if (this.fragmentClickHandler) {
+      this.previewContent.addEventListener('click', this.fragmentClickHandler);
+    }
   }
 
   private toggleActive(active: boolean) {
@@ -114,6 +121,24 @@ class MarkdownPreview {
 
   private initEvent(highlight: boolean) {
     this.eventEmitter.listen('updatePreview', this.update.bind(this));
+    this.fragmentClickHandler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const anchor = target.closest('a[href^="#"]') as HTMLAnchorElement | null;
+
+      if (!anchor) {
+        return;
+      }
+
+      const href = anchor.getAttribute('href') || '';
+      const fragmentTarget = findFragmentTarget(this.previewContent, href);
+
+      if (!fragmentTarget) {
+        return;
+      }
+
+      event.preventDefault();
+      fragmentTarget.scrollIntoView({ block: 'start' });
+    };
 
     if (this.isViewer) {
       return;
@@ -242,6 +267,9 @@ class MarkdownPreview {
   destroy() {
     if (this.scrollHandler) {
       this.el!.removeEventListener('scroll', this.scrollHandler);
+    }
+    if (this.fragmentClickHandler) {
+      this.previewContent.removeEventListener('click', this.fragmentClickHandler);
     }
     this.el = null;
   }

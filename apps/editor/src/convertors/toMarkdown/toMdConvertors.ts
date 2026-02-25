@@ -298,6 +298,22 @@ export const toMdConvertors: ToMdConvertorMap = {
     const { title, rawHTML, anchorId } = attrs;
     const linkUrl = attrs.linkUrl.replace(/&amp;/g, '&');
     const titleAttr = title ? ` title="${escapeXml(title)}"` : '';
+    const tagName = rawHTML || 'a';
+    const anchorAttr = anchorId ? ` id="${escapeXml(anchorId)}"` : '';
+
+    if (anchorId && linkUrl) {
+      if (entering) {
+        return {
+          delim: '',
+          rawHTML: `<${tagName}${anchorAttr} href="${escapeXml(linkUrl)}"${titleAttr}>`,
+        };
+      }
+
+      return {
+        delim: '',
+        rawHTML: `</${tagName}>`,
+      };
+    }
 
     if (anchorId) {
       if (entering) {
@@ -316,7 +332,9 @@ export const toMdConvertors: ToMdConvertorMap = {
     if (entering) {
       return {
         delim: '[',
-        rawHTML: rawHTML ? `<${rawHTML} href="${escapeXml(linkUrl)}"${titleAttr}>` : null,
+        rawHTML: rawHTML
+          ? `<${rawHTML}${anchorAttr} href="${escapeXml(linkUrl)}"${titleAttr}>`
+          : null,
       };
     }
 

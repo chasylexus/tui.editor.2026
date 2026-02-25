@@ -138,8 +138,11 @@ export default class MdEditor extends EditorBase {
     // process the pasted data in input event for IE11
     this.clipboard.addEventListener('input', (ev) => {
       const text = (ev.target as HTMLTextAreaElement).value;
+      const { doc, selection } = this.view.state;
+      const { from, to } = selection;
+      const [start, end] = getEditorToMdPos(doc, from, to);
 
-      this.replaceSelection(text, undefined, undefined, false);
+      this.replaceSelection(text, start, end, false);
       ev.preventDefault();
       (ev.target as HTMLTextAreaElement).value = '';
     });

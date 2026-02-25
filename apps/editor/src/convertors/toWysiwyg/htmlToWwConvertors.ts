@@ -190,8 +190,11 @@ const convertors: HTMLToWwConvertorMap = {
         rawHTML: openTagName,
       } as Record<string, string>;
 
-      if (anchorId && !linkUrl) {
+      if (anchorId) {
         attrs.anchorId = anchorId;
+      }
+
+      if (anchorId && !linkUrl) {
         attrs.linkUrl = '';
       }
 

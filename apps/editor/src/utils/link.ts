@@ -12,6 +12,75 @@ export function normalizeFragmentHref(href: string) {
   return `#${normalizeFragmentId(fragment)}`;
 }
 
+type FragmentRoot = Document | Element;
+
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch (e) {
+    return value;
+  }
+}
+
+function escapeCssSelector(value: string) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value);
+  }
+
+  return value.replace(/["\\]/g, '\\$&');
+}
+
+function getDocument(root: FragmentRoot) {
+  return root instanceof Document ? root : root.ownerDocument || document;
+}
+
+function includesNode(root: FragmentRoot, node: Node | null) {
+  if (!node) {
+    return false;
+  }
+
+  if (root instanceof Document) {
+    return root.contains(node);
+  }
+
+  return root.contains(node);
+}
+
+export function findFragmentTarget(root: FragmentRoot, href: string) {
+  const normalizedHref = normalizeFragmentHref(href || '');
+
+  if (!normalizedHref || normalizedHref[0] !== '#') {
+    return null;
+  }
+
+  const raw = normalizedHref.slice(1);
+  const decoded = safeDecodeURIComponent(raw);
+  const candidates = [raw, decoded, normalizeFragmentId(raw), normalizeFragmentId(decoded)]
+    .filter(Boolean)
+    .filter((value, idx, arr) => arr.indexOf(value) === idx);
+  const doc = getDocument(root);
+
+  for (const id of candidates) {
+    const byId = doc.getElementById(id);
+
+    if (includesNode(root, byId)) {
+      return byId as HTMLElement;
+    }
+
+    try {
+      const byQuery = root.querySelector<HTMLElement>(`[id="${escapeCssSelector(id)}"]`);
+
+      if (byQuery) {
+        return byQuery;
+      }
+    } catch (e) {
+      // ignore invalid selector characters and continue with next candidate
+    }
+  }
+
+  return null;
+}
+
 function toAnchorCandidate(text: string) {
   return normalizeFragmentId(text)
     .replace(/["'`<>]/g, '')

@@ -66,26 +66,24 @@ export class Link extends Mark {
       ],
       toDOM: ({ attrs }: ProsemirrorMark): DOMOutputSpec => {
         const customAttrs = getCustomAttrs(attrs);
+        const domAttrs: Record<string, any> = {
+          ...this.linkAttributes,
+          ...customAttrs,
+        };
 
         if (attrs.anchorId) {
-          return [
-            attrs.rawHTML || 'a',
-            {
-              id: escapeXml(attrs.anchorId),
-              ...this.linkAttributes,
-              ...customAttrs,
-            },
-          ];
+          domAttrs.id = escapeXml(attrs.anchorId);
         }
 
-        return [
-          attrs.rawHTML || 'a',
-          {
-            href: escapeXml(attrs.linkUrl),
-            ...this.linkAttributes,
-            ...customAttrs,
-          },
-        ];
+        if (attrs.linkUrl) {
+          domAttrs.href = escapeXml(attrs.linkUrl);
+        }
+
+        if (attrs.title) {
+          domAttrs.title = escapeXml(attrs.title);
+        }
+
+        return [attrs.rawHTML || 'a', domAttrs];
       },
     };
   }

@@ -37,6 +37,7 @@ import { getHTMLRenderConvertors } from './markdown/htmlRenderConvertors';
 import { buildQuery } from './queries/queryManager';
 import { getEditorToMdPos, getMdToEditorPos } from './markdown/helper/pos';
 import SnapshotHistory, { Snapshot, SnapshotSelection } from './history/snapshotHistory';
+import { hasFootnoteSyntax, transformMarkdownFootnotes } from './utils/footnote';
 
 interface LineRange {
   startLine: number;
@@ -154,6 +155,8 @@ class ToastUIEditorCore {
   private pendingWwInvalidMapping = false;
 
   private readonly toastMarkOptions: Record<string, unknown>;
+
+  private readonly previewSanitizer: (html: string) => string;
 
   private wwBaselineDoc: ProsemirrorNode | null = null;
 
@@ -339,6 +342,8 @@ class ToastUIEditorCore {
       frontMatter,
       sanitizer: customHTMLSanitizer || sanitizeHTML,
     };
+
+    this.previewSanitizer = rendererOptions.sanitizer;
     const wwToDOMAdaptor = new WwToDOMAdaptor(linkAttributes, rendererOptions.customHTMLRenderer);
     const htmlSchemaMap = createHTMLSchemaMap(
       rendererOptions.customHTMLRenderer,
@@ -399,6 +404,7 @@ class ToastUIEditorCore {
     this.eventEmitter.listen('pasteMarkdownInWysiwyg', (markdownText: string) =>
       this.pasteMarkdownInWysiwyg(markdownText)
     );
+    this.eventEmitter.listen('updatePreview', () => this.renderFootnotePreviewIfNeeded());
     this.eventEmitter.listen('change', (editorType: EditorType) => {
       if (editorType === 'markdown') {
         const nextMd = this.mdEditor.getMarkdown();
@@ -646,7 +652,8 @@ class ToastUIEditorCore {
     this.mdEditor.setMarkdown(markdown, cursorToEnd, addToHistory, programmatic);
 
     if (this.isWysiwygMode()) {
-      const mdNode = this.toastMark.getRootNode();
+      const sourceMarkdown = this.mdEditor.getMarkdown();
+      const mdNode = this.createToastMark(this.toRenderableMarkdown(sourceMarkdown)).getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
       this.wwEditor.setModel(wwNode!, cursorToEnd, addToHistory, programmatic);
@@ -875,18 +882,56 @@ class ToastUIEditorCore {
     return new ToastMark(markdown, this.toastMarkOptions);
   }
 
+  private toRenderableMarkdown(markdown: string) {
+    return transformMarkdownFootnotes(markdown).markdown;
+  }
+
+  private renderFullPreview(markdown: string) {
+    const rootNode = this.createToastMark(markdown).getRootNode();
+    const renderer = this.preview.getRenderer();
+    const rendered: string[] = [];
+    let node = rootNode.firstChild as MdNode | null;
+
+    while (node) {
+      rendered.push(renderer.render(node));
+      node = node.next as MdNode | null;
+    }
+
+    const html = this.eventEmitter.emitReduce(
+      'beforePreviewRender',
+      this.previewSanitizer(rendered.join(''))
+    );
+
+    this.preview.setHTML(html);
+    this.eventEmitter.emit('afterPreviewRender', this.preview);
+  }
+
+  private renderFootnotePreviewIfNeeded() {
+    const sourceMarkdown = this.mdEditor.getMarkdown();
+    const transformed = transformMarkdownFootnotes(sourceMarkdown);
+
+    if (!transformed.hasFootnotes) {
+      return;
+    }
+
+    this.renderFullPreview(transformed.markdown);
+  }
+
   private pasteMarkdownInWysiwyg(markdownText: string) {
     if (!this.isWysiwygMode()) {
       return false;
     }
 
     const normalized = markdownText.replace(/\r\n/g, '\n');
+    const markdownForPaste = hasFootnoteSyntax(normalized)
+      ? this.toRenderableMarkdown(normalized)
+      : normalized;
 
     if (!normalized.trim()) {
       return false;
     }
 
-    const mdNode = this.createToastMark(normalized).getRootNode();
+    const mdNode = this.createToastMark(markdownForPaste).getRootNode();
     const wwNode = this.convertor.toWysiwygModel(mdNode);
 
     if (!wwNode || wwNode.content.size === 0) {
@@ -902,7 +947,7 @@ class ToastUIEditorCore {
   }
 
   private addWwEditRange(range: WwEditRange) {
-    if (range.hasMissingId) {
+    if (range.hasMissingId || hasFootnoteSyntax(this.canonicalMd)) {
       this.pendingWwInvalidMapping = true;
     }
     range.mdBlockIds.forEach((id) => this.pendingMdBlockIds.add(id));
@@ -1361,7 +1406,10 @@ class ToastUIEditorCore {
   getHTML() {
     this.eventEmitter.holdEventInvoke(() => {
       if (this.isMarkdownMode()) {
-        const mdNode = this.toastMark.getRootNode();
+        const sourceMarkdown = this.mdEditor.getMarkdown();
+        const mdNode = this.createToastMark(
+          this.toRenderableMarkdown(sourceMarkdown)
+        ).getRootNode();
         const wwNode = this.convertor.toWysiwygModel(mdNode);
 
         this.wwEditor.setModel(wwNode!, false, false, true);
@@ -1610,7 +1658,8 @@ class ToastUIEditorCore {
 
     if (this.isWysiwygMode()) {
       this.logSnapshotState('before-md-to-ww');
-      const mdNode = this.toastMark.getRootNode();
+      const sourceMarkdown = this.mdEditor.getMarkdown();
+      const mdNode = this.createToastMark(this.toRenderableMarkdown(sourceMarkdown)).getRootNode();
       const wwNode = this.convertor.toWysiwygModel(mdNode);
 
       this.logWwDirty(false, 'mode-switch-md-to-ww');

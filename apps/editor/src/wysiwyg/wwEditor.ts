@@ -31,6 +31,7 @@ import { widgetNodeView } from '@/widget/widgetNode';
 import { cls, removeProseMirrorHackNodes } from '@/utils/dom';
 import { includes } from '@/utils/common';
 import { isInTableNode } from '@/wysiwyg/helper/node';
+import { findFragmentTarget } from '@/utils/link';
 
 interface WindowWithClipboard extends Window {
   clipboardData?: DataTransfer | null;
@@ -396,6 +397,26 @@ export default class WysiwygEditor extends EditorBase {
         return false;
       },
       handleDOMEvents: {
+        click: (_, ev: MouseEvent) => {
+          const target = ev.target as HTMLElement;
+          const anchor = target.closest('a[href^="#"]') as HTMLAnchorElement | null;
+
+          if (!anchor) {
+            return false;
+          }
+
+          const href = anchor.getAttribute('href') || '';
+          const fragmentTarget = findFragmentTarget(this.view.dom, href);
+
+          if (!fragmentTarget) {
+            return false;
+          }
+
+          ev.preventDefault();
+          fragmentTarget.scrollIntoView({ block: 'start' });
+
+          return true;
+        },
         paste: (_, ev) => {
           const clipboardData =
             (ev as ClipboardEvent).clipboardData || (window as WindowWithClipboard).clipboardData;
