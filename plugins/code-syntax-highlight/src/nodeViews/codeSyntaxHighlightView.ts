@@ -17,6 +17,27 @@ const LANG_LABEL_CLASS = 'toastui-editor-code-block-lang-label';
 const LINE_NUM_BADGE_CLASS = 'toastui-editor-line-number-badge';
 const LINE_NUM_INPUT_CLASS = 'toastui-editor-line-number-input';
 const COPY_BTN_CLASS = 'toastui-editor-code-block-copy';
+let lineNumberListCounter = 0;
+
+function getNextLineNumberListId() {
+  const id = `toastui-editor-line-number-options-${lineNumberListCounter}`;
+
+  lineNumberListCounter += 1;
+
+  return id;
+}
+
+function getLineNumberInputValue(lineNumber: number | null, lineWrap: boolean) {
+  if (lineWrap) {
+    return 'wrap';
+  }
+
+  if (lineNumber !== null) {
+    return String(lineNumber);
+  }
+
+  return 'off';
+}
 
 function getCustomAttrs(attrs: Record<string, any>) {
   const { htmlAttrs, classNames } = attrs;
@@ -43,6 +64,8 @@ class CodeSyntaxHighlightView implements NodeView {
 
   private lineNumberInput: HTMLInputElement | null = null;
 
+  private lineNumberListId = getNextLineNumberListId();
+
   private copyBtn: HTMLButtonElement | null = null;
 
   // eslint-disable-next-line max-params
@@ -65,10 +88,14 @@ class CodeSyntaxHighlightView implements NodeView {
   }
 
   private createElement() {
-    const { language, lineNumber } = this.node.attrs;
+    const { language, lineNumber, lineWrap } = this.node.attrs;
     const wrapper = document.createElement('div');
 
-    wrapper.setAttribute('data-language', language || 'text');
+    wrapper.setAttribute('data-language', lineWrap ? '!' : language || 'text');
+    if (lineWrap) {
+      wrapper.setAttribute('data-line-wrap', 'true');
+      wrapper.classList.add('line-wrap');
+    }
     wrapper.classList.add(cls(WRAPPER_CLASS_NAME));
     wrapper.classList.add('has-toolbar');
 
@@ -103,7 +130,7 @@ class CodeSyntaxHighlightView implements NodeView {
 
     this.languageBadge = document.createElement('div');
     this.languageBadge.className = LANG_LABEL_CLASS;
-    this.languageBadge.textContent = language || 'text';
+    this.languageBadge.textContent = lineWrap ? '!' : language || 'text';
     this.toolbar.appendChild(this.languageBadge);
 
     wrapper.appendChild(this.toolbar);
@@ -115,11 +142,15 @@ class CodeSyntaxHighlightView implements NodeView {
   private createCodeBlockElement() {
     const pre = document.createElement('pre');
     const code = document.createElement('code');
-    const { language } = this.node.attrs;
+    const { language, lineWrap } = this.node.attrs;
     const attrs = getCustomAttrs(this.node.attrs);
 
     if (language) {
       code.setAttribute('data-language', language);
+    }
+    if (lineWrap) {
+      pre.classList.add('line-wrap');
+      code.setAttribute('data-line-wrap', 'true');
     }
 
     Object.keys(attrs).forEach((attrName) => {
@@ -194,13 +225,20 @@ class CodeSyntaxHighlightView implements NodeView {
     badge.appendChild(label);
 
     const input = document.createElement('input');
-    const { lineNumber } = this.node.attrs;
+    const { lineNumber, lineWrap } = this.node.attrs;
 
     input.type = 'text';
     input.className = LINE_NUM_INPUT_CLASS;
-    input.value = lineNumber !== null ? String(lineNumber) : 'off';
+    input.value = getLineNumberInputValue(lineNumber, lineWrap);
     input.placeholder = 'off';
+    input.setAttribute('list', this.lineNumberListId);
     badge.appendChild(input);
+
+    const datalist = document.createElement('datalist');
+
+    datalist.id = this.lineNumberListId;
+    datalist.innerHTML = '<option value="off"></option><option value="wrap"></option>';
+    badge.appendChild(datalist);
 
     this.lineNumberInput = input;
 
@@ -253,13 +291,28 @@ class CodeSyntaxHighlightView implements NodeView {
       return;
     }
 
-    const raw = this.lineNumberInput.value.trim();
+    const raw = this.lineNumberInput.value.trim().toLowerCase();
     const parsed = parseInt(raw, 10);
-    const newLineNumber = Number.isNaN(parsed) || parsed < 0 ? null : parsed;
-    const current = this.node.attrs.lineNumber;
+    const { lineNumber: currentLineNumber, lineWrap: currentLineWrap } = this.node.attrs;
+    let nextLineWrap = currentLineWrap;
+    let nextLineNumber: number | null = currentLineNumber;
 
-    if (newLineNumber === current) {
-      this.lineNumberInput.value = current !== null ? String(current) : 'off';
+    if (raw === 'wrap' || raw === '!') {
+      nextLineWrap = true;
+      nextLineNumber = null;
+    } else if (raw === 'off' || raw === '-' || raw === '') {
+      nextLineWrap = false;
+      nextLineNumber = null;
+    } else if (!Number.isNaN(parsed) && parsed >= 0) {
+      nextLineWrap = false;
+      nextLineNumber = parsed;
+    } else {
+      this.lineNumberInput.value = getLineNumberInputValue(currentLineNumber, currentLineWrap);
+      return;
+    }
+
+    if (nextLineNumber === currentLineNumber && nextLineWrap === currentLineWrap) {
+      this.lineNumberInput.value = getLineNumberInputValue(currentLineNumber, currentLineWrap);
 
       return;
     }
@@ -267,7 +320,11 @@ class CodeSyntaxHighlightView implements NodeView {
     const pos = this.getPos();
     const { tr } = this.view.state;
 
-    tr.setNodeMarkup(pos, null, { ...this.node.attrs, lineNumber: newLineNumber });
+    tr.setNodeMarkup(pos, null, {
+      ...this.node.attrs,
+      lineWrap: nextLineWrap,
+      lineNumber: nextLineNumber,
+    });
     this.view.dispatch(tr);
   };
 
@@ -276,9 +333,9 @@ class CodeSyntaxHighlightView implements NodeView {
       e.preventDefault();
       this.commitLineNumber();
     } else if (e.key === 'Escape' && this.lineNumberInput) {
-      const { lineNumber } = this.node.attrs;
+      const { lineNumber, lineWrap } = this.node.attrs;
 
-      this.lineNumberInput.value = lineNumber !== null ? String(lineNumber) : 'off';
+      this.lineNumberInput.value = getLineNumberInputValue(lineNumber, lineWrap);
       this.lineNumberInput.blur();
     }
   };
@@ -369,7 +426,11 @@ class CodeSyntaxHighlightView implements NodeView {
       this.eventEmitter,
       this.languages
     );
-    this.eventEmitter.emit('showCodeBlockLanguages', pos, this.node.attrs.language);
+    this.eventEmitter.emit(
+      'showCodeBlockLanguages',
+      pos,
+      this.node.attrs.lineWrap ? '!' : this.node.attrs.language || ''
+    );
     this.languageEditing = true;
   }
 
@@ -377,10 +438,27 @@ class CodeSyntaxHighlightView implements NodeView {
     if (typeof this.getPos === 'function') {
       this.reset();
 
+      const rawLanguage = language.trim();
+      const isLineWrap = rawLanguage === '!';
+      const nextLanguage = isLineWrap ? null : rawLanguage || null;
+      const { lineWrap: currentLineWrap, lineNumber: currentLineNumber } = this.node.attrs;
+      let nextLineWrap = currentLineWrap;
+
+      if (isLineWrap) {
+        nextLineWrap = true;
+      } else if (rawLanguage) {
+        nextLineWrap = false;
+      }
+      const nextLineNumber = nextLineWrap ? null : currentLineNumber;
       const pos = this.getPos();
       const { tr } = this.view.state;
 
-      tr.setNodeMarkup(pos, null, { ...this.node.attrs, language });
+      tr.setNodeMarkup(pos, null, {
+        ...this.node.attrs,
+        language: nextLanguage,
+        lineWrap: nextLineWrap,
+        lineNumber: nextLineNumber,
+      });
       this.view.dispatch(tr);
     }
   }

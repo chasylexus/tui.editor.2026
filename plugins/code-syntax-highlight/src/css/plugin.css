@@ -26,6 +26,17 @@ pre[class*="language-"] {
   white-space: pre;
 }
 
+.toastui-editor-ww-code-block-highlighting.line-wrap pre {
+  overflow-x: visible;
+}
+
+.toastui-editor-ww-code-block-highlighting.line-wrap pre code,
+.toastui-editor-contents pre.line-wrap code {
+  white-space: pre-wrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 /* Legacy ::after badge (hidden when toolbar is present) */
 .toastui-editor-ww-code-block-highlighting:after {
   content: attr(data-language);

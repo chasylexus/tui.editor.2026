@@ -92,6 +92,54 @@ describe('Convertor', () => {
       assertConverting(markdown, markdown);
     });
 
+    it('codeBlock line number continuation with =+', () => {
+      const markdown = source`
+        \`\`\`javascript=10
+        one
+        two
+        \`\`\`
+
+        \`\`\`javascript=+
+        three
+        four
+        \`\`\`
+      `;
+      const mdNode = parser.parse(markdown);
+      const wwNode = convertor.toWysiwygModel(mdNode)!;
+      const codeBlocks: Node[] = [];
+
+      wwNode.descendants((node: Node) => {
+        if (node.type.name === 'codeBlock') {
+          codeBlocks.push(node);
+        }
+
+        return true;
+      });
+
+      expect(codeBlocks).toHaveLength(2);
+      expect(codeBlocks[0].attrs.lineNumber).toBe(10);
+      expect(codeBlocks[1].attrs.lineNumber).toBe(12);
+    });
+
+    it('codeBlock ! should be converted to wrapped monospace block without line numbers', () => {
+      const markdown = source`
+        \`\`\`!
+        plain line 1
+        plain line 2
+        \`\`\`
+      `;
+      const mdNode = parser.parse(markdown);
+      const wwNode = convertor.toWysiwygModel(mdNode)!;
+      const codeBlock = wwNode.firstChild!;
+      const result = convertor.toMarkdownText(wwNode);
+
+      expect(codeBlock.type.name).toBe('codeBlock');
+      expect(codeBlock.attrs.lineWrap).toBe(true);
+      expect(codeBlock.attrs.lineNumber).toBeNull();
+      expect(codeBlock.attrs.language).toBeNull();
+      expect(result).toContain('```!');
+    });
+
     it('bullet list', () => {
       const markdown = source`
         * foo

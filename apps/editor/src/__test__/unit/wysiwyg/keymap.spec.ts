@@ -956,6 +956,43 @@ describe('keymap', () => {
       expect(bulletList!.attrs.bulletChar).toBe('*');
     });
 
+    it('should preserve typed start number for ordered list', () => {
+      setContent('<p>26.</p>');
+      wwe.setSelection(4, 4);
+
+      const changed = forceKeymapFn('paragraph', 'makeOrderedListByNumber');
+      const orderedList = wwe.view.state.doc.firstChild;
+
+      expect(changed).toBe(true);
+      expect(orderedList!.type.name).toBe('orderedList');
+      expect(orderedList!.attrs.order).toBe(26);
+    });
+
+    it('should allow ordered list starting from 0', () => {
+      setContent('<p>0.</p>');
+      wwe.setSelection(3, 3);
+
+      const changed = forceKeymapFn('paragraph', 'makeOrderedListByNumber');
+      const orderedList = wwe.view.state.doc.firstChild;
+
+      expect(changed).toBe(true);
+      expect(orderedList!.type.name).toBe('orderedList');
+      expect(orderedList!.attrs.order).toBe(0);
+    });
+
+    it('should convert # marker to heading by space keymap', () => {
+      setContent('<p>###</p>');
+      wwe.setSelection(4, 4);
+
+      const changed = forceKeymapFn('paragraph', 'makeHeadingByMarker');
+      const heading = wwe.view.state.doc.firstChild;
+
+      expect(changed).toBe(true);
+      expect(heading!.type.name).toBe('heading');
+      expect(heading!.attrs.level).toBe(3);
+      expect(heading!.attrs.headingType).toBe('atx');
+    });
+
     it('should insert paired backticks and place cursor between them', () => {
       setContent('<p><br></p>');
       wwe.setSelection(1, 1);

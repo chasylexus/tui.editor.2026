@@ -131,4 +131,45 @@ describe('codeSyntaxHighlightPlugin', () => {
 
     expect(previewHTML).toMatchSnapshot();
   });
+
+  it('should continue line numbers with =+ from previous code block', () => {
+    const markdown = source`
+      \`\`\`yaml=10
+      one: 1
+      two: 2
+      \`\`\`
+
+      \`\`\`yaml=+
+      three: 3
+      four: 4
+      \`\`\`
+    `;
+
+    editor.setMarkdown(markdown);
+
+    const preBlocks = Array.from(mdPreview.querySelectorAll('pre.line-numbers'));
+    const lineNumbers = preBlocks.map((el) => el.getAttribute('data-line-numbers'));
+
+    expect(preBlocks).toHaveLength(2);
+    expect(lineNumbers[0]).toBe('10\n11');
+    expect(lineNumbers[1]).toBe('12\n13');
+  });
+
+  it('should render ```! as wrapped monospace block without line numbers', () => {
+    const markdown = source`
+      \`\`\`!
+      plain line 1
+      plain line 2
+      \`\`\`
+    `;
+
+    editor.setMarkdown(markdown);
+
+    const pre = mdPreview.querySelector('pre') as HTMLElement;
+    const code = pre.querySelector('code') as HTMLElement;
+
+    expect(pre.classList.contains('line-wrap')).toBe(true);
+    expect(pre.classList.contains('line-numbers')).toBe(false);
+    expect(code.getAttribute('data-language')).toBeNull();
+  });
 });

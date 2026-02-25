@@ -15,6 +15,11 @@ import { getWidgetContent, widgetToDOM } from '@/widget/rules';
 import { getChildrenHTML, getHTMLAttrsByHTMLString } from '@/wysiwyg/nodes/html';
 import { includes } from '@/utils/common';
 import { reHTMLTag } from '@/utils/constants';
+import {
+  parseCodeBlockInfo,
+  resolveCodeBlockLineNumber,
+  getCodeBlockLineCount,
+} from '@/convertors/codeBlockInfo';
 
 type TokenAttrs = Record<string, any>;
 
@@ -83,24 +88,25 @@ const baseConvertors: HTMLConvertorMap = {
 
   codeBlock(node: MdNode) {
     const { fenceLength, info } = node as CodeBlockMdNode;
-    const infoWords = info ? info.split(/\s+/) : [];
+    const parsedInfo = parseCodeBlockInfo(info);
     const preClasses = [];
     const codeAttrs: TokenAttrs = {};
     const preAttrs: TokenAttrs = {};
-    let lineNumber: number | null = null;
+    let lineNumber: number | null = resolveCodeBlockLineNumber(node as CodeBlockMdNode, parsedInfo);
 
     if (fenceLength > 3) {
       codeAttrs['data-backticks'] = fenceLength;
     }
-    if (infoWords.length > 0 && infoWords[0].length > 0) {
-      const [raw] = infoWords;
-      const lineNumMatch = raw.match(/^(.+?)=(\d*)$/);
-      let lang = raw;
 
-      if (lineNumMatch) {
-        lang = lineNumMatch[1];
-        lineNumber = lineNumMatch[2] ? Number(lineNumMatch[2]) : 1;
-      }
+    if (parsedInfo.lineWrap) {
+      preClasses.push('line-wrap');
+      preAttrs['data-line-wrap'] = 'true';
+      codeAttrs['data-line-wrap'] = 'true';
+      lineNumber = null;
+    }
+
+    if (parsedInfo.language) {
+      const lang = parsedInfo.language;
 
       preClasses.push(`lang-${lang}`);
       codeAttrs['data-language'] = lang;
@@ -108,7 +114,7 @@ const baseConvertors: HTMLConvertorMap = {
 
     if (lineNumber !== null) {
       preClasses.push('line-numbers');
-      const lineCount = (node.literal || '').replace(/\n$/, '').split('\n').length;
+      const lineCount = getCodeBlockLineCount(node.literal);
       const nums: string[] = [];
 
       for (let i = 0; i < lineCount; i += 1) {
@@ -232,12 +238,7 @@ export function getHTMLRenderConvertors(
 
     convertors.codeBlock = (node: MdNode, context: Context) => {
       const { info } = node as CodeBlockMdNode;
-      const lang = info
-        ? info
-            .split(/\s+/)[0]
-            .replace(/[=]\d*$/, '')
-            .toLowerCase()
-        : '';
+      const lang = parseCodeBlockInfo(info).normalizedLanguage;
 
       if (PLUGIN_LANGUAGES.includes(lang) && typeof customConvertors[lang] === 'function') {
         return (customConvertors[lang] as HTMLConvertor)(node, context);

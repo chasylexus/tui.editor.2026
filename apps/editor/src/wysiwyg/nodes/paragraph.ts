@@ -11,6 +11,7 @@ const BULLET_LIST_MARKERS = new Set(['-', '+', '*']);
 const BACKTICK = '`';
 const EMPTY_INLINE_CODE_MARKER = '``';
 const ORDERED_LIST_RE = /^(\d+)\.$/;
+const HEADING_RE = /^(#{1,6})$/;
 
 export class Paragraph extends NodeSchema {
   get name() {
@@ -119,6 +120,7 @@ export class Paragraph extends NodeSchema {
 
       const text = $from.parent.textBetween(0, $from.parent.content.size, '', '');
       const match = text.match(ORDERED_LIST_RE);
+      const startNumber = match ? Number(match[1]) : 1;
 
       if (!match || !dispatch) {
         return false;
@@ -162,10 +164,71 @@ export class Paragraph extends NodeSchema {
         if ($pos.node(d).type === orderedList) {
           trFromCommand.setNodeMarkup($pos.before(d), null, {
             ...$pos.node(d).attrs,
-            order: 1,
+            order: startNumber,
           });
           break;
         }
+      }
+
+      dispatch(trFromCommand.scrollIntoView());
+
+      return true;
+    };
+  }
+
+  private makeHeadingByMarker(): Command {
+    return (state, dispatch) => {
+      const {
+        selection: { $from, empty },
+        schema,
+      } = state;
+      const { paragraph, heading } = schema.nodes;
+
+      if (!empty || $from.parent.type !== paragraph || !dispatch) {
+        return false;
+      }
+
+      const text = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+      const match = text.match(HEADING_RE);
+
+      if (!match) {
+        return false;
+      }
+
+      const level = match[1].length;
+      const headingCommand = setBlockType(heading, { level, headingType: 'atx' });
+      const runHeadingCommand = (): { commandResult: boolean; tr: Transaction | null } => {
+        let tr: Transaction | null = null;
+        const commandResult = headingCommand(state, (nextTr: Transaction) => {
+          tr = nextTr;
+        });
+
+        return { commandResult, tr };
+      };
+      const { commandResult, tr } = runHeadingCommand();
+
+      if (!commandResult || !tr) {
+        return false;
+      }
+      const trFromCommand = tr;
+
+      const {
+        selection: { from },
+      } = trFromCommand;
+      const currentText = trFromCommand.selection.$from.parent.textBetween(
+        0,
+        trFromCommand.selection.$from.parent.content.size,
+        '',
+        ''
+      );
+      const currentMatch = currentText.match(HEADING_RE);
+
+      if (trFromCommand.selection.$from.parent.type === heading && currentMatch) {
+        const markerLength = currentMatch[1].length;
+
+        trFromCommand
+          .delete(from - markerLength, from)
+          .setSelection(createTextSelection(trFromCommand, from - markerLength));
       }
 
       dispatch(trFromCommand.scrollIntoView());
@@ -275,9 +338,12 @@ export class Paragraph extends NodeSchema {
   keymaps() {
     const bulletListCommand = this.makeBulletListByMarker();
     const orderedListCommand = this.makeOrderedListByNumber();
+    const headingCommand = this.makeHeadingByMarker();
 
     const handleSpace: Command = (state, dispatch, view) =>
-      orderedListCommand(state, dispatch, view) || bulletListCommand(state, dispatch, view);
+      headingCommand(state, dispatch, view) ||
+      orderedListCommand(state, dispatch, view) ||
+      bulletListCommand(state, dispatch, view);
 
     return {
       Space: handleSpace,

@@ -275,6 +275,26 @@ describe('editor', () => {
         );
         expect(getPreviewHTML()).toBe('<h1>heading</h1><p>CRLF</p>');
       });
+
+      it('should keep ```! as wrapped code block when changing to wysiwyg', () => {
+        const markdown = source`
+          \`\`\`!
+          first line
+          second line
+          \`\`\`
+        `;
+
+        editor.setMarkdown(markdown);
+        editor.changeMode('wysiwyg');
+
+        const wwDoc = (editor as any).wwEditor.view.state.doc.toJSON() as {
+          content?: Array<{ type?: string; attrs?: Record<string, any> }>;
+        };
+        const codeBlock = wwDoc.content?.find((node) => node.type === 'codeBlock');
+
+        expect(codeBlock?.attrs?.lineWrap).toBe(true);
+        expect(codeBlock?.attrs?.language).toBeNull();
+      });
     });
 
     describe('setHTML()', () => {

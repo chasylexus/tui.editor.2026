@@ -20,6 +20,7 @@ export class CodeBlock extends NodeSchema {
       attrs: {
         language: { default: null },
         lineNumber: { default: null },
+        lineWrap: { default: false },
         rawHTML: { default: null },
         ...getDefaultCustomAttrs(),
       },
@@ -33,28 +34,45 @@ export class CodeBlock extends NodeSchema {
           getAttrs(dom: Node | string) {
             const rawHTML = (dom as HTMLElement).getAttribute('data-raw-html');
             const child = (dom as HTMLElement).firstElementChild;
+            const lineWrapAttr =
+              child?.getAttribute('data-line-wrap') ||
+              (dom as HTMLElement).getAttribute('data-line-wrap');
 
             const lineNumAttr = child?.getAttribute('data-line-number');
 
             return {
               language: child?.getAttribute('data-language') || null,
               lineNumber: lineNumAttr ? Number(lineNumAttr) : null,
+              lineWrap:
+                lineWrapAttr === '' ||
+                lineWrapAttr === 'true' ||
+                (dom as HTMLElement).classList.contains('line-wrap'),
               ...(rawHTML && { rawHTML }),
             };
           },
         },
       ],
       toDOM({ attrs }: ProsemirrorNode): DOMOutputSpec {
-        const codeAttrs: Record<string, any> = {
-          'data-language': attrs.language,
+        const preAttrs: Record<string, any> = {
           ...getCustomAttrs(attrs),
         };
+        const codeAttrs: Record<string, any> = {
+          'data-language': attrs.language,
+        };
+        const preClasses = [preAttrs.class].filter(Boolean);
 
         if (attrs.lineNumber !== null) {
           codeAttrs['data-line-number'] = String(attrs.lineNumber);
         }
+        if (attrs.lineWrap) {
+          preClasses.push('line-wrap');
+          preAttrs['data-line-wrap'] = 'true';
+          codeAttrs['data-line-wrap'] = 'true';
+        }
 
-        return [attrs.rawHTML || 'pre', ['code', codeAttrs, 0]];
+        preAttrs.class = preClasses.length ? preClasses.join(' ') : null;
+
+        return [attrs.rawHTML || 'pre', preAttrs, ['code', codeAttrs, 0]];
       },
     };
   }

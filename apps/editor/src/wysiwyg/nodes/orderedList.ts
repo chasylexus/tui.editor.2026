@@ -7,6 +7,18 @@ import { changeList } from '@/wysiwyg/command/list';
 import { EditorCommand } from '@t/spec';
 import { getDefaultCustomAttrs, getCustomAttrs } from '@/wysiwyg/helper/node';
 
+function getStyleWithStartCounter(style: unknown, order: number) {
+  const baseStyle = typeof style === 'string' ? style.trim() : '';
+
+  if (order === 1) {
+    return baseStyle || null;
+  }
+
+  const prefix = baseStyle ? `${baseStyle.replace(/;?$/, ';')} ` : '';
+
+  return `${prefix}counter-reset: li ${order - 1};`;
+}
+
 export class OrderedList extends NodeSchema {
   get name() {
     return 'orderedList';
@@ -36,9 +48,12 @@ export class OrderedList extends NodeSchema {
         },
       ],
       toDOM({ attrs }: ProsemirrorNode): DOMOutputSpec {
+        const customAttrs = getCustomAttrs(attrs);
+        const style = getStyleWithStartCounter(customAttrs.style, attrs.order);
+
         return [
           attrs.rawHTML || 'ol',
-          { start: attrs.order === 1 ? null : attrs.order, ...getCustomAttrs(attrs) },
+          { ...customAttrs, style, start: attrs.order === 1 ? null : attrs.order },
           0,
         ];
       },

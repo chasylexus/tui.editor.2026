@@ -101,7 +101,14 @@ exports[`codeSyntaxHighlightPlugin should render highlighted codeblock element i
       <input type="text"
              class="toastui-editor-line-number-input"
              placeholder="off"
+             list="toastui-editor-line-number-options-0"
       >
+      <datalist id="toastui-editor-line-number-options-0">
+        <option value="off">
+        </option>
+        <option value="wrap">
+        </option>
+      </datalist>
     </div>
     <div class="toastui-editor-code-block-lang-label">
       yaml

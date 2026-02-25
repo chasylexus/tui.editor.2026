@@ -192,7 +192,7 @@ table.ProseMirror-selectednode {
 .toastui-editor-contents pre code {
   padding: 0;
   color: inherit;
-  white-space: pre-wrap;
+  white-space: pre;
   background-color: transparent;
 }
 
@@ -416,6 +416,17 @@ table.ProseMirror-selectednode {
 
 .toastui-editor-contents .toastui-editor-ww-code-block {
   position: relative;
+}
+
+.toastui-editor-contents .toastui-editor-ww-code-block.line-wrap pre {
+  overflow-x: visible;
+}
+
+.toastui-editor-contents .toastui-editor-ww-code-block.line-wrap pre code,
+.toastui-editor-contents pre.line-wrap code {
+  white-space: pre-wrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .toastui-editor-contents .toastui-editor-ww-code-block:after {

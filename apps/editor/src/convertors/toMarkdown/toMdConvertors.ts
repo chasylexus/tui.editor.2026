@@ -73,6 +73,10 @@ export const toMdConvertors: ToMdConvertorMap = {
     const { attrs, textContent } = node as ProsemirrorNode;
     let info = attrs.language || '';
 
+    if (attrs.lineWrap && !attrs.language && attrs.lineNumber === null) {
+      info = '!';
+    }
+
     if (attrs.lineNumber !== null) {
       info += attrs.lineNumber === 1 ? '=' : `=${attrs.lineNumber}`;
     }

@@ -51,10 +51,14 @@ export class CodeBlockView implements NodeView {
   }
 
   private createElement() {
-    const { language, lineNumber } = this.node.attrs;
+    const { language, lineNumber, lineWrap } = this.node.attrs;
     const wrapper = document.createElement('div');
 
-    wrapper.setAttribute('data-language', language || 'text');
+    wrapper.setAttribute('data-language', lineWrap ? '!' : language || 'text');
+    if (lineWrap) {
+      wrapper.setAttribute('data-line-wrap', 'true');
+      wrapper.classList.add('line-wrap');
+    }
     if (lineNumber !== null) {
       wrapper.setAttribute('data-line-number', String(lineNumber));
     }
@@ -81,7 +85,7 @@ export class CodeBlockView implements NodeView {
   private createCodeBlockElement() {
     const pre = document.createElement('pre');
     const code = document.createElement('code');
-    const { language, lineNumber } = this.node.attrs;
+    const { language, lineNumber, lineWrap } = this.node.attrs;
     const attrs = getCustomAttrs(this.node.attrs);
 
     if (language) {
@@ -89,6 +93,10 @@ export class CodeBlockView implements NodeView {
     }
     if (lineNumber !== null) {
       code.setAttribute('data-line-number', String(lineNumber));
+    }
+    if (lineWrap) {
+      pre.classList.add('line-wrap');
+      code.setAttribute('data-line-wrap', 'true');
     }
     setAttributes(attrs, pre);
 
@@ -155,7 +163,7 @@ export class CodeBlockView implements NodeView {
     const langInput = document.createElement('input');
 
     langInput.type = 'text';
-    langInput.value = this.node.attrs.language || '';
+    langInput.value = this.node.attrs.lineWrap ? '!' : this.node.attrs.language || '';
     langInput.className = 'toastui-editor-ww-code-block-lang-input';
 
     const lineLabel = document.createElement('label');
@@ -166,12 +174,15 @@ export class CodeBlockView implements NodeView {
     const lineInput = document.createElement('input');
 
     lineInput.type = 'text';
-    lineInput.placeholder = 'off';
+    lineInput.placeholder = 'off | wrap';
+    lineInput.setAttribute('list', 'toastui-editor-ww-line-number-options');
     lineInput.className = 'toastui-editor-ww-code-block-line-input';
 
-    const { lineNumber } = this.node.attrs;
+    const { lineNumber, lineWrap } = this.node.attrs;
 
-    if (lineNumber !== null) {
+    if (lineWrap) {
+      lineInput.value = 'wrap';
+    } else if (lineNumber !== null) {
       lineInput.value = lineNumber === 1 ? '' : String(lineNumber);
     }
 
@@ -179,6 +190,11 @@ export class CodeBlockView implements NodeView {
     wrapper.appendChild(langInput);
     wrapper.appendChild(lineLabel);
     wrapper.appendChild(lineInput);
+    const lineNumberOptions = document.createElement('datalist');
+
+    lineNumberOptions.id = 'toastui-editor-ww-line-number-options';
+    lineNumberOptions.innerHTML = '<option value="off"></option><option value="wrap"></option>';
+    wrapper.appendChild(lineNumberOptions);
     this.view.dom.parentElement!.appendChild(wrapper);
 
     const wrapperWidth = wrapper.clientWidth;
@@ -231,14 +247,27 @@ export class CodeBlockView implements NodeView {
   private commitAttrs(langInput: HTMLInputElement, lineInput: HTMLInputElement) {
     if (typeof this.getPos !== 'function') return;
 
-    const language = langInput.value || null;
-    const lineVal = lineInput.value.trim();
+    const rawLanguage = langInput.value.trim();
+    const isLineWrap = rawLanguage === '!';
+    const language = isLineWrap ? null : rawLanguage || null;
+    const lineVal = lineInput.value.trim().toLowerCase();
+    const { lineWrap: currentLineWrap, lineNumber: currentLineNumber } = this.node.attrs;
     let lineNumber: number | null = null;
+    let lineWrap = currentLineWrap;
 
-    if (this.node.attrs.lineNumber !== null || lineVal !== '') {
+    if (isLineWrap) {
+      lineWrap = true;
+    } else if (rawLanguage) {
+      lineWrap = false;
+    }
+
+    if (lineVal === 'wrap' || lineVal === '!') {
+      lineWrap = true;
+      lineNumber = null;
+    } else if (!lineWrap && (currentLineNumber !== null || lineVal !== '')) {
       lineNumber = lineVal === '' ? 1 : Number(lineVal) || 1;
     }
-    if (lineVal === 'off' || lineVal === '-') {
+    if (lineVal === 'off' || lineVal === '-' || lineWrap) {
       lineNumber = null;
     }
 
@@ -251,6 +280,7 @@ export class CodeBlockView implements NodeView {
       ...this.node.attrs,
       language,
       lineNumber,
+      lineWrap,
     });
     this.view.dispatch(tr);
   }

@@ -27,6 +27,7 @@ import { getChildrenHTML, getHTMLAttrsByHTMLString } from '@/wysiwyg/nodes/html'
 import { includes } from '@/utils/common';
 import { reBR, reHTMLTag, reHTMLComment } from '@/utils/constants';
 import { sanitizeHTML } from '@/sanitizer/htmlSanitizer';
+import { parseCodeBlockInfo, resolveCodeBlockLineNumber } from '@/convertors/codeBlockInfo';
 
 function isBRTag(node: MdNode) {
   return node.type === 'htmlInline' && reBR.test(node.literal!);
@@ -92,12 +93,8 @@ const toWwConvertors: ToWwConvertorMap = {
       'dot',
       'abc',
     ];
-    const baseLang = info
-      ? info
-          .replace(/[=]\d*$/, '')
-          .trim()
-          .toLowerCase()
-      : '';
+    const parsedInfo = parseCodeBlockInfo(info);
+    const baseLang = parsedInfo.normalizedLanguage;
 
     if (customBlock && CUSTOM_BLOCK_LANGUAGES.includes(baseLang)) {
       state.openNode(customBlock, { info: baseLang });
@@ -110,16 +107,15 @@ const toWwConvertors: ToWwConvertorMap = {
       return;
     }
 
-    const match = info ? info.match(/^(.+?)=(\d*)$/) : null;
-    let language: string | null = info || null;
-    let lineNumber: number | null = null;
+    const { language, lineWrap } = parsedInfo;
+    const lineNumber = resolveCodeBlockLineNumber(node as CodeBlockMdNode, parsedInfo);
 
-    if (match) {
-      language = match[1] || null;
-      lineNumber = match[2] ? Number(match[2]) : 1;
-    }
-
-    state.openNode(codeBlock, { language, lineNumber, ...customAttrs });
+    state.openNode(codeBlock, {
+      language,
+      lineNumber,
+      lineWrap,
+      ...customAttrs,
+    });
     state.addText(getTextWithoutTrailingNewline(literal || ''));
     state.closeNode();
   },

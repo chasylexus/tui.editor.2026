@@ -3,15 +3,41 @@ import type { HTMLToken } from '@techie_doubts/toastmark';
 import { PrismJs } from '@t/index';
 
 const BACKTICK_COUNT = 3;
-const LINE_NUM_RE = /^(.+?)=(\d*)$/;
+const LINE_NUM_RE = /^(.+?)=(\d+|\+)?$/;
 
-function parseInfoString(raw: string): { lang: string; lineNumber: number | null } {
+function parseInfoString(
+  raw: string
+): {
+  lang: string | null;
+  lineNumber: number | null;
+  continueLineNumber: boolean;
+  lineWrap: boolean;
+} {
+  if (raw === '!') {
+    return {
+      lang: null,
+      lineNumber: null,
+      continueLineNumber: false,
+      lineWrap: true,
+    };
+  }
+
   const match = raw.match(LINE_NUM_RE);
 
   if (match) {
-    return { lang: match[1], lineNumber: match[2] ? Number(match[2]) : 1 };
+    if (match[2] === '+') {
+      return { lang: match[1], lineNumber: null, continueLineNumber: true, lineWrap: false };
+    }
+
+    return {
+      lang: match[1],
+      lineNumber: match[2] ? Number(match[2]) : 1,
+      continueLineNumber: false,
+      lineWrap: false,
+    };
   }
-  return { lang: raw, lineNumber: null };
+
+  return { lang: raw, lineNumber: null, continueLineNumber: false, lineWrap: false };
 }
 
 function buildGutterHTML(lineNumber: number, lineCount: number): string {
@@ -21,6 +47,84 @@ function buildGutterHTML(lineNumber: number, lineCount: number): string {
     nums.push(String(lineNumber + i));
   }
   return nums.join('\n');
+}
+
+function getCodeBlockLineCount(literal: string | null | undefined) {
+  return String(literal || '')
+    .replace(/\n$/, '')
+    .split('\n').length;
+}
+
+function findPreviousCodeBlock(node: MdNode) {
+  let cursor = node.prev || null;
+
+  while (cursor) {
+    if (cursor.type === 'codeBlock') {
+      return cursor as CodeBlockMdNode;
+    }
+    cursor = cursor.prev || null;
+  }
+
+  return null;
+}
+
+function resolveLineNumberInternal(
+  node: CodeBlockMdNode,
+  cache: WeakMap<object, number | null>,
+  seen: WeakSet<object>
+): number | null {
+  if (cache.has(node as object)) {
+    return cache.get(node as object)!;
+  }
+  if (seen.has(node as object)) {
+    return 1;
+  }
+  seen.add(node as object);
+
+  const infoWord = (node.info || '').trim().split(/\s+/)[0] || '';
+  const parsed = parseInfoString(infoWord);
+
+  if (parsed.lineWrap) {
+    cache.set(node as object, null);
+    return null;
+  }
+
+  if (parsed.lineNumber !== null) {
+    cache.set(node as object, parsed.lineNumber);
+    return parsed.lineNumber;
+  }
+
+  if (!parsed.continueLineNumber) {
+    cache.set(node as object, null);
+    return null;
+  }
+
+  const prevCodeBlock = findPreviousCodeBlock(node);
+
+  if (!prevCodeBlock) {
+    cache.set(node as object, 1);
+    return 1;
+  }
+
+  const prevStart = resolveLineNumberInternal(prevCodeBlock, cache, seen);
+
+  if (prevStart === null) {
+    cache.set(node as object, 1);
+    return 1;
+  }
+
+  const resolved = prevStart + getCodeBlockLineCount(prevCodeBlock.literal);
+
+  cache.set(node as object, resolved);
+  return resolved;
+}
+
+function resolveLineNumber(node: CodeBlockMdNode, parsedInfo: ReturnType<typeof parseInfoString>) {
+  if (!parsedInfo.continueLineNumber) {
+    return parsedInfo.lineNumber;
+  }
+
+  return resolveLineNumberInternal(node, new WeakMap<object, number | null>(), new WeakSet());
 }
 
 export function getHTMLRenderers(prism: PrismJs) {
@@ -43,20 +147,29 @@ export function getHTMLRenderers(prism: PrismJs) {
         const parsed = parseInfoString(infoWords[0]);
         const { lang } = parsed;
 
-        lineNumber = parsed.lineNumber;
+        lineNumber = resolveLineNumber(node as CodeBlockMdNode, parsed);
 
-        preClasses.push(`lang-${lang}`);
-        codeAttrs['data-language'] = lang;
+        if (parsed.lineWrap) {
+          preClasses.push('line-wrap');
+          preAttrs['data-line-wrap'] = 'true';
+          codeAttrs['data-line-wrap'] = 'true';
+          lineNumber = null;
+        }
 
-        const registeredLang = prism.languages[lang];
+        if (lang) {
+          preClasses.push(`lang-${lang}`);
+          codeAttrs['data-language'] = lang;
+        }
 
-        if (registeredLang) {
+        const registeredLang = lang ? prism.languages[lang] : null;
+
+        if (registeredLang && lang && !parsed.lineWrap) {
           content = prism.highlight(node.literal!, registeredLang, lang);
         }
       }
 
       if (lineNumber !== null) {
-        const lineCount = (node.literal || '').replace(/\n$/, '').split('\n').length;
+        const lineCount = getCodeBlockLineCount(node.literal);
         const gutterText = buildGutterHTML(lineNumber, lineCount);
 
         preClasses.push('line-numbers');
