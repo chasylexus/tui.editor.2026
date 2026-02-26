@@ -7,6 +7,7 @@ const STRUCTURAL_MARKDOWN_PATTERNS = [
   /^\s{0,3}[-*]\s\[[ xX]\]\s+/m,
   /```[\s\S]*```/m,
   /^\s*\|.+\|\s*$/m,
+  /^\s{0,3}\[\^[^\]\n]+\]:\s+/m,
 ];
 
 const INLINE_MARKDOWN_PATTERNS = [
@@ -15,7 +16,11 @@ const INLINE_MARKDOWN_PATTERNS = [
   /`[^`\n]+`/,
   /~~[^~\n]+~~/,
   /(\*\*|__)[^*_]+(\*\*|__)/,
+  /\[\^[^\]\n]+\]/,
+  /\^\[[^\]\n]+\]/,
 ];
+
+const FOOTNOTE_MARKDOWN_PATTERN = /\[\^[^\]\n]+\]|\^\[[^\]\n]+\]|^\s{0,3}\[\^[^\]\n]+\]:/m;
 
 export function looksLikeMarkdownPaste(text: string) {
   if (typeof text !== 'string') {
@@ -26,6 +31,10 @@ export function looksLikeMarkdownPaste(text: string) {
 
   if (!normalized) {
     return false;
+  }
+
+  if (FOOTNOTE_MARKDOWN_PATTERN.test(normalized)) {
+    return true;
   }
 
   if (STRUCTURAL_MARKDOWN_PATTERNS.some((pattern) => pattern.test(normalized))) {

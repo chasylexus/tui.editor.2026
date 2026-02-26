@@ -12,6 +12,12 @@ describe('looksLikeMarkdownPaste()', () => {
     expect(looksLikeMarkdownPaste('before **bold** and ~~strike~~ after')).toBe(true);
   });
 
+  it('should detect footnote markdown syntax', () => {
+    expect(looksLikeMarkdownPaste('Footnote ref[^first].')).toBe(true);
+    expect(looksLikeMarkdownPaste('Inline footnote^[Text of inline footnote].')).toBe(true);
+    expect(looksLikeMarkdownPaste('[^first]: Footnote text.')).toBe(true);
+  });
+
   it('should ignore plain text', () => {
     expect(looksLikeMarkdownPaste('just a plain sentence without markdown')).toBe(false);
     expect(looksLikeMarkdownPaste('')).toBe(false);

@@ -1,4 +1,4 @@
-import { DOMParser, Node as ProsemirrorNode, Slice } from 'prosemirror-model';
+import { DOMParser, Node as ProsemirrorNode } from 'prosemirror-model';
 import { Emitter, Handler } from '@t/event';
 import {
   Base,
@@ -917,31 +917,67 @@ class ToastUIEditorCore {
     this.renderFullPreview(transformed.markdown);
   }
 
+  private replaceMdRange(md: string, start: MdPos, end: MdPos, text: string) {
+    const lines = md.split('\n');
+    const startLineIndex = Math.max(start[0] - 1, 0);
+    const endLineIndex = Math.max(end[0] - 1, 0);
+    const startLineText = lines[startLineIndex] ?? '';
+    const endLineText = lines[endLineIndex] ?? '';
+    const startChIndex = Math.min(Math.max(start[1] - 1, 0), startLineText.length);
+    const endChIndex = Math.min(Math.max(end[1] - 1, 0), endLineText.length);
+    const prefix = startLineText.slice(0, startChIndex);
+    const suffix = endLineText.slice(endChIndex);
+    const insertedLines = text.split('\n');
+    let cursor: MdPos;
+
+    if (insertedLines.length === 1) {
+      const replacedLine = `${prefix}${insertedLines[0]}${suffix}`;
+
+      lines.splice(startLineIndex, endLineIndex - startLineIndex + 1, replacedLine);
+      cursor = [startLineIndex + 1, prefix.length + insertedLines[0].length + 1];
+    } else {
+      const firstLine = `${prefix}${insertedLines[0]}`;
+      const middleLines = insertedLines.slice(1, -1);
+      const lastInsertedLine = insertedLines[insertedLines.length - 1];
+      const lastLine = `${lastInsertedLine}${suffix}`;
+      const replacement = [firstLine, ...middleLines, lastLine];
+
+      lines.splice(startLineIndex, endLineIndex - startLineIndex + 1, ...replacement);
+      cursor = [startLineIndex + insertedLines.length, lastInsertedLine.length + 1];
+    }
+
+    return {
+      markdown: lines.join('\n'),
+      selection: {
+        anchor: cursor,
+        head: cursor,
+        collapsed: true,
+      } as SnapshotSelection,
+    };
+  }
+
   private pasteMarkdownInWysiwyg(markdownText: string) {
     if (!this.isWysiwygMode()) {
       return false;
     }
 
     const normalized = markdownText.replace(/\r\n/g, '\n');
-    const markdownForPaste = hasFootnoteSyntax(normalized)
-      ? this.toRenderableMarkdown(normalized)
-      : normalized;
+    const trimmed = normalized.trim();
 
-    if (!normalized.trim()) {
+    if (!trimmed) {
       return false;
     }
 
-    const mdNode = this.createToastMark(markdownForPaste).getRootNode();
-    const wwNode = this.convertor.toWysiwygModel(mdNode);
+    this.flushPendingWwSerialize();
 
-    if (!wwNode || wwNode.content.size === 0) {
-      return false;
-    }
+    const [from, to] = this.wwEditor.getSelection();
+    const mapped = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [MdPos, MdPos];
+    const start = this.clampMdPos(this.canonicalMd, mapped[0]);
+    const end = this.clampMdPos(this.canonicalMd, mapped[1]);
+    const next = this.replaceMdRange(this.canonicalMd, start, end, normalized);
 
-    const { tr } = this.wwEditor.view.state;
-    const nextTr = tr.replaceSelection(new Slice(wwNode.content, 0, 0)).scrollIntoView();
-
-    this.wwEditor.view.dispatch(nextTr);
+    this.applyProgrammatic(next.markdown, next.selection);
+    this.pushSnapshot(next.markdown);
 
     return true;
   }

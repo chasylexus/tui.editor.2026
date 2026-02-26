@@ -650,6 +650,27 @@ describe('editor', () => {
       });
     });
 
+    describe('paste markdown in wysiwyg', () => {
+      it('should keep footnote markdown syntax without transforming to rendered html', () => {
+        const footnoteMd = source`
+          Footnote 1 link[^first].
+
+          [^first]: Footnote text.
+        `;
+
+        editor.changeMode('wysiwyg');
+
+        const handled = (editor as any).eventEmitter
+          .emit('pasteMarkdownInWysiwyg', footnoteMd)
+          .some(Boolean);
+
+        expect(handled).toBe(true);
+        expect(editor.getMarkdown()).toContain('Footnote 1 link[^first].');
+        expect(editor.getMarkdown()).toContain('[^first]: Footnote text.');
+        expect(editor.getMarkdown()).not.toContain('<sup class="footnote-ref">');
+      });
+    });
+
     describe('deleteSelection()', () => {
       beforeEach(() => {
         editor.setMarkdown('line1\nline2');
