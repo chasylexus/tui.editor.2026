@@ -307,6 +307,43 @@ table.ProseMirror-selectednode {
   margin: 0;
 }
 
+@supports selector(li::marker) {
+  .toastui-editor-contents ul,
+  .toastui-editor-contents menu,
+  .toastui-editor-contents ol,
+  .toastui-editor-contents dir {
+    list-style-position: outside;
+  }
+
+  .toastui-editor-contents ul,
+  .toastui-editor-contents menu,
+  .toastui-editor-contents dir {
+    list-style-type: disc;
+  }
+
+  .toastui-editor-contents ol {
+    list-style-type: decimal;
+    counter-reset: none;
+  }
+
+  .toastui-editor-contents ol > li {
+    counter-increment: none;
+  }
+
+  .toastui-editor-contents ul > li::before,
+  .toastui-editor-contents ol > li::before {
+    content: none;
+  }
+
+  .toastui-editor-contents ul > li::marker {
+    color: #ccc;
+  }
+
+  .toastui-editor-contents ol > li::marker {
+    color: #aaa;
+  }
+}
+
 .toastui-editor-contents hr {
   border-top: 1px solid #eee;
   margin: 16px 0;

@@ -424,6 +424,13 @@
   background-color: #55575f;
 }
 
+@supports selector(li::marker) {
+  .toastui-editor-dark .toastui-editor-contents ul > li::marker,
+  .toastui-editor-dark .toastui-editor-contents ol > li::marker {
+    color: #55575f;
+  }
+}
+
 .toastui-editor-dark .toastui-editor-contents hr {
   border-color: #55575f;
 }
