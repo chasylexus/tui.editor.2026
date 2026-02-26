@@ -33,6 +33,82 @@ function isBRTag(node: MdNode) {
   return node.type === 'htmlInline' && reBR.test(node.literal!);
 }
 
+function isEscapedDollar(text: string, index: number) {
+  let count = 0;
+
+  for (let i = index - 1; i >= 0 && text[i] === '\\'; i -= 1) {
+    count += 1;
+  }
+
+  return count % 2 === 1;
+}
+
+function isInlineMathWhitespace(ch?: string) {
+  return ch === ' ' || ch === '\t' || ch === '\n';
+}
+
+function isDigit(ch?: string) {
+  return !!ch && ch >= '0' && ch <= '9';
+}
+
+interface InlineMathScanState {
+  inInlineMath: boolean;
+  segment: string;
+}
+
+function processInlineMathTextSegment(text: string, state: InlineMathScanState) {
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+
+    if (ch !== '$') {
+      if (state.inInlineMath) {
+        state.segment += ch;
+      }
+      continue;
+    }
+
+    if (!state.inInlineMath) {
+      const next = text[i + 1];
+
+      if (!isEscapedDollar(text, i) && next !== '$' && !isInlineMathWhitespace(next)) {
+        state.inInlineMath = true;
+        state.segment = '';
+      }
+      continue;
+    }
+
+    const prev = state.segment[state.segment.length - 1];
+    const next = text[i + 1];
+
+    if (!isEscapedDollar(text, i) && !isInlineMathWhitespace(prev) && !isDigit(next)) {
+      state.inInlineMath = false;
+      state.segment = '';
+      continue;
+    }
+
+    state.segment += '$';
+  }
+}
+
+function isSoftbreakInsideInlineMath(node: MdNode) {
+  if (node.type !== 'softbreak' || node.parent?.type !== 'paragraph') {
+    return false;
+  }
+
+  let sibling = node.parent.firstChild;
+  const state: InlineMathScanState = { inInlineMath: false, segment: '' };
+
+  while (sibling && sibling !== node) {
+    if (sibling.type === 'text') {
+      processInlineMathTextSegment(sibling.literal || '', state);
+    }
+
+    sibling = sibling.next;
+  }
+
+  return state.inInlineMath;
+}
+
 function addRawHTMLAttributeToDOM(parent: Node) {
   Array.from(parent.childNodes).forEach((child) => {
     if (isElemNode(child)) {
@@ -218,6 +294,10 @@ const toWwConvertors: ToWwConvertorMap = {
 
   softbreak(state, node) {
     if (node.parent!.type === 'paragraph') {
+      if (isSoftbreakInsideInlineMath(node)) {
+        return;
+      }
+
       const { prev, next } = node;
 
       if (prev && !isBRTag(prev)) {

@@ -1484,14 +1484,21 @@ export class InlineParser {
       convertExtAutoLinks(block.walker(), extendedAutolinks);
     }
     if (customParser && block.firstChild) {
-      let event;
-      const walker = block.firstChild.walker();
+      let current: Node | null = block.firstChild;
 
-      while ((event = walker.next())) {
-        const { node, entering } = event;
-        if (customParser[node.type]) {
-          customParser[node.type]!(node, { entering, options: this.options });
+      while (current) {
+        let event;
+        const walker = current.walker();
+
+        while ((event = walker.next())) {
+          const { node, entering } = event;
+
+          if (customParser[node.type]) {
+            customParser[node.type]!(node, { entering, options: this.options });
+          }
         }
+
+        current = current.next;
       }
     }
   }

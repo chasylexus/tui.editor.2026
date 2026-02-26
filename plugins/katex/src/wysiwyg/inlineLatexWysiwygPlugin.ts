@@ -7,6 +7,7 @@ interface InlineMathRange {
   from: number;
   to: number;
   content: string;
+  mdBlockId?: number | null;
 }
 
 function getInlineFontStyle() {
@@ -30,22 +31,38 @@ function measureInlineTextWidth(text: string) {
 
 function collectInlineMathRanges(doc: EditorState['doc']): InlineMathRange[] {
   const ranges: InlineMathRange[] = [];
-  let pending: { from: number; content: string } | null = null;
+  let pending: { from: number; content: string; mdBlockId: number | null } | null = null;
 
-  doc.descendants((node: ProsemirrorNode, pos: number) => {
+  doc.descendants((node: ProsemirrorNode, pos: number, parent?: ProsemirrorNode | null) => {
     if (node.type?.name === 'codeBlock') {
       pending = null;
       return false;
     }
 
     if (node.isBlock && node.type?.name !== 'doc') {
-      pending = null;
+      const blockId =
+        typeof (node.attrs as any)?.mdBlockId === 'number' ? (node.attrs as any).mdBlockId : null;
+
+      if (
+        pending &&
+        pending.mdBlockId !== null &&
+        blockId !== null &&
+        pending.mdBlockId === blockId
+      ) {
+        pending.content += '\n';
+      } else {
+        pending = null;
+      }
     }
 
     if (!node.isText) return true;
     if (node.marks?.some((mark: ProsemirrorMark) => mark.type?.name === 'code')) return true;
 
     const text = node.text || '';
+    const blockId =
+      typeof (parent?.attrs as any)?.mdBlockId === 'number'
+        ? (parent?.attrs as any).mdBlockId
+        : null;
 
     for (let i = 0; i < text.length; i += 1) {
       const ch = text[i];
@@ -69,14 +86,14 @@ function collectInlineMathRanges(doc: EditorState['doc']): InlineMathRange[] {
       }
 
       if (!pending) {
-        pending = { from: pos + i, content: '' };
+        pending = { from: pos + i, content: '', mdBlockId: blockId };
         continue;
       }
 
       const to = pos + i + 1;
       const { content } = pending;
 
-      ranges.push({ from: pending.from, to, content });
+      ranges.push({ from: pending.from, to, content, mdBlockId: pending.mdBlockId });
       pending = null;
     }
 

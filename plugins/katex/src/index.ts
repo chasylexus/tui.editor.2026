@@ -7,9 +7,11 @@ import type { HTMLToken } from '@techie_doubts/toastmark';
 import {
   fixInlineMathBackslashes,
   getInlineMath,
+  getInlineMathRenderedOutput,
   normalizeInlineMathEscapes,
   renderKatexBlock,
 } from './utils/inlineMath';
+import { markdownParsers } from './markdown/parser';
 import { createBlockLatexWysiwygPlugin } from './wysiwyg/blockLatexWysiwygPlugin';
 import { createCustomBlockAutoDetectPlugin } from './wysiwyg/customBlockAutoDetectPlugin';
 import { createInlineLatexWysiwygPlugin } from './wysiwyg/inlineLatexWysiwygPlugin';
@@ -66,6 +68,7 @@ export default function katexPlugin(
 
   return {
     ...inlinePluginInfo,
+    markdownParsers,
     wysiwygPlugins: [...inlineWysiwygPlugins, ...blockWysiwygPlugins, ...autoDetectWysiwygPlugins],
     toHTMLRenderers: {
       // block latex: $$latex ... $$
@@ -77,29 +80,14 @@ export default function katexPlugin(
       // inline latex: $...$ in preview/split
       text(node: MdNode) {
         const str = getInlineMath(node);
-        const isNodeHTML = str?.includes('class="katex"') || str?.includes('class="katex-display"');
+        const { isHTML } = getInlineMathRenderedOutput(node);
 
-        return { type: isNodeHTML ? 'html' : 'text', content: str };
+        return { type: isHTML ? 'html' : 'text', content: str };
       },
       softbreak(node: MdNode) {
-        const isPrevNodeHTML = node.prev && node.prev.type === 'htmlInline';
-        const isPrevBR = isPrevNodeHTML && /<br ?\/?>/.test(node.prev?.literal || '');
+        const { content, isHTML } = getInlineMathRenderedOutput(node);
 
-        let prevLiteral = '';
-
-        if (node?.prev !== null) {
-          prevLiteral = (node?.prev?.literal as string) || '';
-        }
-
-        let content = '<br>\n';
-
-        if (prevLiteral === '$') {
-          content = '';
-        } else if (isPrevBR) {
-          content = '\n';
-        }
-
-        return { type: isPrevBR ? 'text' : 'html', content };
+        return { type: isHTML ? 'html' : 'text', content };
       },
     },
   };

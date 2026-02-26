@@ -39,6 +39,124 @@ export function renderKatexInline(latex: string) {
   }
 }
 
+const INLINE_MATH_PROTECTED_MAP: Record<string, string> = {
+  '\\': '\uE000',
+  '^': '\uE001',
+  _: '\uE002',
+  '*': '\uE003',
+  '~': '\uE004',
+  '`': '\uE005',
+  '[': '\uE006',
+  ']': '\uE007',
+  '(': '\uE008',
+  ')': '\uE009',
+  '!': '\uE00A',
+  '<': '\uE00B',
+  '>': '\uE00C',
+};
+
+const INLINE_MATH_RESTORE_MAP = Object.entries(INLINE_MATH_PROTECTED_MAP).reduce<
+  Record<string, string>
+>((acc, [key, value]) => {
+  acc[value] = key;
+  return acc;
+}, {});
+
+function shouldOpenInlineMathAt(text: string, index: number) {
+  const next = text[index + 1];
+
+  return !isEscapedAt(text, index) && next !== '$' && !isInlineMathWhitespace(next);
+}
+
+function shouldCloseInlineMathAt(text: string, index: number, segment: string) {
+  if (isEscapedAt(text, index)) {
+    return false;
+  }
+
+  const prev = segment[segment.length - 1];
+  const next = text[index + 1];
+
+  return !isInlineMathWhitespace(prev) && !isDigit(next);
+}
+
+function protectInlineMathChar(ch: string) {
+  return INLINE_MATH_PROTECTED_MAP[ch] || ch;
+}
+
+function restoreInlineMathChar(ch: string) {
+  return INLINE_MATH_RESTORE_MAP[ch] || ch;
+}
+
+export function protectInlineMathForParser(markdown: string) {
+  if (!markdown || !markdown.includes('$')) {
+    return markdown;
+  }
+
+  let out = '';
+  let inInlineMath = false;
+  let rawSegment = '';
+  let protectedSegment = '';
+
+  for (let i = 0; i < markdown.length; i += 1) {
+    const ch = markdown[i];
+
+    if (ch !== '$') {
+      if (inInlineMath) {
+        rawSegment += ch;
+        protectedSegment += protectInlineMathChar(ch);
+      } else {
+        out += ch;
+      }
+
+      continue;
+    }
+
+    if (!inInlineMath) {
+      if (shouldOpenInlineMathAt(markdown, i)) {
+        inInlineMath = true;
+        rawSegment = '';
+        protectedSegment = '';
+        out += '$';
+        continue;
+      }
+
+      out += '$';
+      continue;
+    }
+
+    if (shouldCloseInlineMathAt(markdown, i, rawSegment)) {
+      out += `${protectedSegment}$`;
+      inInlineMath = false;
+      rawSegment = '';
+      protectedSegment = '';
+      continue;
+    }
+
+    rawSegment += '$';
+    protectedSegment += '$';
+  }
+
+  if (inInlineMath) {
+    out += rawSegment;
+  }
+
+  return out;
+}
+
+export function restoreInlineMathProtectedChars(text: string) {
+  if (!text) {
+    return text;
+  }
+
+  let out = '';
+
+  for (let i = 0; i < text.length; i += 1) {
+    out += restoreInlineMathChar(text[i]);
+  }
+
+  return out;
+}
+
 export function fixInlineMathBackslashes(markdown: string) {
   if (!markdown || !markdown.includes('$')) return markdown;
 
@@ -248,112 +366,212 @@ export function normalizeInlineMathEscapes(markdown: string) {
   return out;
 }
 
-let latexPart = '';
-let ifEntering = false;
-let ifEven = true;
-let lastUncloseNode: MdNode | null = null;
+interface InlineMathNodeOutput {
+  content: string;
+  isHTML: boolean;
+}
+
+const parentInlineMathCache = new WeakMap<MdNode, Map<MdNode, InlineMathNodeOutput>>();
+
+function isInlineMathWhitespace(ch?: string) {
+  return ch === ' ' || ch === '\t' || ch === '\n';
+}
+
+function isDigit(ch?: string) {
+  return !!ch && ch >= '0' && ch <= '9';
+}
+
+function getOrCreateNodeOutput(
+  nodeOutputs: Map<MdNode, InlineMathNodeOutput>,
+  node: MdNode
+): InlineMathNodeOutput {
+  const cached = nodeOutputs.get(node);
+
+  if (cached) {
+    return cached;
+  }
+
+  const output: InlineMathNodeOutput = { content: '', isHTML: false };
+
+  nodeOutputs.set(node, output);
+
+  return output;
+}
+
+function appendText(nodeOutputs: Map<MdNode, InlineMathNodeOutput>, node: MdNode, text: string) {
+  if (!text) {
+    return;
+  }
+
+  getOrCreateNodeOutput(nodeOutputs, node).content += text;
+}
+
+function appendHTML(nodeOutputs: Map<MdNode, InlineMathNodeOutput>, node: MdNode, html: string) {
+  if (!html) {
+    return;
+  }
+
+  const output = getOrCreateNodeOutput(nodeOutputs, node);
+
+  output.content += html;
+  output.isHTML = true;
+}
+
+interface InlineMathParserState {
+  nodeOutputs: Map<MdNode, InlineMathNodeOutput>;
+  inInlineMath: boolean;
+  inlineMathBuffer: string;
+  inlineStartNode: MdNode | null;
+}
+
+function processOpeningInlineMathMarker(
+  state: InlineMathParserState,
+  node: MdNode,
+  text: string,
+  currentIndex: number,
+  markerIndex: number
+) {
+  const next = text[markerIndex + 1];
+
+  if (isEscapedAt(text, markerIndex) || next === '$' || isInlineMathWhitespace(next)) {
+    appendText(state.nodeOutputs, node, text.slice(currentIndex, markerIndex + 1));
+
+    return markerIndex + 1;
+  }
+
+  appendText(state.nodeOutputs, node, text.slice(currentIndex, markerIndex));
+  state.inInlineMath = true;
+  state.inlineMathBuffer = '';
+  state.inlineStartNode = node;
+
+  return markerIndex + 1;
+}
+
+function processClosingInlineMathMarker(
+  state: InlineMathParserState,
+  node: MdNode,
+  text: string,
+  currentIndex: number,
+  markerIndex: number
+) {
+  if (isEscapedAt(text, markerIndex)) {
+    state.inlineMathBuffer += text.slice(currentIndex, markerIndex + 1);
+
+    return markerIndex + 1;
+  }
+
+  const prevChar =
+    markerIndex > currentIndex
+      ? text[markerIndex - 1]
+      : state.inlineMathBuffer[state.inlineMathBuffer.length - 1];
+  const next = text[markerIndex + 1];
+
+  if (isInlineMathWhitespace(prevChar) || isDigit(next)) {
+    state.inlineMathBuffer += text.slice(currentIndex, markerIndex + 1);
+
+    return markerIndex + 1;
+  }
+
+  state.inlineMathBuffer += text.slice(currentIndex, markerIndex);
+  appendHTML(state.nodeOutputs, node, renderKatexInline(state.inlineMathBuffer));
+  state.inInlineMath = false;
+  state.inlineMathBuffer = '';
+  state.inlineStartNode = null;
+
+  return markerIndex + 1;
+}
+
+function parseInlineMathTextNode(state: InlineMathParserState, node: MdNode) {
+  const text = node.literal || '';
+  let index = 0;
+
+  // Ensure consumed math-only text nodes do not fall back to raw literal output.
+  getOrCreateNodeOutput(state.nodeOutputs, node);
+
+  while (index < text.length) {
+    const markerIndex = text.indexOf('$', index);
+
+    if (markerIndex === -1) {
+      if (state.inInlineMath) {
+        state.inlineMathBuffer += text.slice(index);
+      } else {
+        appendText(state.nodeOutputs, node, text.slice(index));
+      }
+
+      break;
+    }
+
+    if (state.inInlineMath) {
+      index = processClosingInlineMathMarker(state, node, text, index, markerIndex);
+      continue;
+    }
+
+    index = processOpeningInlineMathMarker(state, node, text, index, markerIndex);
+  }
+}
+
+function parseInlineMathForParent(parent: MdNode): Map<MdNode, InlineMathNodeOutput> {
+  const state: InlineMathParserState = {
+    nodeOutputs: new Map<MdNode, InlineMathNodeOutput>(),
+    inInlineMath: false,
+    inlineMathBuffer: '',
+    inlineStartNode: null,
+  };
+  let child = (parent.firstChild as MdNode) || null;
+
+  while (child) {
+    if (child.type === 'text') {
+      parseInlineMathTextNode(state, child);
+    } else if (child.type === 'softbreak') {
+      if (state.inInlineMath) {
+        state.inlineMathBuffer += '\n';
+        getOrCreateNodeOutput(state.nodeOutputs, child);
+      } else {
+        appendHTML(state.nodeOutputs, child, '<br>\n');
+      }
+    }
+
+    child = (child.next as MdNode) || null;
+  }
+
+  if (state.inInlineMath && state.inlineStartNode) {
+    appendText(state.nodeOutputs, state.inlineStartNode, `$${state.inlineMathBuffer}`);
+  }
+
+  parentInlineMathCache.set(parent, state.nodeOutputs);
+
+  return state.nodeOutputs;
+}
+
+function getInlineMathNodeOutput(node: MdNode): InlineMathNodeOutput {
+  const parent = (node?.parent as MdNode) || null;
+
+  if (!parent) {
+    if (node.type === 'softbreak') {
+      return { content: '<br>\n', isHTML: true };
+    }
+
+    return { content: node?.literal || '', isHTML: false };
+  }
+
+  const nodeOutputs = parentInlineMathCache.get(parent) || parseInlineMathForParent(parent);
+  const output = nodeOutputs.get(node);
+
+  if (output) {
+    return output;
+  }
+
+  if (node.type === 'softbreak') {
+    return { content: '<br>\n', isHTML: true };
+  }
+
+  return { content: node?.literal || '', isHTML: false };
+}
 
 export function getInlineMath(node: MdNode) {
-  let noNeedNewLine = false;
-  let str = node?.literal || '';
-  let prevIdx = 0;
-  let nextIdx = -1;
-  const ifLastNode = node?.next === null;
-  let count = 0;
+  return getInlineMathNodeOutput(node).content;
+}
 
-  if (node && node === node?.parent?.firstChild) {
-    let n: MdNode | null = node;
-
-    while (n !== null) {
-      const lit = n?.literal || '';
-
-      for (let i = 0; i < lit.length; i += 1) {
-        if (lit[i] === '$') count += 1;
-      }
-
-      lastUncloseNode = count % 2 === 1 ? n : null;
-      n = (n?.next as MdNode) || null;
-    }
-
-    ifEven = count % 2 === 0;
-  }
-
-  let scanning = true;
-
-  while (scanning) {
-    prevIdx = str.indexOf('$', prevIdx);
-    nextIdx = str.indexOf('$', prevIdx + 1);
-
-    if (ifLastNode && !ifEntering && (prevIdx === -1 || nextIdx === -1)) {
-      ifEntering = false;
-      latexPart = '';
-      scanning = false;
-      continue;
-    }
-    if (ifLastNode && ifEntering && prevIdx === -1) {
-      ifEntering = false;
-      latexPart = '';
-      scanning = false;
-      continue;
-    }
-
-    if (ifEntering && prevIdx !== -1) {
-      latexPart += ` ${str.slice(0, prevIdx)}`;
-      const rendered = renderKatexInline(latexPart);
-
-      str = str.replace(str.slice(0, prevIdx + 1), rendered);
-      latexPart = '';
-      ifEntering = false;
-      prevIdx += 1;
-      continue;
-    }
-
-    if (!ifEntering && prevIdx !== -1 && nextIdx !== -1) {
-      if (str[prevIdx + 1] === '$' || str[nextIdx + 1] === '$') {
-        prevIdx = nextIdx + 1;
-        continue;
-      }
-
-      const inside = str.slice(prevIdx + 1, nextIdx);
-      const rendered = renderKatexInline(inside);
-
-      str = str.replace(str.slice(prevIdx, nextIdx + 1), rendered);
-      prevIdx = nextIdx + 1;
-      continue;
-    }
-
-    if (!ifLastNode && !ifEntering && prevIdx === -1) {
-      scanning = false;
-      continue;
-    }
-
-    if (!ifLastNode && !ifEntering && prevIdx !== -1 && nextIdx === -1) {
-      ifEntering = true;
-      latexPart = `${str.slice(prevIdx + 1)} `;
-      if (ifEven || !Object.is(node, lastUncloseNode)) {
-        str = str.replace(str.slice(prevIdx), '');
-        noNeedNewLine = true;
-      }
-      scanning = false;
-      continue;
-    }
-
-    if (!ifLastNode && ifEntering && prevIdx === -1) {
-      latexPart += ` ${str.slice(0)} `;
-      if (ifEven || !Object.is(node, lastUncloseNode)) {
-        str = '';
-        noNeedNewLine = true;
-      }
-      scanning = false;
-      continue;
-    }
-
-    scanning = false;
-  }
-
-  if (noNeedNewLine) {
-    (node as MdNode).literal = '$';
-  }
-
-  return str;
+export function getInlineMathRenderedOutput(node: MdNode) {
+  return getInlineMathNodeOutput(node);
 }
