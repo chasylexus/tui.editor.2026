@@ -203,6 +203,13 @@ table.ProseMirror-selectednode {
   max-width: 100%;
 }
 
+/* Keep inline KaTeX behavior consistent with WYSIWYG:
+   multiline inline formulas (e.g. $a \\ b$) should stay as one tall inline box. */
+.toastui-editor-md-preview .toastui-editor-contents .katex {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .toastui-editor-contents table {
   border: 1px solid rgba(0, 0, 0, 0.1);
   margin: 12px 0 14px;
