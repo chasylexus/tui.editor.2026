@@ -105,4 +105,20 @@ describe('katexPlugin inline math', () => {
     expect(directBrCount).toBe(0);
     expect(previewHTML).toContain('should render b under a.');
   });
+
+  it('should not add extra slash in inline linebreak latex after wysiwyg edit', () => {
+    const base = 'Inline newline test: $a \\\\ b$ should render b under a (inline stacked layout).';
+
+    editor.setMarkdown(base);
+    editor.changeMode('wysiwyg');
+    editor.moveCursorToEnd();
+    editor.insertText('1');
+    editor.changeMode('markdown');
+
+    const markdown = editor.getMarkdown();
+
+    expect(markdown).toContain('$a \\\\ b$');
+    expect(markdown).not.toContain('$a \\\\\\ b$');
+    expect(markdown.endsWith('.1')).toBe(true);
+  });
 });

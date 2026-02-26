@@ -232,6 +232,28 @@ export function fixInlineMathBackslashes(markdown: string) {
           continue;
         }
 
+        if (ch === '\\' && prev !== '\\') {
+          let runLen = 1;
+
+          while (markdown[i + runLen] === '\\') {
+            runLen += 1;
+          }
+
+          if (runLen >= 3) {
+            const afterRun = markdown[i + runLen];
+            const isLinebreakLike =
+              runLen % 2 === 1 &&
+              (typeof afterRun === 'undefined' || isInlineMathWhitespace(afterRun));
+
+            if (isLinebreakLike) {
+              out += '\\'.repeat(runLen - 1);
+              i += runLen - 1;
+              lineStart = false;
+              continue;
+            }
+          }
+        }
+
         if (ch === '\\' && next === '\\' && /[A-Za-z]/.test(markdown[i + 2]) && prev !== '\\') {
           out += '\\';
           i += 1;
