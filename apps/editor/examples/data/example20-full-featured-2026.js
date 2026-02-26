@@ -4,7 +4,7 @@ var fullFeatured2026Content = `# Demo
 
 Inline math example: $\\sum_{i=0}^{\\infty} x^i + 35$ right in the text.
 Inline math test: $\\sum_{i=0}^{\\infty} x^i$ should stay single backslashes.
-Inline newline test: $a \\\\ b$ should remain a double backslash.
+Inline newline test: $a \\\\ b$ should render b under a (inline stacked layout).
 Inline code (should NOT render): \`$\\sum$\`
 
 \`\`\`

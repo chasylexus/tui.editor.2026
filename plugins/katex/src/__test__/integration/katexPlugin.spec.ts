@@ -82,4 +82,27 @@ describe('katexPlugin inline math', () => {
     expect(previewHTML).not.toContain('class="katex"');
     expect(previewHTML).toContain('Price is $5 and not a formula');
   });
+
+  it('should keep inline code literal and never render katex inside code span', () => {
+    editor.setMarkdown('Inline code (should NOT render): `$\\sum$`');
+
+    const previewHTML = getPreviewHTML();
+    const codeEl = mdPreview.querySelector('.toastui-editor-contents p code');
+
+    expect(codeEl?.textContent).toBe('$\\sum$');
+    expect(previewHTML).not.toContain('class="katex"');
+    expect(previewHTML).not.toContain('\uE000');
+  });
+
+  it('should render $a \\\\ b$ as inline katex without inserting markdown br node', () => {
+    editor.setMarkdown('Inline newline test: $a \\\\ b$ should render b under a.');
+
+    const p = mdPreview.querySelector('.toastui-editor-contents p')!;
+    const previewHTML = getPreviewHTML();
+    const directBrCount = Array.from(p.children).filter((el) => el.tagName === 'BR').length;
+
+    expect(p.querySelector('.katex')).not.toBeNull();
+    expect(directBrCount).toBe(0);
+    expect(previewHTML).toContain('should render b under a.');
+  });
 });

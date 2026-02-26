@@ -19,4 +19,12 @@ export const markdownParsers: CustomParserMap = {
 
     node.literal = restoreInlineMathProtectedChars(node.literal);
   },
+
+  code(node, { entering }) {
+    if (!entering || typeof node.literal !== 'string') {
+      return;
+    }
+
+    node.literal = restoreInlineMathProtectedChars(node.literal);
+  },
 };
