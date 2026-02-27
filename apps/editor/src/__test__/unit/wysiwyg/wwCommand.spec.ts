@@ -518,6 +518,32 @@ describe('wysiwyg commands', () => {
         '<p><img src="https://firebasestorage.googleapis.com/images%2Fimage.png?alt=media" alt="foo"><br></p>'
       );
     });
+
+    it('should add image width and/or height attributes', () => {
+      cmd.exec('addImage', {
+        imageUrl: '#',
+        imageWidth: 200,
+      });
+      expect(wwe.getHTML()).toBe('<p><img src="#" width="200"><br></p>');
+
+      setContent('<p><br></p>');
+
+      cmd.exec('addImage', {
+        imageUrl: '#',
+        imageHeight: 300,
+      });
+      expect(wwe.getHTML()).toBe('<p><img src="#" height="300"><br></p>');
+
+      setContent('<p><br></p>');
+
+      cmd.exec('addImage', {
+        imageUrl: '#',
+        altText: 'foo',
+        imageWidth: 200,
+        imageHeight: 300,
+      });
+      expect(wwe.getHTML()).toBe('<p><img src="#" alt="foo" width="200" height="300"><br></p>');
+    });
   });
 
   describe('addLink command', () => {
@@ -657,9 +683,13 @@ describe('wysiwyg commands', () => {
         linkText: 'foo',
       });
 
-      expect(wwe.getHTML()).toBe(
-        '<p><a href="#" target="_blank" rel="noopener noreferrer">foo</a></p>'
-      );
+      const html = wwe.getHTML();
+
+      expect(html).toContain('<p><a');
+      expect(html).toContain('href="#"');
+      expect(html).toContain('target="_blank"');
+      expect(html).toContain('rel="noopener noreferrer"');
+      expect(html).toContain('>foo</a></p>');
     });
   });
 

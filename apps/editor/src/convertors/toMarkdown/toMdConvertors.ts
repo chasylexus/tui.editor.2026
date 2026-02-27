@@ -3,6 +3,7 @@ import { ProsemirrorNode } from 'prosemirror-model';
 import { nodeTypeWriters, write } from './toMdNodeTypeWriters';
 
 import { repeat, quote, escapeXml, escapeTextForLink } from '@/utils/common';
+import { formatImageSizeSpec } from '@/convertors/imageSize';
 
 import {
   ToMdConvertorMap,
@@ -176,13 +177,21 @@ export const toMdConvertors: ToMdConvertorMap = {
     const { attrs } = node;
     const { rawHTML, altText } = attrs;
     const imageUrl = attrs.imageUrl.replace(/&amp;/g, '&');
+    const imageSizeSpec = formatImageSizeSpec(attrs.imageWidth, attrs.imageHeight);
     const altAttr = altText ? ` alt="${escapeXml(altText)}"` : '';
+    const sizeAttr =
+      typeof attrs.imageWidth === 'number' || typeof attrs.imageHeight === 'number'
+        ? `${typeof attrs.imageWidth === 'number' ? ` width="${attrs.imageWidth}"` : ''}${
+            typeof attrs.imageHeight === 'number' ? ` height="${attrs.imageHeight}"` : ''
+          }`
+        : '';
 
     return {
-      rawHTML: rawHTML ? `<${rawHTML} src="${escapeXml(imageUrl)}"${altAttr}>` : null,
+      rawHTML: rawHTML ? `<${rawHTML} src="${escapeXml(imageUrl)}"${altAttr}${sizeAttr}>` : null,
       attrs: {
         altText: escapeTextForLink(altText || ''),
         imageUrl,
+        imageSizeSpec,
       },
     };
   },

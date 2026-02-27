@@ -109,34 +109,89 @@ export default class MdEditor extends EditorBase {
     if (window.scrollX !== scrollX || window.scrollY !== scrollY) {
       window.scrollTo(scrollX, scrollY);
     }
+
+    this.stabilizeWindowScroll(scrollX, scrollY);
+  }
+
+  private usePseudoClipboardForPaste() {
+    // Legacy fallback path for browsers without reliable paste handling on contenteditable.
+    // Modern browsers should paste directly into ProseMirror to avoid viewport jumps.
+    return Boolean((window as WindowWithClipboard).clipboardData);
+  }
+
+  private handleImagePaste(items: DataTransferItemList | undefined, ev: ClipboardEvent) {
+    if (!items) {
+      return false;
+    }
+
+    const containRtfItem = Array.from(items).some(
+      (item) => item.kind === 'string' && item.type === 'text/rtf'
+    );
+
+    // if it contains rtf, it's most likely copy paste from office -> no image
+    if (!containRtfItem) {
+      const imageBlob = pasteImageOnly(items);
+
+      if (imageBlob) {
+        ev.preventDefault();
+        emitImageBlobHook(this.eventEmitter, imageBlob, ev.type);
+
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private stabilizeWindowScroll(originX?: number, originY?: number) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const scrollX = typeof originX === 'number' ? originX : window.scrollX;
+    const scrollY = typeof originY === 'number' ? originY : window.scrollY;
+    const restore = () => {
+      if (window.scrollX !== scrollX || window.scrollY !== scrollY) {
+        window.scrollTo(scrollX, scrollY);
+      }
+    };
+
+    restore();
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        restore();
+        window.requestAnimationFrame(restore);
+      });
+    } else {
+      window.setTimeout(restore, 16);
+      window.setTimeout(restore, 32);
+    }
+    window.setTimeout(restore, 0);
+    window.setTimeout(restore, 80);
   }
 
   private createClipboard() {
     this.clipboard = document.createElement('textarea');
     this.clipboard.className = cls('pseudo-clipboard');
+    this.clipboard.style.left = '0';
+    this.clipboard.style.top = '0';
+    this.clipboard.style.width = '1px';
+    this.clipboard.style.height = '1px';
+    this.clipboard.style.pointerEvents = 'none';
     this.clipboard.addEventListener('paste', (ev: ClipboardEvent) => {
+      const { scrollX, scrollY } = window;
+
       const clipboardData =
         (ev as ClipboardEvent).clipboardData || (window as WindowWithClipboard).clipboardData;
       const items = clipboardData && clipboardData.items;
 
-      if (items) {
-        const containRtfItem = Array.from(items).some(
-          (item) => item.kind === 'string' && item.type === 'text/rtf'
-        );
+      this.handleImagePaste(items || undefined, ev);
 
-        // if it contains rtf, it's most likely copy paste from office -> no image
-        if (!containRtfItem) {
-          const imageBlob = pasteImageOnly(items);
-
-          if (imageBlob) {
-            ev.preventDefault();
-            emitImageBlobHook(this.eventEmitter, imageBlob, ev.type);
-          }
-        }
-      }
+      this.stabilizeWindowScroll(scrollX, scrollY);
     });
     // process the pasted data in input event for IE11
     this.clipboard.addEventListener('input', (ev) => {
+      const { scrollX, scrollY } = window;
       const text = (ev.target as HTMLTextAreaElement).value;
       const { doc, selection } = this.view.state;
       const { from, to } = selection;
@@ -145,6 +200,7 @@ export default class MdEditor extends EditorBase {
       this.replaceSelection(text, start, end, false);
       ev.preventDefault();
       (ev.target as HTMLTextAreaElement).value = '';
+      this.stabilizeWindowScroll(scrollX, scrollY);
     });
     this.el.insertBefore(this.clipboard, this.view.dom);
   }
@@ -210,7 +266,10 @@ export default class MdEditor extends EditorBase {
       },
       handleKeyDown: (_, ev) => {
         if ((ev.metaKey || ev.ctrlKey) && ev.key.toUpperCase() === 'V') {
-          this.focusElementWithoutPageScroll(this.clipboard);
+          if (this.usePseudoClipboardForPaste()) {
+            this.focusElementWithoutPageScroll(this.clipboard);
+            return true;
+          }
         }
         this.eventEmitter.emit('keydown', this.editorType, ev);
         return false;
@@ -224,6 +283,18 @@ export default class MdEditor extends EditorBase {
         },
         keyup: (_, ev: KeyboardEvent) => {
           this.eventEmitter.emit('keyup', this.editorType, ev);
+          return false;
+        },
+        paste: (_, ev: ClipboardEvent) => {
+          const { scrollX, scrollY } = window;
+          const clipboardData =
+            ev.clipboardData || (window as WindowWithClipboard).clipboardData;
+          const items = clipboardData && clipboardData.items;
+
+          this.handleImagePaste(items || undefined, ev);
+
+          this.stabilizeWindowScroll(scrollX, scrollY);
+
           return false;
         },
       },
@@ -262,6 +333,11 @@ export default class MdEditor extends EditorBase {
 
   private updateMarkdown(tr: Transaction) {
     if (tr.docChanged) {
+      const noScrollIntoView =
+        Boolean(tr.getMeta('toastuiProgrammatic')) ||
+        Boolean(tr.getMeta('toastuiNoScroll')) ||
+        tr.getMeta('uiEvent') === 'paste';
+
       tr.steps.forEach((step, index) => {
         if (step.slice && !(step instanceof ReplaceAroundStep)) {
           const doc = tr.docs[index];
@@ -289,7 +365,11 @@ export default class MdEditor extends EditorBase {
 
           this.eventEmitter.emit('updatePreview', editResult);
 
-          tr.setMeta('editResult', editResult).scrollIntoView();
+          const nextTr = tr.setMeta('editResult', editResult);
+
+          if (!noScrollIntoView) {
+            nextTr.scrollIntoView();
+          }
         }
       });
     }
@@ -337,7 +417,13 @@ export default class MdEditor extends EditorBase {
     } else {
       newTr = tr.replaceSelection(slice);
     }
+    if (!scrollIntoView) {
+      newTr.setMeta('toastuiNoScroll', true);
+    }
     this.view.dispatch(scrollIntoView ? newTr.scrollIntoView() : newTr);
+    if (!scrollIntoView) {
+      this.stabilizeWindowScroll();
+    }
   }
 
   deleteSelection(start?: MdPos, end?: MdPos) {

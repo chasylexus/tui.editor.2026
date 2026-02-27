@@ -28,6 +28,7 @@ import { includes } from '@/utils/common';
 import { reBR, reHTMLTag, reHTMLComment } from '@/utils/constants';
 import { sanitizeHTML } from '@/sanitizer/htmlSanitizer';
 import { parseCodeBlockInfo, resolveCodeBlockLineNumber } from '@/convertors/codeBlockInfo';
+import { parseImageSizeSpec } from '@/convertors/imageSize';
 
 function isBRTag(node: MdNode) {
   return node.type === 'htmlInline' && reBR.test(node.literal!);
@@ -238,7 +239,8 @@ const toWwConvertors: ToWwConvertorMap = {
 
   image(state, node, { entering, skipChildren }, customAttrs) {
     const { image } = state.schema.nodes;
-    const { destination, firstChild } = node as LinkMdNode;
+    const { destination, firstChild, title } = node as LinkMdNode;
+    const size = parseImageSizeSpec(title);
 
     if (entering && skipChildren) {
       skipChildren();
@@ -247,6 +249,8 @@ const toWwConvertors: ToWwConvertorMap = {
     state.addNode(image, {
       imageUrl: destination,
       ...(firstChild && { altText: firstChild.literal }),
+      ...(typeof size?.width === 'number' && { imageWidth: size.width }),
+      ...(typeof size?.height === 'number' && { imageHeight: size.height }),
       ...customAttrs,
     });
   },

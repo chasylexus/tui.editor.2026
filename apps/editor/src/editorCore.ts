@@ -37,7 +37,12 @@ import { getHTMLRenderConvertors } from './markdown/htmlRenderConvertors';
 import { buildQuery } from './queries/queryManager';
 import { getEditorToMdPos, getMdToEditorPos } from './markdown/helper/pos';
 import SnapshotHistory, { Snapshot, SnapshotSelection } from './history/snapshotHistory';
-import { hasFootnoteSyntax, transformMarkdownFootnotes } from './utils/footnote';
+import {
+  hasFootnoteSyntax,
+  hasTransformedFootnoteMarkup,
+  restoreTransformedFootnotes,
+  transformMarkdownFootnotes,
+} from './utils/footnote';
 
 interface LineRange {
   startLine: number;
@@ -248,6 +253,21 @@ class ToastUIEditorCore {
     if (this.isSnapshotDebug()) {
       // eslint-disable-next-line no-console
       console.log({ phase: 'baseline-canonical-set', reason });
+    }
+  }
+
+  private preserveWindowScroll(task: () => void) {
+    if (typeof window === 'undefined') {
+      task();
+      return;
+    }
+
+    const { scrollX, scrollY } = window;
+
+    task();
+
+    if (window.scrollX !== scrollX || window.scrollY !== scrollY) {
+      window.scrollTo(scrollX, scrollY);
     }
   }
 
@@ -784,6 +804,14 @@ class ToastUIEditorCore {
       nextMd = this.convertor.toMarkdownText(wwDoc);
     }
 
+    if (
+      hasFootnoteSyntax(this.canonicalMd) ||
+      hasTransformedFootnoteMarkup(this.canonicalMd) ||
+      hasTransformedFootnoteMarkup(nextMd)
+    ) {
+      nextMd = restoreTransformedFootnotes(nextMd).markdown;
+    }
+
     if (baselineMd && nextMd === baselineMd) {
       if (this.isSnapshotDebug()) {
         // eslint-disable-next-line no-console
@@ -886,11 +914,22 @@ class ToastUIEditorCore {
     return transformMarkdownFootnotes(markdown).markdown;
   }
 
-  private renderFullPreview(markdown: string) {
-    const rootNode = this.createToastMark(markdown).getRootNode();
+  private renderFullPreview(
+    markdown: string,
+    sourceToRenderedLineMap: number[] | null = null,
+    sourceMarkdownForLineMap: string | null = null
+  ) {
+    const previewToastMark = this.createToastMark(markdown);
+    const rootNode = previewToastMark.getRootNode();
     const renderer = this.preview.getRenderer();
     const rendered: string[] = [];
     let node = rootNode.firstChild as MdNode | null;
+
+    this.preview.setRenderedToastMark(
+      previewToastMark,
+      sourceToRenderedLineMap,
+      sourceMarkdownForLineMap
+    );
 
     while (node) {
       rendered.push(renderer.render(node));
@@ -908,13 +947,23 @@ class ToastUIEditorCore {
 
   private renderFootnotePreviewIfNeeded() {
     const sourceMarkdown = this.mdEditor.getMarkdown();
-    const transformed = transformMarkdownFootnotes(sourceMarkdown);
 
-    if (!transformed.hasFootnotes) {
+    if (hasFootnoteSyntax(sourceMarkdown)) {
+      const transformed = transformMarkdownFootnotes(sourceMarkdown);
+
+      this.renderFullPreview(
+        transformed.markdown,
+        transformed.sourceToRenderedLineMap || null,
+        sourceMarkdown
+      );
       return;
     }
 
-    this.renderFullPreview(transformed.markdown);
+    if (!hasTransformedFootnoteMarkup(sourceMarkdown)) {
+      return;
+    }
+
+    this.renderFullPreview(sourceMarkdown, null, null);
   }
 
   private replaceMdRange(md: string, start: MdPos, end: MdPos, text: string) {
@@ -1374,11 +1423,11 @@ class ToastUIEditorCore {
     const head = this.clampMdPos(md, selection.head);
 
     if (this.isMarkdownMode()) {
-      this.mdEditor.setSelection(anchor, head);
+      this.mdEditor.setSelection(anchor, head, false);
     } else {
       const [from, to] = getMdToEditorPos(this.wwEditor.view.state.doc, anchor, head);
 
-      this.wwEditor.setSelection(from, to);
+      this.wwEditor.setSelection(from, to, false);
     }
   }
 
@@ -1388,15 +1437,17 @@ class ToastUIEditorCore {
     this.logWwDirty(false, 'snapshot-apply');
     this.canonicalMd = md;
     this.wwDirty = false;
-    this.runProgrammatic(() => {
-      this.setMarkdown(md, false, false, true);
+    this.preserveWindowScroll(() => {
+      this.runProgrammatic(() => {
+        this.setMarkdown(md, false, false, true);
+      });
+      this.setWwBaseline('snapshot-apply');
+      this.setBaselineCanonicalMd('snapshot-apply');
+      this.restoreSelection(selection, md);
+      if (typeof scrollTop === 'number') {
+        this.getCurrentModeEditor().setScrollTop(scrollTop);
+      }
     });
-    this.setWwBaseline('snapshot-apply');
-    this.setBaselineCanonicalMd('snapshot-apply');
-    this.restoreSelection(selection, md);
-    if (typeof scrollTop === 'number') {
-      this.getCurrentModeEditor().setScrollTop(scrollTop);
-    }
   }
 
   private undoBySnapshot() {

@@ -144,6 +144,18 @@ describe('findFirstNodeAtLine()', () => {
   });
 });
 
+describe('image size shorthand', () => {
+  it('should parse inline image with =WxH suffix', () => {
+    const markdown = '![Minion](https://octodex.github.com/images/minion.png =200x200)';
+    const doc = new ToastMark(markdown);
+    const imageNode = doc.getRootNode().firstChild!.firstChild!;
+
+    expect(imageNode.type).toBe('image');
+    expect((imageNode as any).destination).toBe('https://octodex.github.com/images/minion.png');
+    expect((imageNode as any).title).toBe('=200x200');
+  });
+});
+
 describe('editText()', () => {
   describe('single paragraph', () => {
     it('should insert character within a line', () => {

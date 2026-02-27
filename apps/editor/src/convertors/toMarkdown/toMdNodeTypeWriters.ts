@@ -1,6 +1,7 @@
 import { ProsemirrorNode } from 'prosemirror-model';
 
 import { escapeTextForLink, repeat } from '@/utils/common';
+import { formatImageSizeSpec } from '@/convertors/imageSize';
 
 import {
   ToMdNodeTypeWriterMap,
@@ -166,7 +167,11 @@ export const nodeTypeWriters: ToMdNodeTypeWriterMap = {
   },
 
   image(state, _, { attrs }) {
-    state.write(`![${attrs?.altText}](${attrs?.imageUrl})`);
+    const imageSizeSpec =
+      attrs?.imageSizeSpec || formatImageSizeSpec(attrs?.imageWidth, attrs?.imageHeight);
+    const sizePart = imageSizeSpec ? ` ${imageSizeSpec}` : '';
+
+    state.write(`![${attrs?.altText}](${attrs?.imageUrl}${sizePart})`);
   },
 
   thematicBreak(state, { node }, { delim }) {

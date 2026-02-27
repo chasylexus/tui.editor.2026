@@ -430,6 +430,62 @@ describe('Default toolbar', () => {
       expect(editor.getMarkdown()).toBe('![image](myImageUrl)');
     });
 
+    it('should add image with width only as =200x', () => {
+      getByLabelText(imagePopup, 'URL').click();
+
+      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
+      const descriptionText = getByText(imagePopup, 'Description')
+        .nextElementSibling as HTMLInputElement;
+      const widthText = getByText(imagePopup, 'Width').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(imagePopup, 'OK');
+
+      urlText.value = 'myImageUrl';
+      descriptionText.value = 'image';
+      widthText.value = '200';
+
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('![image](myImageUrl =200x)');
+    });
+
+    it('should add image with height only as =x200', () => {
+      getByLabelText(imagePopup, 'URL').click();
+
+      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
+      const descriptionText = getByText(imagePopup, 'Description')
+        .nextElementSibling as HTMLInputElement;
+      const heightText = getByText(imagePopup, 'Height').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(imagePopup, 'OK');
+
+      urlText.value = 'myImageUrl';
+      descriptionText.value = 'image';
+      heightText.value = '200';
+
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('![image](myImageUrl =x200)');
+    });
+
+    it('should add image with width and height as =200x200', () => {
+      getByLabelText(imagePopup, 'URL').click();
+
+      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
+      const descriptionText = getByText(imagePopup, 'Description')
+        .nextElementSibling as HTMLInputElement;
+      const widthText = getByText(imagePopup, 'Width').nextElementSibling as HTMLInputElement;
+      const heightText = getByText(imagePopup, 'Height').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(imagePopup, 'OK');
+
+      urlText.value = 'myImageUrl';
+      descriptionText.value = 'image';
+      widthText.value = '200';
+      heightText.value = '200';
+
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('![image](myImageUrl =200x200)');
+    });
+
     it('should add wrong class when url or text are not filled out', () => {
       const fileText = getByText(imagePopup, 'Select image file')
         .nextElementSibling as HTMLInputElement;

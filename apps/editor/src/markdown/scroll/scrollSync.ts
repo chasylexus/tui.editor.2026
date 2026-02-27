@@ -1,8 +1,8 @@
-import { ProsemirrorNode } from 'prosemirror-model';
 import { EditorView } from 'prosemirror-view';
-import { ToastMark } from '@techie_doubts/toastmark';
+import { MdNode, ToastMark } from '@techie_doubts/toastmark';
 import { Emitter } from '@t/event';
-import { isHTMLNode, getMdStartLine } from '@/utils/markdown';
+import { getMdStartLine } from '@/utils/markdown';
+import { hasFootnoteSyntax } from '@/utils/footnote';
 import MarkdownPreview from '../mdPreview';
 import MdEditor from '../mdEditor';
 import { animate } from './animation';
@@ -22,17 +22,14 @@ export interface SyncCallbacks {
   releaseEventBlock: () => void;
 }
 
-interface PosInfo {
-  pos: number;
-  inside: number;
-}
-
 type ScrollFrom = 'editor' | 'preview';
 
 export class ScrollSync {
   private previewRoot: HTMLElement;
 
   private previewEl: HTMLElement;
+
+  private preview: MarkdownPreview;
 
   private editorView: EditorView;
 
@@ -52,9 +49,16 @@ export class ScrollSync {
 
   private timer: NodeJS.Timeout | null = null;
 
+  private footnoteContext: {
+    markdown: string;
+    lineMap: number[];
+    previewToastMark: ToastMark;
+  } | null = null;
+
   constructor(mdEditor: MdEditor, preview: MarkdownPreview, eventEmitter: Emitter) {
     const { previewContent: previewRoot, el: previewEl } = preview;
 
+    this.preview = preview;
     this.previewRoot = previewRoot;
     this.previewEl = previewEl!;
     this.mdEditor = mdEditor;
@@ -88,11 +92,220 @@ export class ScrollSync {
     });
   }
 
-  private getMdNodeAtPos(doc: ProsemirrorNode, posInfo: PosInfo) {
-    const indexInfo = doc.content.findIndex(posInfo.pos);
-    const line = indexInfo.index;
+  private getFirstVisibleLineIndex(children: HTMLCollection, scrollTop: number) {
+    const last = children.length - 1;
 
-    return this.toastMark.findFirstNodeAtLine(line + 1);
+    if (last < 0) {
+      return -1;
+    }
+
+    let low = 0;
+    let high = last;
+
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const lineEl = children[mid] as HTMLElement;
+
+      if (lineEl.offsetTop + lineEl.clientHeight <= scrollTop) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return Math.min(Math.max(low, 0), last);
+  }
+
+  private getMdNodeByPos(pos: number) {
+    const line = this.editorView.state.doc.content.findIndex(pos).index + 1;
+
+    return this.toastMark.findFirstNodeAtLine(line) as MdNode | null;
+  }
+
+  private getPreviewScrollTopByViewportAnchor(children: HTMLCollection) {
+    const editorRect = this.editorView.dom.getBoundingClientRect();
+    const probeLeft = editorRect.left + Math.min(48, Math.max(16, editorRect.width * 0.15));
+    const probeTop = editorRect.top + Math.min(24, Math.max(6, editorRect.height * 0.08));
+    const posInfo = this.editorView.posAtCoords({ left: probeLeft, top: probeTop });
+
+    if (!posInfo) {
+      return null;
+    }
+
+    const mdNodeAtProbe = this.getMdNodeByPos(posInfo.pos);
+
+    if (!mdNodeAtProbe) {
+      return null;
+    }
+
+    const { el, mdNode } = getParentNodeObj(this.previewRoot, mdNodeAtProbe);
+    const { doc } = this.editorView.state;
+    const startLine = getMdStartLine(mdNode) - 1;
+    const startLineEl = children[startLine] as HTMLElement | undefined;
+
+    if (!startLineEl) {
+      return null;
+    }
+
+    const { height, rect } = getEditorRangeHeightInfo(doc, mdNode, children);
+    const blockHeight = Math.max(height, 1);
+    const relativeInBlock = Math.min(Math.max(probeTop - rect.top, 0), blockHeight);
+    const ratio = relativeInBlock / blockHeight;
+    const totalOffsetTop = getTotalOffsetTop(el, this.previewRoot) || el.offsetTop;
+    const nodeHeight = Math.max(el.clientHeight, 1);
+    const target = totalOffsetTop + nodeHeight * ratio;
+
+    return Number.isFinite(target) ? target : null;
+  }
+
+  private getMdNodeAtLine(line: number) {
+    const lineTexts = this.toastMark.getLineTexts();
+    const lineText = lineTexts[line - 1] || '';
+    const ch = Math.max(lineText.length, 1);
+
+    return (
+      (this.toastMark.findNodeAtPosition([line, ch]) as MdNode | null) ||
+      (this.toastMark.findFirstNodeAtLine(line) as MdNode | null)
+    );
+  }
+
+  private getPreviewScrollTopByEditorPosition(children: HTMLCollection, scrollTop: number) {
+    const firstVisibleLineIndex = this.getFirstVisibleLineIndex(children, scrollTop);
+    const { doc } = this.editorView.state;
+
+    if (firstVisibleLineIndex < 0) {
+      return null;
+    }
+
+    const line = firstVisibleLineIndex + 1;
+    const mdNode = this.getMdNodeAtLine(line);
+
+    if (!mdNode) {
+      return null;
+    }
+
+    const { el, mdNode: parentNode } = getParentNodeObj(this.previewRoot, mdNode);
+    const startLine = getMdStartLine(parentNode) - 1;
+    const startLineEl = children[startLine] as HTMLElement | undefined;
+
+    if (!startLineEl) {
+      return null;
+    }
+
+    const { height } = getEditorRangeHeightInfo(doc, parentNode, children);
+    const editorNodeHeight = Math.max(height, 1);
+    const editorOffsetTop = startLineEl.offsetTop;
+    const ratio = Math.min(Math.max((scrollTop - editorOffsetTop) / editorNodeHeight, 0), 1);
+    const { nodeHeight, offsetTop } = getAndSaveOffsetInfo(el, this.previewRoot, parentNode.id);
+
+    return offsetTop + nodeHeight * ratio;
+  }
+
+  private getFootnoteContext(markdown: string) {
+    if (this.footnoteContext && this.footnoteContext.markdown === markdown) {
+      return this.footnoteContext;
+    }
+
+    const mappedMarkdown = this.preview.getSourceMarkdownForLineMap();
+    const lineMap = this.preview.getSourceToRenderedLineMap() || [];
+    const previewToastMark = this.preview.getRenderedToastMark();
+
+    if (mappedMarkdown !== markdown || !previewToastMark || !lineMap.length) {
+      this.footnoteContext = null;
+
+      return null;
+    }
+
+    this.footnoteContext = {
+      markdown,
+      lineMap,
+      previewToastMark,
+    };
+
+    return this.footnoteContext;
+  }
+
+  private findMappedLine(lineMap: number[], sourceLine: number) {
+    if (!lineMap.length) {
+      return 0;
+    }
+
+    if (lineMap[sourceLine]) {
+      return lineMap[sourceLine];
+    }
+
+    for (let line = sourceLine - 1; line >= 1; line -= 1) {
+      if (lineMap[line]) {
+        return lineMap[line];
+      }
+    }
+
+    for (let line = sourceLine + 1; line < lineMap.length; line += 1) {
+      if (lineMap[line]) {
+        return lineMap[line];
+      }
+    }
+
+    return 0;
+  }
+
+  private getPreviewScrollTopByFootnoteLineMap(children: HTMLCollection, scrollTop: number) {
+    const markdown = this.mdEditor.getMarkdown();
+    const firstVisibleLineIndex = this.getFirstVisibleLineIndex(children, scrollTop);
+
+    if (firstVisibleLineIndex < 0) {
+      return null;
+    }
+
+    const sourceLine = firstVisibleLineIndex + 1;
+    const context = this.getFootnoteContext(markdown);
+
+    if (!context) {
+      return null;
+    }
+
+    const renderedLine = this.findMappedLine(context.lineMap, sourceLine);
+
+    if (!renderedLine) {
+      return null;
+    }
+
+    const renderedNode =
+      (context.previewToastMark.findNodeAtPosition([renderedLine, 1]) as MdNode | null) ||
+      (context.previewToastMark.findFirstNodeAtLine(renderedLine) as MdNode | null);
+
+    if (!renderedNode) {
+      return null;
+    }
+
+    let node: MdNode | null = renderedNode;
+    let hasMappedNode = false;
+
+    while (node && node.type !== 'document') {
+      if (this.previewRoot.querySelector(`[data-nodeid="${node.id}"]`)) {
+        hasMappedNode = true;
+        break;
+      }
+      node = node.parent as MdNode | null;
+    }
+
+    if (!hasMappedNode) {
+      return null;
+    }
+
+    const { el } = getParentNodeObj(this.previewRoot, renderedNode);
+
+    if (!el) {
+      return null;
+    }
+
+    const lineEl = children[firstVisibleLineIndex] as HTMLElement;
+    const lineHeight = Math.max(lineEl.clientHeight, 1);
+    const ratio = Math.min(Math.max((scrollTop - lineEl.offsetTop) / lineHeight, 0), 1);
+    const totalOffsetTop = getTotalOffsetTop(el, this.previewRoot) || el.offsetTop;
+    const shift = Math.min(el.clientHeight, lineHeight) * ratio;
+
+    return totalOffsetTop + shift;
   }
 
   private getScrollTopByCaretPos() {
@@ -113,23 +326,16 @@ export class ScrollSync {
   }
 
   private syncPreviewScrollTop(editing = false) {
-    const { editorView, previewEl, previewRoot } = this;
-    const { left, top } = editorView.dom.getBoundingClientRect();
-    const posInfo = editorView.posAtCoords({ left, top })!;
-    const { doc } = editorView.state;
-    const firstMdNode = this.getMdNodeAtPos(doc, posInfo);
-
-    if (!firstMdNode || isHTMLNode(firstMdNode)) {
-      return;
-    }
-
+    const { editorView, previewEl } = this;
     const curScrollTop = previewEl.scrollTop;
-    const { scrollTop, scrollHeight, clientHeight, children } = editorView.dom;
-    const isBottomPos = scrollHeight - scrollTop <= clientHeight + EDITOR_BOTTOM_PADDING;
+    const { scrollTop, scrollHeight, clientHeight } = editorView.dom;
+    const maxEditorScrollTop = Math.max(scrollHeight - clientHeight, 0);
+    const maxPreviewScrollTop = Math.max(previewEl.scrollHeight - previewEl.clientHeight, 0);
+    const isBottomPos = maxEditorScrollTop - scrollTop <= EDITOR_BOTTOM_PADDING;
 
-    let targetScrollTop = isBottomPos ? previewEl.scrollHeight : 0;
+    let targetScrollTop = isBottomPos ? maxPreviewScrollTop : 0;
 
-    if (scrollTop && !isBottomPos) {
+    if (scrollTop > 0 && !isBottomPos) {
       if (editing) {
         const scrollTopByEditing = this.getScrollTopByCaretPos();
 
@@ -138,14 +344,34 @@ export class ScrollSync {
         }
         targetScrollTop = scrollTopByEditing;
       } else {
-        const { el, mdNode } = getParentNodeObj(this.previewRoot, firstMdNode);
-        const { height, rect } = getEditorRangeHeightInfo(doc, mdNode, children);
-        const totalOffsetTop = getTotalOffsetTop(el, previewRoot) || el.offsetTop;
-        const nodeHeight = el.clientHeight;
-        const ratio = top > rect.top ? Math.min((top - rect.top) / height, 1) : 0;
+        const { children } = editorView.dom;
+        if (hasFootnoteSyntax(this.mdEditor.getMarkdown())) {
+          const mappedTop = this.getPreviewScrollTopByFootnoteLineMap(children, scrollTop);
 
-        targetScrollTop = totalOffsetTop + nodeHeight * ratio;
+          if (typeof mappedTop === 'number') {
+            targetScrollTop = mappedTop;
+          } else {
+            const ratio = maxEditorScrollTop > 0 ? scrollTop / maxEditorScrollTop : 0;
+
+            targetScrollTop = Math.round(maxPreviewScrollTop * ratio);
+          }
+        } else {
+          const viewportTop = this.getPreviewScrollTopByViewportAnchor(children);
+          const anchoredTop =
+            typeof viewportTop === 'number'
+              ? viewportTop
+              : this.getPreviewScrollTopByEditorPosition(children, scrollTop);
+
+          if (typeof anchoredTop === 'number') {
+            targetScrollTop = anchoredTop;
+          } else {
+            const ratio = maxEditorScrollTop > 0 ? scrollTop / maxEditorScrollTop : 0;
+
+            targetScrollTop = Math.round(maxPreviewScrollTop * ratio);
+          }
+        }
       }
+      targetScrollTop = Math.min(Math.max(targetScrollTop, 0), maxPreviewScrollTop);
       targetScrollTop = this.getResolvedScrollTop(
         'editor',
         scrollTop,
@@ -211,6 +437,10 @@ export class ScrollSync {
       from === 'editor' ? this.latestEditorScrollTop : this.latestPreviewScrollTop;
 
     if (latestScrollTop === null) {
+      return targetScrollTop;
+    }
+
+    if (from === 'editor') {
       return targetScrollTop;
     }
 

@@ -1,4 +1,9 @@
-import { hasFootnoteSyntax, transformMarkdownFootnotes } from '@/utils/footnote';
+import {
+  hasFootnoteSyntax,
+  hasTransformedFootnoteMarkup,
+  restoreTransformedFootnotes,
+  transformMarkdownFootnotes,
+} from '@/utils/footnote';
 
 describe('footnote utils', () => {
   it('transforms reference footnotes, inline footnotes, and duplicated references', () => {
@@ -60,5 +65,38 @@ describe('footnote utils', () => {
     expect(hasFootnoteSyntax(source)).toBe(false);
     expect(result.hasFootnotes).toBe(false);
     expect(result.markdown).toBe(source);
+  });
+
+  it('restores transformed footnotes back to markdown footnote syntax', () => {
+    const source = ['Footnote 1 link[^first].', '', '[^first]: Footnote text.'].join('\n');
+    const transformed = transformMarkdownFootnotes(source).markdown;
+    const restored = restoreTransformedFootnotes(transformed);
+
+    expect(hasTransformedFootnoteMarkup(transformed)).toBe(true);
+    expect(restored.restored).toBe(true);
+    expect(restored.markdown).toContain('Footnote 1 link[^first].');
+    expect(restored.markdown).toContain('[^first]: Footnote text.');
+    expect(restored.markdown).not.toContain('<sup class="footnote-ref">');
+  });
+
+  it('returns source-to-rendered line mapping for transformed footnotes', () => {
+    const source = [
+      'Intro',
+      '',
+      'Ref[^a]',
+      'Mid',
+      '[^a]: first line',
+      '    second line',
+      'Tail',
+    ].join('\n');
+    const result = transformMarkdownFootnotes(source);
+
+    expect(result.sourceToRenderedLineMap[1]).toBe(1);
+    expect(result.sourceToRenderedLineMap[2]).toBe(2);
+    expect(result.sourceToRenderedLineMap[3]).toBe(3);
+    expect(result.sourceToRenderedLineMap[4]).toBe(4);
+    expect(result.sourceToRenderedLineMap[7]).toBe(5);
+    expect(result.sourceToRenderedLineMap[5]).toBe(11);
+    expect(result.sourceToRenderedLineMap[6]).toBe(12);
   });
 });

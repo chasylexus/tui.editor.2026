@@ -52,7 +52,7 @@ export class ImageView implements NodeView {
 
   private createImageElement(node: ProsemirrorNode) {
     const image = document.createElement('img');
-    const { imageUrl, altText } = node.attrs;
+    const { imageUrl, altText, imageWidth, imageHeight } = node.attrs;
     const attrs = getCustomAttrs(node.attrs);
 
     image.src = imageUrl;
@@ -60,6 +60,15 @@ export class ImageView implements NodeView {
     if (altText) {
       image.alt = altText;
     }
+
+    if (typeof imageWidth === 'number' && imageWidth > 0) {
+      image.width = imageWidth;
+    }
+
+    if (typeof imageHeight === 'number' && imageHeight > 0) {
+      image.height = imageHeight;
+    }
+
     setAttributes(attrs, image);
 
     return image;

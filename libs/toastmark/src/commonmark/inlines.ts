@@ -30,6 +30,8 @@ const C_DOLLAR = 36;
 const C_EQUAL = 61;
 const C_PLUS = 43;
 const C_CARET = 94;
+const C_LOWER_X = 120;
+const C_UPPER_X = 88;
 
 // Some regexps used in inline parser:
 const ESCAPED_CHAR = `\\\\${ESCAPABLE}`;
@@ -961,6 +963,45 @@ export class InlineParser {
     return m.length;
   }
 
+  // Attempt to parse image dimension suffix in inline link destination context.
+  // Example: =200x200, =200x, =x200
+  parseImageSizeSpec() {
+    const savepos = this.pos;
+
+    if (this.peek() !== C_EQUAL) {
+      return null;
+    }
+
+    this.pos += 1;
+
+    const widthStart = this.pos;
+    while (this.peek() >= 48 && this.peek() <= 57) {
+      this.pos += 1;
+    }
+    const hasWidth = this.pos > widthStart;
+    const xCode = this.peek();
+
+    if (xCode !== C_LOWER_X && xCode !== C_UPPER_X) {
+      this.pos = savepos;
+      return null;
+    }
+
+    this.pos += 1;
+
+    const heightStart = this.pos;
+    while (this.peek() >= 48 && this.peek() <= 57) {
+      this.pos += 1;
+    }
+    const hasHeight = this.pos > heightStart;
+
+    if (!hasWidth && !hasHeight) {
+      this.pos = savepos;
+      return null;
+    }
+
+    return this.subject.slice(savepos, this.pos);
+  }
+
   // Add open bracket to delimiter stack and add a text node to block's children.
   parseOpenBracket(block: BlockNode) {
     const startpos = this.pos;
@@ -1031,21 +1072,27 @@ export class InlineParser {
     // Inline link?
     if (this.peek() === C_OPEN_PAREN) {
       this.pos++;
-      if (
-        this.spnl() &&
-        (dest = this.parseLinkDestination()) !== null &&
-        this.spnl() &&
+      if (this.spnl() && (dest = this.parseLinkDestination()) !== null && this.spnl()) {
+        if (isImage) {
+          const imageSizeTitle = this.parseImageSizeSpec();
+
+          if (imageSizeTitle) {
+            title = imageSizeTitle;
+            this.spnl();
+          }
+        }
+
         // make sure there's a space before the title:
-        ((reWhitespaceChar.test(this.subject.charAt(this.pos - 1)) &&
-          (title = this.parseLinkTitle())) ||
-          true) &&
-        this.spnl() &&
-        this.peek() === C_CLOSE_PAREN
-      ) {
-        this.pos += 1;
-        matched = true;
-      } else {
-        this.pos = savepos;
+        if (!title && reWhitespaceChar.test(this.subject.charAt(this.pos - 1))) {
+          title = this.parseLinkTitle();
+        }
+
+        if (this.spnl() && this.peek() === C_CLOSE_PAREN) {
+          this.pos += 1;
+          matched = true;
+        } else {
+          this.pos = savepos;
+        }
       }
     }
 

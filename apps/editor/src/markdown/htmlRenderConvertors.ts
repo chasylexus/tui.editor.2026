@@ -5,6 +5,7 @@ import {
   CodeMdNode,
   CodeBlockMdNode,
   CustomInlineMdNode,
+  LinkMdNode,
   OpenTagToken,
   Context,
   HTMLConvertor,
@@ -20,6 +21,7 @@ import {
   resolveCodeBlockLineNumber,
   getCodeBlockLineCount,
 } from '@/convertors/codeBlockInfo';
+import { parseImageSizeSpec } from '@/convertors/imageSize';
 
 type TokenAttrs = Record<string, any>;
 
@@ -86,14 +88,31 @@ const baseConvertors: HTMLConvertorMap = {
     ];
   },
 
-  image(_, { origin }: Context) {
+  image(node: MdNode, { origin }: Context) {
     const result = origin!() as OpenTagToken | null;
 
     if (result && result.type === 'openTag') {
+      const size = parseImageSizeSpec((node as LinkMdNode).title);
+      const nodeTitle = (node as LinkMdNode).title;
+
       result.attributes = {
         ...(result.attributes || {}),
         referrerpolicy: 'no-referrer',
       };
+
+      if (size) {
+        if (size.width !== null) {
+          result.attributes.width = String(size.width);
+        }
+
+        if (size.height !== null) {
+          result.attributes.height = String(size.height);
+        }
+
+        if (result.attributes.title === nodeTitle) {
+          delete result.attributes.title;
+        }
+      }
     }
 
     return result;

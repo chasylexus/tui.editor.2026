@@ -208,13 +208,31 @@ const convertors: HTMLToWwConvertorMap = {
     const tag = node.literal!;
 
     if (openTagName) {
-      const [imageUrl, altText] = getMatchedAttributeValue(tag, 'src', 'alt');
+      const [imageUrl, altText, widthAttr, heightAttr] = getMatchedAttributeValue(
+        tag,
+        'src',
+        'alt',
+        'width',
+        'height'
+      );
+      const parsedWidth = widthAttr ? Number.parseInt(widthAttr, 10) : null;
+      const parsedHeight = heightAttr ? Number.parseInt(heightAttr, 10) : null;
+      const imageWidth =
+        Number.isFinite(parsedWidth) && parsedWidth !== null && parsedWidth > 0
+          ? parsedWidth
+          : null;
+      const imageHeight =
+        Number.isFinite(parsedHeight) && parsedHeight !== null && parsedHeight > 0
+          ? parsedHeight
+          : null;
       const { image } = state.schema.nodes;
 
       state.addNode(image, {
         rawHTML: openTagName,
         imageUrl,
         ...(altText && { altText }),
+        ...(imageWidth !== null && { imageWidth }),
+        ...(imageHeight !== null && { imageHeight }),
       });
     }
   },

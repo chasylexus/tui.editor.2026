@@ -5,6 +5,7 @@ import i18n from '@/i18n/i18n';
 import { cls } from '@/utils/dom';
 import { Component } from '@/ui/vdom/component';
 import html from '@/ui/vdom/template';
+import { parseImageDimensionInput } from '@/convertors/imageSize';
 import { Tabs } from '../tabs';
 
 const TYPE_UI = 'ui';
@@ -24,6 +25,11 @@ interface State {
   fileNameElClassName: string;
 }
 
+interface ImageSizePayload {
+  imageWidth?: number;
+  imageHeight?: number;
+}
+
 export class ImagePopupBody extends Component<Props, State> {
   private tabs: TabInfo[];
 
@@ -38,26 +44,74 @@ export class ImagePopupBody extends Component<Props, State> {
 
   private initialize = (activeTab: TabType = 'file') => {
     const urlEl = this.refs.url as HTMLInputElement;
+    const widthEl = this.refs.width as HTMLInputElement;
+    const heightEl = this.refs.height as HTMLInputElement;
 
     urlEl.value = '';
+    widthEl.value = '';
+    heightEl.value = '';
     (this.refs.altText as HTMLInputElement).value = '';
     (this.refs.file as HTMLInputElement).value = '';
 
     urlEl.classList.remove('wrong');
+    widthEl.classList.remove('wrong');
+    heightEl.classList.remove('wrong');
 
     this.setState({ activeTab, file: null, fileNameElClassName: '' });
   };
 
+  private getImageSizePayload(): ImageSizePayload | null {
+    const widthEl = this.refs.width as HTMLInputElement;
+    const heightEl = this.refs.height as HTMLInputElement;
+    const widthRaw = widthEl.value;
+    const heightRaw = heightEl.value;
+    const width = parseImageDimensionInput(widthRaw);
+    const height = parseImageDimensionInput(heightRaw);
+
+    widthEl.classList.remove('wrong');
+    heightEl.classList.remove('wrong');
+
+    let valid = true;
+
+    if (widthRaw.trim() && width === null) {
+      widthEl.classList.add('wrong');
+      valid = false;
+    }
+
+    if (heightRaw.trim() && height === null) {
+      heightEl.classList.add('wrong');
+      valid = false;
+    }
+
+    if (!valid) {
+      return null;
+    }
+
+    return {
+      ...(typeof width === 'number' && { imageWidth: width }),
+      ...(typeof height === 'number' && { imageHeight: height }),
+    };
+  }
+
   private emitAddImageBlob() {
+    const sizePayload = this.getImageSizePayload();
     const { files } = this.refs.file as HTMLInputElement;
     const altTextEl = this.refs.altText as HTMLInputElement;
     let fileNameElClassName = ' wrong';
+
+    if (!sizePayload) {
+      return;
+    }
 
     if (files?.length) {
       fileNameElClassName = '';
       const imageFile = files.item(0)!;
       const hookCallback: HookCallback = (url, text) =>
-        this.props.execCommand('addImage', { imageUrl: url, altText: text || altTextEl.value });
+        this.props.execCommand('addImage', {
+          imageUrl: url,
+          altText: text || altTextEl.value,
+          ...sizePayload,
+        });
 
       this.props.eventEmitter.emit('addImageBlobHook', imageFile, hookCallback, TYPE_UI);
     }
@@ -69,6 +123,7 @@ export class ImagePopupBody extends Component<Props, State> {
     const altTextEl = this.refs.altText as HTMLInputElement;
     const imageUrl = imageUrlEl.value;
     const altText = altTextEl.value || 'image';
+    const sizePayload = this.getImageSizePayload();
 
     imageUrlEl.classList.remove('wrong');
 
@@ -77,8 +132,12 @@ export class ImagePopupBody extends Component<Props, State> {
       return;
     }
 
+    if (!sizePayload) {
+      return;
+    }
+
     if (imageUrl) {
-      this.props.execCommand('addImage', { imageUrl, altText });
+      this.props.execCommand('addImage', { imageUrl, altText, ...sizePayload });
     }
   }
 
@@ -161,6 +220,22 @@ export class ImagePopupBody extends Component<Props, State> {
           id="toastuiAltTextInput"
           type="text"
           ref=${(el: HTMLInputElement) => (this.refs.altText = el)}
+        />
+        <label for="toastuiImageWidthInput">Width</label>
+        <input
+          id="toastuiImageWidthInput"
+          type="number"
+          min="1"
+          step="1"
+          ref=${(el: HTMLInputElement) => (this.refs.width = el)}
+        />
+        <label for="toastuiImageHeightInput">Height</label>
+        <input
+          id="toastuiImageHeightInput"
+          type="number"
+          min="1"
+          step="1"
+          ref=${(el: HTMLInputElement) => (this.refs.height = el)}
         />
         <div class="${cls('button-container')}">
           <button type="button" class="${cls('close-button')}" onClick=${this.props.hidePopup}>

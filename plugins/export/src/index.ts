@@ -580,6 +580,27 @@ function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
   const styles = collectInlineStyles();
   const darkClass = isDark ? ' toastui-editor-dark' : '';
   const bgStyle = isDark ? 'background:#121212;' : '';
+  const exportViewportResetCss = `
+html,
+body {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow: auto !important;
+}
+
+body {
+  position: static !important;
+}
+
+#app,
+#root,
+.page,
+.code-html.tui-doc-contents {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+`;
 
   return `<!doctype html>
 <html>
@@ -589,6 +610,7 @@ function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
     <title>Toast UI Export</title>
     <style>
 ${styles}
+${exportViewportResetCss}
     </style>
   </head>
   <body style="margin:0;${bgStyle}">

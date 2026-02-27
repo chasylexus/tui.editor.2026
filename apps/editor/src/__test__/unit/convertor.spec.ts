@@ -206,12 +206,14 @@ describe('Convertor', () => {
         ![altText](imgUrl)
         ![altText](img*Url)
         ![altText](url?key=abc&attribute=abc)
+        ![Minion](https://octodex.github.com/images/minion.png =200x200)
         `;
       const expected = source`
         ![](imgUrl)
         ![altText](imgUrl)
         ![altText](img*Url)
         ![altText](url?key=abc&attribute=abc)
+        ![Minion](https://octodex.github.com/images/minion.png =200x200)
     	`;
 
       assertConverting(markdown, expected);

@@ -1,4 +1,4 @@
-import { EditResult, MdNode, MdPos, Renderer } from '@techie_doubts/toastmark';
+import { EditResult, MdNode, MdPos, Renderer, ToastMark } from '@techie_doubts/toastmark';
 
 import { Emitter } from '@t/event';
 import { CustomHTMLRenderer, LinkAttributes } from '@t/editor';
@@ -71,6 +71,12 @@ class MarkdownPreview {
   private scrollHandler: ((event: Event) => void) | null = null;
 
   private fragmentClickHandler: ((event: MouseEvent) => void) | null = null;
+
+  private renderedToastMark: ToastMark | null = null;
+
+  private sourceToRenderedLineMap: number[] | null = null;
+
+  private sourceMarkdownForLineMap: string | null = null;
 
   constructor(eventEmitter: Emitter, options: Options) {
     const el = document.createElement('div');
@@ -262,6 +268,28 @@ class MarkdownPreview {
 
   getRenderer() {
     return this.renderer;
+  }
+
+  setRenderedToastMark(
+    toastMark: ToastMark | null,
+    sourceToRenderedLineMap: number[] | null = null,
+    sourceMarkdownForLineMap: string | null = null
+  ) {
+    this.renderedToastMark = toastMark;
+    this.sourceToRenderedLineMap = sourceToRenderedLineMap;
+    this.sourceMarkdownForLineMap = sourceMarkdownForLineMap;
+  }
+
+  getRenderedToastMark() {
+    return this.renderedToastMark;
+  }
+
+  getSourceToRenderedLineMap() {
+    return this.sourceToRenderedLineMap;
+  }
+
+  getSourceMarkdownForLineMap() {
+    return this.sourceMarkdownForLineMap;
   }
 
   destroy() {

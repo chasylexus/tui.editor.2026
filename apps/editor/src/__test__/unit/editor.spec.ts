@@ -290,6 +290,26 @@ describe('editor', () => {
         expect(wwImg.getAttribute('referrerpolicy')).toBe('no-referrer');
       });
 
+      it('should support markdown image size shorthand =WxH in markdown and wysiwyg', () => {
+        const markdown = '![Minion](https://octodex.github.com/images/minion.png =200x200)';
+
+        editor.setMarkdown(markdown);
+
+        const previewImg = mdPreview.querySelector('img') as HTMLImageElement;
+
+        expect(previewImg.getAttribute('width')).toBe('200');
+        expect(previewImg.getAttribute('height')).toBe('200');
+        expect(previewImg.getAttribute('title')).toBeNull();
+
+        editor.changeMode('wysiwyg');
+
+        const wwImg = wwEditor.querySelector('img') as HTMLImageElement;
+
+        expect(wwImg.getAttribute('width')).toBe('200');
+        expect(wwImg.getAttribute('height')).toBe('200');
+        expect(editor.getMarkdown()).toContain('![Minion](https://octodex.github.com/images/minion.png =200x200)');
+      });
+
       it('should keep ```! as wrapped code block when changing to wysiwyg', () => {
         const markdown = source`
           \`\`\`!
@@ -668,6 +688,44 @@ describe('editor', () => {
         expect(editor.getMarkdown()).toContain('Footnote 1 link[^first].');
         expect(editor.getMarkdown()).toContain('[^first]: Footnote text.');
         expect(editor.getMarkdown()).not.toContain('<sup class="footnote-ref">');
+      });
+
+      it('should preserve footnote markdown syntax after wysiwyg edits and mode switch', () => {
+        const footnoteMd = source`
+          Footnote 1 link[^first].
+
+          [^first]: Footnote text.
+        `;
+
+        editor.setMarkdown(footnoteMd);
+        editor.changeMode('wysiwyg');
+        editor.setSelection(1, 1);
+        editor.replaceSelection('Edited ');
+        editor.changeMode('markdown');
+
+        const markdown = editor.getMarkdown();
+
+        expect(markdown).toContain('Edited Footnote 1 link[^first].');
+        expect(markdown).toContain('[^first]: Footnote text.');
+        expect(markdown).not.toContain('<sup class="footnote-ref">');
+        expect(markdown).not.toContain('<a id="fn-first">');
+      });
+
+      it('should refresh markdown preview even when markdown has transformed footnote markup', () => {
+        const transformed = source`
+          Footnote 1 link<sup class="footnote-ref"><a id="fnref-first-1" href="#fn-first">1</a></sup>.
+
+          ---
+
+          #### Footnotes
+
+          1. <a id="fn-first">[1]</a> Footnote text. [↩](#fnref-first-1)
+        `;
+
+        editor.setMarkdown(transformed);
+        editor.replaceSelection('Updated ', [1, 1], [1, 1]);
+
+        expect(getPreviewHTML()).toContain('<p>Updated Footnote 1 link');
       });
     });
 

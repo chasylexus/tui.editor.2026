@@ -2,6 +2,7 @@ import { MdNodeType } from '@techie_doubts/toastmark';
 import { Mark, Node as ProsemirrorNode } from 'prosemirror-model';
 import { MdLikeNode } from '@t/markdown';
 import { includes } from '@/utils/common';
+import { formatImageSizeSpec } from '@/convertors/imageSize';
 
 export function isPmNode(node: ProsemirrorNode | Mark): node is ProsemirrorNode {
   return node instanceof ProsemirrorNode;
@@ -48,7 +49,10 @@ export function createMdLikeNode(node: ProsemirrorNode | Mark): MdLikeNode {
   const nodeTypeMap = {
     heading: { level: attrs.level },
     link: { destination: attrs.linkUrl, title: attrs.title },
-    image: { destination: attrs.imageUrl },
+    image: {
+      destination: attrs.imageUrl,
+      title: formatImageSizeSpec(attrs.imageWidth, attrs.imageHeight) || undefined,
+    },
     codeBlock: { info: attrs.language },
     bulletList: { type: 'list', listData: { type: 'bullet' } },
     orderedList: { type: 'list', listData: { type: 'ordered', start: attrs.order } },

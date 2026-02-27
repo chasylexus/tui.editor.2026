@@ -2,6 +2,7 @@ import { DOMOutputSpec, Mark as ProsemirrorMark } from 'prosemirror-model';
 import { EditorCommand } from '@t/spec';
 import { clsWithMdPrefix } from '@/utils/dom';
 import { escapeTextForLink, escapeXml } from '@/utils/common';
+import { formatImageSizeSpec } from '@/convertors/imageSize';
 import {
   createAnchorIdFromText,
   collectExistingAnchorIds,
@@ -16,10 +17,12 @@ import { resolveSelectionPos } from '../helper/pos';
 type CommandType = 'image' | 'link';
 
 interface Payload {
-  linkText: string;
-  altText: string;
-  linkUrl: string;
-  imageUrl: string;
+  linkText?: string;
+  altText?: string;
+  linkUrl?: string;
+  imageUrl?: string;
+  imageWidth?: number;
+  imageHeight?: number;
 }
 
 interface AnchorPayload {
@@ -57,19 +60,22 @@ export class Link extends Mark {
   private addLinkOrImage(commandType: CommandType): EditorCommand<Payload> {
     return (payload) => ({ selection, tr, schema }, dispatch) => {
       const [from, to] = resolveSelectionPos(selection);
-      const { linkText, altText, linkUrl, imageUrl } = payload!;
-      let text = linkText;
-      let url = linkUrl;
+      const { linkText, altText, linkUrl, imageUrl, imageWidth, imageHeight } = payload || {};
+      let text = linkText || '';
+      let url = linkUrl || '';
       let syntax = '';
 
       if (commandType === 'image') {
-        text = altText;
-        url = imageUrl;
+        text = altText || '';
+        url = imageUrl || '';
         syntax = '!';
       }
 
       text = escapeTextForLink(text);
-      syntax += `[${text}](${url})`;
+      const sizeSpec =
+        commandType === 'image' ? formatImageSizeSpec(imageWidth, imageHeight) : '';
+
+      syntax += `[${text}](${url}${sizeSpec ? ` ${sizeSpec}` : ''})`;
 
       dispatch!(tr.replaceWith(from, to, createTextNode(schema, syntax)));
 

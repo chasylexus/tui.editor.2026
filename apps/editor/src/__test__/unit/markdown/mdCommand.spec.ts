@@ -275,6 +275,34 @@ describe('addImage command', () => {
     expect(getTextContent(mde)).toBe('![image](https://picsum.photos/200)');
   });
 
+  it('should add image size suffix when width and/or height are provided', () => {
+    cmd.exec('addImage', {
+      altText: 'image',
+      imageUrl: 'https://picsum.photos/200',
+      imageWidth: 200,
+    });
+    expect(getTextContent(mde)).toBe('![image](https://picsum.photos/200 =200x)');
+
+    mde.setMarkdown('');
+
+    cmd.exec('addImage', {
+      altText: 'image',
+      imageUrl: 'https://picsum.photos/200',
+      imageHeight: 300,
+    });
+    expect(getTextContent(mde)).toBe('![image](https://picsum.photos/200 =x300)');
+
+    mde.setMarkdown('');
+
+    cmd.exec('addImage', {
+      altText: 'image',
+      imageUrl: 'https://picsum.photos/200',
+      imageWidth: 200,
+      imageHeight: 300,
+    });
+    expect(getTextContent(mde)).toBe('![image](https://picsum.photos/200 =200x300)');
+  });
+
   it('should escape image altText', () => {
     cmd.exec('addImage', {
       altText: 'mytext ()[]<>',
