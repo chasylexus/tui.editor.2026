@@ -294,7 +294,7 @@ class ToastUIEditorCore {
         toolbarItems: [
           ['heading', 'bold', 'italic', 'strike', 'mark', 'superscript', 'subscript', 'underline'],
           ['hr', 'quote'],
-          ['ul', 'ol', 'task', 'indent', 'outdent'],
+          ['ul', 'ol', 'task'],
           ['table', 'image', 'link', 'anchor'],
           ['code', 'codeblock'],
           ['scrollSync'],

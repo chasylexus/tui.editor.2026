@@ -460,6 +460,32 @@
   border-color: transparent;
 }
 
+.toastui-editor-popup-body select,
+.toastui-editor-popup-body textarea {
+  width: 100%;
+  border-radius: 2px;
+  border: 1px solid #e1e3e9;
+  color: #333;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.toastui-editor-popup-body select {
+  height: 30px;
+  padding: 0 8px;
+}
+
+.toastui-editor-popup-body textarea {
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.toastui-editor-popup-body select:focus,
+.toastui-editor-popup-body textarea:focus {
+  outline: 1px solid #00a9ff;
+  border-color: transparent;
+}
+
 .toastui-editor-popup-body input[type='text'].disabled {
   background-color: #f7f9fc;
   border-color: #e1e3e9;

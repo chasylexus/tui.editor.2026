@@ -637,3 +637,14 @@ table.ProseMirror-selectednode {
   top: -1000px;
   z-index: -1;
 }
+
+.toastui-inline-latex-editing {
+  white-space: normal !important;
+}
+
+.toastui-inline-latex-editing-break {
+  display: block;
+  max-width: 100%;
+  line-height: 0;
+  font-size: 0;
+}

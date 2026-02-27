@@ -141,7 +141,19 @@
   border-color: #303238;
 }
 
+.toastui-editor-dark .toastui-editor-popup-body select,
+.toastui-editor-dark .toastui-editor-popup-body textarea {
+  background-color: transparent;
+  color: #eee;
+  border-color: #303238;
+}
+
 .toastui-editor-dark .toastui-editor-popup-body input[type='text']:focus {
+  outline-color: #67ccff;
+}
+
+.toastui-editor-dark .toastui-editor-popup-body select:focus,
+.toastui-editor-dark .toastui-editor-popup-body textarea:focus {
   outline-color: #67ccff;
 }
 

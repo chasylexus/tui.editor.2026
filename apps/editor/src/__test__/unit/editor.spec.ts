@@ -166,6 +166,162 @@ describe('editor', () => {
       expect(editor.isWysiwygMode()).toBe(true);
     });
 
+    it('should keep inline math softbreak after editing in wysiwyg', () => {
+      editor.setMarkdown('Inline: $a\nb$ test');
+      editor.changeMode('wysiwyg');
+
+      const doc = (editor as any).wwEditor.view.state.doc;
+      let posInMath: number | null = null;
+
+      doc.descendants((node: any, pos: number) => {
+        if (!node.isText) {
+          return true;
+        }
+
+        const text = node.text || '';
+        const idx = text.indexOf('$a\nb$');
+
+        if (idx >= 0) {
+          posInMath = pos + idx + 2;
+          return false;
+        }
+
+        return true;
+      });
+
+      expect(posInMath).not.toBeNull();
+      editor.setSelection(posInMath!, posInMath!);
+      editor.insertText('1');
+
+      expect(editor.getMarkdown()).toContain('$a1\nb$');
+    });
+
+    it('should keep multiline inline latex breaks after editing in wysiwyg', () => {
+      const multiline = source`
+        The *Gamma function*: $\\Gamma(n) = \\begin{cases}
+          \\displaystyle (n-1)!\\quad\\forall n\\in\\mathbb N\\\\
+          \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+          \\end{cases}$
+      `;
+
+      editor.setMarkdown(multiline);
+      editor.changeMode('wysiwyg');
+
+      const doc = (editor as any).wwEditor.view.state.doc;
+      let posInMath: number | null = null;
+
+      doc.descendants((node: any, pos: number) => {
+        if (!node.isText) {
+          return true;
+        }
+
+        const text = node.text || '';
+        const idx = text.indexOf('\\begin{cases}\n');
+
+        if (idx >= 0) {
+          posInMath = pos + idx + 3;
+          return false;
+        }
+
+        return true;
+      });
+
+      expect(posInMath).not.toBeNull();
+      editor.setSelection(posInMath!, posInMath!);
+      editor.insertText('1');
+
+      const markdown = editor.getMarkdown();
+
+      expect(markdown).toContain('\\be');
+      expect(markdown).toContain('gin{cases}\n');
+      expect(markdown).toContain('\\mathbb N\\\\\n');
+      expect(markdown).toMatch(/\\mathbb N\\\\\n\s*\\\\displaystyle/);
+      expect(/\n\s*\\\\displaystyle\s*\(n-1\)!\\\\quad\\\\forall n\\\\in\\\\mathbb N\\\\/.test(markdown)).toBe(
+        true
+      );
+      expect((markdown.match(/\n/g) || []).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('should keep middle inline latex break after editing inside cases body', () => {
+      const multiline = source`
+        The *Gamma function*: $\\Gamma(n) = \\begin{cases}
+          \\displaystyle (n-1)!\\quad\\forall n\\in\\mathbb N\\\\
+          \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+          \\end{cases}$
+      `;
+
+      editor.setMarkdown(multiline);
+      editor.changeMode('wysiwyg');
+
+      const doc = (editor as any).wwEditor.view.state.doc;
+      let posInMiddleLine: number | null = null;
+
+      doc.descendants((node: any, pos: number) => {
+        if (!node.isText) {
+          return true;
+        }
+
+        const text = node.text || '';
+        const idx = text.indexOf('\\mathbb N\\\n\\displaystyle');
+
+        if (idx >= 0) {
+          posInMiddleLine = pos + idx + 4;
+          return false;
+        }
+
+        return true;
+      });
+
+      expect(posInMiddleLine).not.toBeNull();
+      editor.setSelection(posInMiddleLine!, posInMiddleLine!);
+      editor.insertText('1');
+
+      const markdown = editor.getMarkdown();
+
+      expect(markdown).toMatch(/\\\\\n\s*\\\\displaystyle/);
+      expect((markdown.match(/\n/g) || []).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('should keep break before end-cases when editing near penultimate line end', () => {
+      const multiline = source`
+        The *Gamma function*: $\\Gamma(n) = \\begin{cases}
+          \\displaystyle (n-1)!\\quad\\forall n\\in\\mathbb N\\\\
+          \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+          \\end{cases}$
+      `;
+
+      editor.setMarkdown(multiline);
+      editor.changeMode('wysiwyg');
+
+      const doc = (editor as any).wwEditor.view.state.doc;
+      let posNearPenultimateEnd: number | null = null;
+
+      doc.descendants((node: any, pos: number) => {
+        if (!node.isText) {
+          return true;
+        }
+
+        const text = node.text || '';
+        const idx = text.indexOf('\\mathbb R');
+
+        if (idx >= 0) {
+          posNearPenultimateEnd = pos + idx + '\\mathbb R'.length;
+          return false;
+        }
+
+        return true;
+      });
+
+      expect(posNearPenultimateEnd).not.toBeNull();
+      editor.setSelection(posNearPenultimateEnd!, posNearPenultimateEnd!);
+      editor.insertText('1');
+
+      const markdown = editor.getMarkdown();
+
+      expect(markdown).toMatch(/\n\s*\\\\end\{cases\}\$/);
+      expect((markdown.match(/\n/g) || []).length).toBeGreaterThanOrEqual(3);
+    });
+
     it('should not move cursor to end when changing mode from wysiwyg to markdown', () => {
       editor.setMarkdown('line1\nline2');
       editor.changeMode('wysiwyg');

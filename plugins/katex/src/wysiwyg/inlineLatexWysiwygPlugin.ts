@@ -10,6 +10,29 @@ interface InlineMathRange {
   mdBlockId?: number | null;
 }
 
+interface InlineLatexPluginState {
+  editRange: InlineMathRange | null;
+  lineBreakPositions: number[];
+  decorations: PluginContext['pmView']['DecorationSet'];
+}
+
+function getLineBreakPositions(range: InlineMathRange | null) {
+  if (!range || !range.content.includes('\n')) {
+    return [] as number[];
+  }
+
+  const positions: number[] = [];
+
+  for (let idx = 0; idx < range.content.length; idx += 1) {
+    if (range.content[idx] === '\n') {
+      // +1 skips the leading '$' in "$...$"
+      positions.push(range.from + 1 + idx);
+    }
+  }
+
+  return positions;
+}
+
 function getInlineFontStyle() {
   const editorEl =
     document.querySelector('.toastui-editor-contents') ||
@@ -103,14 +126,20 @@ function collectInlineMathRanges(doc: EditorState['doc']): InlineMathRange[] {
   return ranges;
 }
 
+interface InlineDecorationBuildContext {
+  Decoration: PluginContext['pmView']['Decoration'];
+  DecorationSetCtor: PluginContext['pmView']['DecorationSet'];
+  inlineClassName: string;
+}
+
 function buildInlineLatexDecorations(
   doc: EditorState['doc'],
-  Decoration: PluginContext['pmView']['Decoration'],
-  DecorationSetCtor: PluginContext['pmView']['DecorationSet'],
   editingRange: InlineMathRange | null,
-  inlineClassName: string
+  _editingLineBreakPositions: number[],
+  context: InlineDecorationBuildContext
 ): PluginContext['pmView']['DecorationSet'] {
   const decorations: any[] = [];
+  const { Decoration, DecorationSetCtor, inlineClassName } = context;
   const DecorationAny = Decoration as any;
   const DecorationSetAny = DecorationSetCtor as any;
   const ranges = collectInlineMathRanges(doc);
@@ -127,10 +156,37 @@ function buildInlineLatexDecorations(
     if (isEditing) {
       decorations.push(
         DecorationAny.inline(from, to, {
+          class: 'toastui-inline-latex-editing',
           style: 'background: rgba(255, 229, 100, 0.25); border-radius: 4px;',
           spellcheck: 'false',
         })
       );
+
+      // Render line breaks explicitly in edit mode to avoid browser-dependent
+      // collapsing of newline chars inside inline contenteditable spans.
+      for (let idx = 0; idx < content.length; idx += 1) {
+        if (content[idx] !== '\n') {
+          continue;
+        }
+
+        const breakPos = from + 1 + idx;
+
+        decorations.push(
+          DecorationAny.widget(
+            breakPos,
+            () => {
+              const br = document.createElement('span');
+
+              br.className = 'toastui-inline-latex-editing-break';
+              br.setAttribute('contenteditable', 'false');
+              br.setAttribute('aria-hidden', 'true');
+              br.textContent = '\u200b';
+              return br;
+            },
+            { side: -1 }
+          )
+        );
+      }
 
       decorations.push(
         DecorationAny.widget(
@@ -225,21 +281,21 @@ export function createInlineLatexWysiwygPlugin(
             init: (_, state) => {
               return {
                 editRange: null as InlineMathRange | null,
-                decorations: buildInlineLatexDecorations(
-                  state.doc,
+                lineBreakPositions: [] as number[],
+                decorations: buildInlineLatexDecorations(state.doc, null, [], {
                   Decoration,
                   DecorationSetCtor,
-                  null,
-                  inlineClassName
-                ),
+                  inlineClassName,
+                }),
               };
             },
-            apply: (tr, value) => {
-              let { editRange } = value;
+            apply: (tr, value: InlineLatexPluginState) => {
+              let { editRange, lineBreakPositions } = value;
               const meta = tr.getMeta(pluginKey);
 
               if (meta?.type === 'setEditRange') {
                 editRange = meta.range;
+                lineBreakPositions = getLineBreakPositions(editRange);
               }
 
               if (editRange && tr.mapping) {
@@ -248,8 +304,12 @@ export function createInlineLatexWysiwygPlugin(
 
                 if (mappedFrom >= mappedTo) {
                   editRange = null;
+                  lineBreakPositions = [];
                 } else {
                   editRange = { ...editRange, from: mappedFrom, to: mappedTo };
+                  lineBreakPositions = lineBreakPositions
+                    .map((pos) => tr.mapping.map(pos, -1))
+                    .filter((pos) => pos > mappedFrom && pos < mappedTo);
                 }
               }
 
@@ -268,6 +328,12 @@ export function createInlineLatexWysiwygPlugin(
 
                   editRange = inRange || null;
                 }
+
+                if (!editRange) {
+                  lineBreakPositions = [];
+                } else if (!value.editRange || value.editRange.from !== editRange.from) {
+                  lineBreakPositions = getLineBreakPositions(editRange);
+                }
               }
 
               const prev = value.editRange;
@@ -278,17 +344,85 @@ export function createInlineLatexWysiwygPlugin(
 
               const decorations =
                 tr.docChanged || meta || tr.selectionSet || editChanged
-                  ? buildInlineLatexDecorations(
-                      tr.doc,
+                  ? buildInlineLatexDecorations(tr.doc, editRange, lineBreakPositions, {
                       Decoration,
                       DecorationSetCtor,
-                      editRange,
-                      inlineClassName
-                    )
+                      inlineClassName,
+                    })
                   : value.decorations;
 
-              return { editRange, decorations };
+              return { editRange, lineBreakPositions, decorations };
             },
+          },
+          appendTransaction(transactions, oldState, newState) {
+            if (!transactions.some((tr) => tr.docChanged)) {
+              return null;
+            }
+            if (
+              transactions.some(
+                (tr) => tr.getMeta(pluginKey)?.type === 'normalizeInlineMathSoftbreaks'
+              )
+            ) {
+              return null;
+            }
+
+            const oldPluginState = pluginKey.getState(oldState) as
+              | InlineLatexPluginState
+              | undefined;
+            const pluginState = pluginKey.getState(newState) as InlineLatexPluginState | undefined;
+
+            if (
+              !pluginState?.editRange ||
+              !oldPluginState?.editRange ||
+              !oldPluginState.lineBreakPositions.length
+            ) {
+              return null;
+            }
+
+            const { doc, tr } = newState;
+            let changed = false;
+            const mappedBreaks = oldPluginState.lineBreakPositions.map((position) => {
+              let mappedPosition = position;
+
+              transactions.forEach((tx) => {
+                mappedPosition = tx.mapping.map(mappedPosition, -1);
+              });
+
+              return mappedPosition;
+            });
+            const targetPositions = mappedBreaks
+              .filter((pos) => pos > pluginState.editRange!.from && pos < pluginState.editRange!.to)
+              .sort((a, b) => b - a);
+
+            targetPositions.forEach((pos) => {
+              if (pos <= 0 || pos > doc.content.size) {
+                return;
+              }
+
+              const ch = doc.textBetween(pos, pos + 1, '', '');
+              const prev = pos > 0 ? doc.textBetween(pos - 1, pos, '', '') : '';
+              const next = doc.textBetween(pos + 1, pos + 2, '', '');
+
+              if (ch === '\n' || prev === '\n' || next === '\n') {
+                return;
+              }
+
+              if (ch === ' ' || ch === '\u00a0' || ch === '') {
+                tr.insertText('\n', pos, ch ? pos + 1 : pos);
+                changed = true;
+              } else {
+                tr.insertText(`\n${ch}`, pos, pos + 1);
+                changed = true;
+              }
+            });
+
+            if (!changed) {
+              return null;
+            }
+
+            tr.setMeta(pluginKey, { type: 'normalizeInlineMathSoftbreaks' });
+
+            return tr;
           },
           props: {
             decorations(state) {

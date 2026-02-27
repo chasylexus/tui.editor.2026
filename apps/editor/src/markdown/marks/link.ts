@@ -72,8 +72,7 @@ export class Link extends Mark {
       }
 
       text = escapeTextForLink(text);
-      const sizeSpec =
-        commandType === 'image' ? formatImageSizeSpec(imageWidth, imageHeight) : '';
+      const sizeSpec = commandType === 'image' ? formatImageSizeSpec(imageWidth, imageHeight) : '';
 
       syntax += `[${text}](${url}${sizeSpec ? ` ${sizeSpec}` : ''})`;
 

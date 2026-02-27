@@ -56,6 +56,17 @@ describe('Convertor', () => {
       assertConverting(markdown, markdown);
     });
 
+    it('softbreak inside inline math should stay inside one paragraph in wysiwyg model', () => {
+      const markdown = 'Inline: $a\nb$ test';
+      const mdNode = parser.parse(markdown);
+      const wwNode = convertor.toWysiwygModel(mdNode)!;
+      const paragraph = wwNode.firstChild!;
+
+      expect(wwNode.childCount).toBe(1);
+      expect(paragraph.type.name).toBe('paragraph');
+      expect(paragraph.textContent).toContain('$a\nb$');
+    });
+
     it('headings', () => {
       const markdown = source`
         # heading1

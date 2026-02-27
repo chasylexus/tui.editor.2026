@@ -66,8 +66,6 @@ describe('Default toolbar', () => {
       'Unordered list',
       'Ordered list',
       'Task',
-      'Indent',
-      'Outdent',
       'Insert table',
       'Insert image',
       'Insert link',
@@ -532,25 +530,15 @@ describe('Default toolbar', () => {
     });
   });
 
-  it('should active indent/outdent button when only ordered or bullet list actived', () => {
+  it('should not render indent/outdent button in default toolbar', () => {
     const bulletListBtn = screen.getByLabelText('Unordered list');
     const orderedListBtn = screen.getByLabelText('Ordered list');
-    const indentBtn = screen.getByLabelText('Indent');
-    const outdentBtn = screen.getByLabelText('Outdent');
 
     bulletListBtn.click();
-
-    expect(indentBtn).not.toBeDisabled();
-    expect(outdentBtn).not.toBeDisabled();
-
     orderedListBtn.click();
 
-    expect(indentBtn).not.toBeDisabled();
-    expect(outdentBtn).not.toBeDisabled();
-
-    editor.reset();
-    expect(indentBtn).toBeDisabled();
-    expect(outdentBtn).toBeDisabled();
+    expect(screen.queryByLabelText('Indent')).toBeNull();
+    expect(screen.queryByLabelText('Outdent')).toBeNull();
   });
 
   it('should change tab mode when changing markdown tab mode', () => {

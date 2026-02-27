@@ -299,6 +299,9 @@ const toWwConvertors: ToWwConvertorMap = {
   softbreak(state, node) {
     if (node.parent!.type === 'paragraph') {
       if (isSoftbreakInsideInlineMath(node)) {
+        // Preserve actual newline chars inside inline math so WYSIWYG edit mode
+        // can display and round-trip multiline inline LaTeX source as-is.
+        state.addText('\n');
         return;
       }
 

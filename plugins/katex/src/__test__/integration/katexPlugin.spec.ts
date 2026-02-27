@@ -121,4 +121,39 @@ describe('katexPlugin inline math', () => {
     expect(markdown).not.toContain('$a \\\\\\ b$');
     expect(markdown.endsWith('.1')).toBe(true);
   });
+
+  it('should keep inline latex editing decoration after typing', () => {
+    editor.setMarkdown('Inline: $a \\\\ b$ test');
+    editor.changeMode('wysiwyg');
+
+    const wwEditor = (editor as any).wwEditor;
+    const { doc } = wwEditor.view.state;
+    let posInFormula: number | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText) {
+        return true;
+      }
+
+      const text = node.text || '';
+      const index = text.indexOf('$a \\\\ b$');
+
+      if (index >= 0) {
+        posInFormula = pos + index + 3;
+        return false;
+      }
+
+      return true;
+    });
+
+    expect(posInFormula).not.toBeNull();
+    editor.setSelection(posInFormula!, posInFormula!);
+    editor.insertText('1');
+
+    const wwRoot = editor.getEditorElements().wwEditor!;
+    const editingSpan = wwRoot.querySelector('.toastui-inline-latex-editing') as HTMLElement | null;
+
+    expect(editingSpan).not.toBeNull();
+  });
+
 });
