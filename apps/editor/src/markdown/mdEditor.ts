@@ -185,7 +185,7 @@ export default class MdEditor extends EditorBase {
         (ev as ClipboardEvent).clipboardData || (window as WindowWithClipboard).clipboardData;
       const items = clipboardData && clipboardData.items;
 
-      this.handleImagePaste(items || undefined, ev);
+      this.handleImagePaste(items || void 0, ev);
 
       this.stabilizeWindowScroll(scrollX, scrollY);
     });
@@ -287,11 +287,29 @@ export default class MdEditor extends EditorBase {
         },
         paste: (_, ev: ClipboardEvent) => {
           const { scrollX, scrollY } = window;
-          const clipboardData =
-            ev.clipboardData || (window as WindowWithClipboard).clipboardData;
+          const clipboardData = ev.clipboardData || (window as WindowWithClipboard).clipboardData;
           const items = clipboardData && clipboardData.items;
 
-          this.handleImagePaste(items || undefined, ev);
+          if (this.handleImagePaste(items || void 0, ev)) {
+            this.stabilizeWindowScroll(scrollX, scrollY);
+            return true;
+          }
+
+          const plainText = clipboardData?.getData('text/plain');
+          const hasPlainTextItem =
+            Boolean(items) &&
+            Array.from(items || []).some(
+              (item) => item.kind === 'string' && item.type === 'text/plain'
+            );
+
+          // Keep raw markdown text as-is (including consecutive blank lines) instead of
+          // letting the default ProseMirror parser normalize line breaks.
+          if (hasPlainTextItem && typeof plainText === 'string') {
+            ev.preventDefault();
+            this.replaceSelection(plainText, void 0, void 0, false);
+            this.stabilizeWindowScroll(scrollX, scrollY);
+            return true;
+          }
 
           this.stabilizeWindowScroll(scrollX, scrollY);
 

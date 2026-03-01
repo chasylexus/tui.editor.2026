@@ -883,6 +883,36 @@ describe('editor', () => {
 
         expect(getPreviewHTML()).toContain('<p>Updated Footnote 1 link');
       });
+
+      it('should clear preview after deleting all markdown from a transformed footnote document', () => {
+        const markdown = source`
+          \`\`\`chart
+          Месяц,План,Факт
+          янв,1000,800
+          фев,2500,2100
+          мар,5000,4900
+
+          type: line
+          \`\`\`
+
+          Footnote 1 link[^first].
+
+          [^first]: Footnote text.
+        `;
+
+        editor.setMarkdown(markdown);
+        expect(getPreviewHTML()).toContain('<h4>Footnotes</h4>');
+
+        const lines = editor.getMarkdown().split('\n');
+        const endLine = lines.length;
+        const endCh = (lines[endLine - 1] || '').length + 1;
+
+        editor.deleteSelection([1, 1], [endLine, endCh]);
+
+        expect(editor.getMarkdown().trim()).toBe('');
+        expect(getPreviewHTML()).not.toContain('<h4>Footnotes</h4>');
+        expect(getPreviewHTML()).toBe('');
+      });
     });
 
     describe('deleteSelection()', () => {

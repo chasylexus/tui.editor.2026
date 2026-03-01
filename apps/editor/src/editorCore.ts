@@ -947,6 +947,8 @@ class ToastUIEditorCore {
 
   private renderFootnotePreviewIfNeeded() {
     const sourceMarkdown = this.mdEditor.getMarkdown();
+    const hasRenderedLineMap = Boolean(this.preview.getSourceToRenderedLineMap());
+    const hasMappedSourceMarkdown = this.preview.getSourceMarkdownForLineMap() !== null;
 
     if (hasFootnoteSyntax(sourceMarkdown)) {
       const transformed = transformMarkdownFootnotes(sourceMarkdown);
@@ -959,11 +961,17 @@ class ToastUIEditorCore {
       return;
     }
 
-    if (!hasTransformedFootnoteMarkup(sourceMarkdown)) {
+    if (hasTransformedFootnoteMarkup(sourceMarkdown)) {
+      this.renderFullPreview(sourceMarkdown, null, null);
       return;
     }
 
-    this.renderFullPreview(sourceMarkdown, null, null);
+    // When we leave the transformed-footnote path (e.g. delete all markdown), incremental
+    // preview patches may target stale node ids from transformed content. Force a single
+    // full render to reset preview and line mapping back to source markdown.
+    if (hasRenderedLineMap || hasMappedSourceMarkdown) {
+      this.renderFullPreview(sourceMarkdown, null, null);
+    }
   }
 
   private replaceMdRange(md: string, start: MdPos, end: MdPos, text: string) {
