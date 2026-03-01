@@ -74,6 +74,7 @@ const chart = {
   pie: Chart.pieChart,
 };
 const chartMap: Record<string, ChartInstance> = {};
+const chartRenderVersionMap: Record<string, number> = {};
 let effectiveDarkMode: boolean | null = null;
 let chartStyleInjected = false;
 
@@ -883,8 +884,22 @@ function destroyChart() {
       chartMap[id].destroy();
 
       delete chartMap[id];
+      delete chartRenderVersionMap[id];
     }
   });
+}
+
+function clearChartById(id: string, chartContainer?: HTMLElement) {
+  const existed = chartMap[id];
+
+  if (existed) {
+    existed.destroy();
+    delete chartMap[id];
+  }
+
+  if (chartContainer) {
+    chartContainer.innerHTML = '';
+  }
 }
 
 function doRenderChart(
@@ -894,10 +909,24 @@ function doRenderChart(
   pluginOptions: PluginOptions,
   chartContainer: HTMLElement
 ) {
+  const renderVersion = (chartRenderVersionMap[id] || 0) + 1;
+
+  chartRenderVersionMap[id] = renderVersion;
   chartContainer.setAttribute('data-chart-text', encodeURIComponent(text));
+  clearChartById(id, chartContainer);
 
   try {
     parse(text, (parsedInfo) => {
+      if (chartRenderVersionMap[id] !== renderVersion) {
+        return;
+      }
+      if (!chartContainer.isConnected) {
+        return;
+      }
+      if (chartContainer.getAttribute('data-chart-id') !== id) {
+        return;
+      }
+
       const { data, options } = parsedInfo || {};
       const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer, data);
       const chartType = chartOptions.editorChart.type!;
@@ -913,8 +942,10 @@ function doRenderChart(
           data.categories.length !== data.series[0].data.length)
       ) {
         chartContainer.innerHTML = 'invalid chart data';
+        delete chartMap[id];
       } else if (SUPPORTED_CHART_TYPES.indexOf(chartType) < 0) {
         chartContainer.innerHTML = `invalid chart type. type: bar, column, line, area, pie`;
+        delete chartMap[id];
       } else {
         const toastuiChart = chart[chartType];
 
@@ -925,6 +956,7 @@ function doRenderChart(
     });
   } catch (e) {
     chartContainer.innerHTML = 'invalid chart data';
+    delete chartMap[id];
   }
 }
 
@@ -969,6 +1001,7 @@ function reRenderAllCharts(
       delete chartMap[id];
     }
 
+    delete chartRenderVersionMap[id];
     container.innerHTML = '';
 
     const text = decodeURIComponent(container.getAttribute('data-chart-text')!);

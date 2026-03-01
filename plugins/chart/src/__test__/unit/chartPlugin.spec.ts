@@ -1,12 +1,36 @@
 import 'jest-canvas-mock';
 import { PluginOptions } from '@t/index';
 import {
+  default as chartPlugin,
   parseToChartOption,
   parseToChartData,
   detectDelimiter,
   setDefaultOptions,
   ChartOptions,
 } from '@/index';
+
+const chartRenderMock = jest.fn(({ el }: { el: HTMLElement }) => {
+  const marker = document.createElement('div');
+  marker.className = '__chart-render';
+  el.appendChild(marker);
+
+  return {
+    destroy: jest.fn(() => {
+      marker.remove();
+    }),
+  };
+});
+
+jest.mock('@techie_doubts/tui.chart.2026', () => ({
+  __esModule: true,
+  default: {
+    barChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+    columnChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+    areaChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+    lineChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+    pieChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+  },
+}));
 
 describe('parseToChartOption()', () => {
   it('should parse option code into object', () => {
@@ -149,6 +173,71 @@ describe('parseToChartOption()', () => {
         },
       },
     });
+  });
+});
+
+describe('chart render lifecycle', () => {
+  class TestEmitter {
+    private handlers: Record<string, Array<(...args: unknown[]) => void>> = {};
+
+    listen(eventName: string, handler: (...args: unknown[]) => void) {
+      this.handlers[eventName] = this.handlers[eventName] || [];
+      this.handlers[eventName].push(handler);
+    }
+
+    emit(eventName: string, ...args: unknown[]) {
+      (this.handlers[eventName] || []).forEach((handler) => handler(...args));
+    }
+  }
+
+  beforeEach(() => {
+    chartRenderMock.mockClear();
+    document.body.innerHTML = '';
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  async function waitFrames(frameCount: number) {
+    for (let i = 0; i < frameCount; i += 1) {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    }
+  }
+
+  it('should keep a single chart render on initial load/loadUI re-renders', async () => {
+    const eventEmitter = new TestEmitter();
+    const pluginInfo = chartPlugin(
+      {
+        usageStatistics: false,
+        eventEmitter: eventEmitter as any,
+        instance: {},
+      } as any,
+      {} as PluginOptions
+    );
+
+    const rendered = pluginInfo.toHTMLRenderers?.chart?.({
+      literal: ['x,y', 'a,1', 'b,2', '', 'type: line'].join('\n'),
+    } as any);
+
+    expect(rendered).toBeTruthy();
+
+    const openTag = rendered![0] as any;
+    const chartContainer = document.createElement('div');
+    const attributes = openTag.attributes || {};
+
+    Object.keys(attributes).forEach((key) => {
+      chartContainer.setAttribute(key, attributes[key]);
+    });
+    document.body.appendChild(chartContainer);
+
+    eventEmitter.emit('load');
+    eventEmitter.emit('loadUI');
+
+    await waitFrames(12);
+
+    expect(chartRenderMock).toHaveBeenCalled();
+    expect(chartContainer.querySelectorAll('.__chart-render')).toHaveLength(1);
   });
 });
 
