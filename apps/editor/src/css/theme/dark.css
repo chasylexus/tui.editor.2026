@@ -192,6 +192,14 @@
   border-color: #494c56;
 }
 
+.toastui-editor-dark .toastui-editor-popup-add-image .toastui-editor-recording-status {
+  color: #b8bcc6;
+}
+
+.toastui-editor-dark .toastui-editor-popup-add-image .toastui-editor-recording-status.recording {
+  color: #ff8585;
+}
+
 .toastui-editor-dark.toastui-editor-defaultUI .toastui-editor-close-button {
   color: #eee;
   border-color: #303238;

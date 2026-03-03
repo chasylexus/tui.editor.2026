@@ -67,7 +67,7 @@ describe('Default toolbar', () => {
       'Ordered list',
       'Task',
       'Insert table',
-      'Insert image',
+      'Insert media',
       'Insert link',
       'Insert anchor',
       'Inline code',
@@ -379,7 +379,7 @@ describe('Default toolbar', () => {
 
     beforeEach(() => {
       imagePopup = getPopUpElement();
-      imageButton = screen.getByLabelText('Insert image');
+      imageButton = screen.getByLabelText('Insert media');
 
       imageButton.click();
     });
@@ -397,25 +397,26 @@ describe('Default toolbar', () => {
       expect(imagePopup).toHaveStyle({ display: 'none' });
     });
 
-    it('should toggle tab when clicking the file or url tab', () => {
-      const fileTabBtn = getByLabelText(imagePopup, 'File');
-      const urlTabBtn = getByLabelText(imagePopup, 'URL');
+    it('should show inline audio recorder insertion control in media popup', () => {
+      const recordBtn = getByText(imagePopup, 'Insert audio recorder button');
 
-      urlTabBtn.click();
+      expect(recordBtn).toBeInTheDocument();
+    });
 
-      expect(fileTabBtn).not.toHaveClass('active');
-      expect(urlTabBtn).toHaveClass('active');
+    it('should insert inline audio recorder placeholder from media popup', () => {
+      const descriptionText = getByText(imagePopup, 'Description')
+        .nextElementSibling as HTMLInputElement;
+      const insertRecorderBtn = getByText(imagePopup, 'Insert audio recorder button');
 
-      fileTabBtn.click();
+      descriptionText.value = 'voice note';
+      insertRecorderBtn.click();
 
-      expect(fileTabBtn).toHaveClass('active');
-      expect(urlTabBtn).not.toHaveClass('active');
+      expect(editor.getMarkdown()).toContain('![voice note](record://audio?id=');
     });
 
     it('should add image to document when clicking OK button', () => {
-      getByLabelText(imagePopup, 'URL').click();
-
-      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
+      const urlText = getByText(imagePopup, 'URL or path to file')
+        .nextElementSibling as HTMLInputElement;
       const descriptionText = getByText(imagePopup, 'Description')
         .nextElementSibling as HTMLInputElement;
       const OkBtn = getByText(imagePopup, 'OK');
@@ -429,9 +430,8 @@ describe('Default toolbar', () => {
     });
 
     it('should add image with width only as =200x', () => {
-      getByLabelText(imagePopup, 'URL').click();
-
-      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
+      const urlText = getByText(imagePopup, 'URL or path to file')
+        .nextElementSibling as HTMLInputElement;
       const descriptionText = getByText(imagePopup, 'Description')
         .nextElementSibling as HTMLInputElement;
       const widthText = getByText(imagePopup, 'Width').nextElementSibling as HTMLInputElement;
@@ -447,9 +447,8 @@ describe('Default toolbar', () => {
     });
 
     it('should add image with height only as =x200', () => {
-      getByLabelText(imagePopup, 'URL').click();
-
-      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
+      const urlText = getByText(imagePopup, 'URL or path to file')
+        .nextElementSibling as HTMLInputElement;
       const descriptionText = getByText(imagePopup, 'Description')
         .nextElementSibling as HTMLInputElement;
       const heightText = getByText(imagePopup, 'Height').nextElementSibling as HTMLInputElement;
@@ -465,9 +464,8 @@ describe('Default toolbar', () => {
     });
 
     it('should add image with width and height as =200x200', () => {
-      getByLabelText(imagePopup, 'URL').click();
-
-      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
+      const urlText = getByText(imagePopup, 'URL or path to file')
+        .nextElementSibling as HTMLInputElement;
       const descriptionText = getByText(imagePopup, 'Description')
         .nextElementSibling as HTMLInputElement;
       const widthText = getByText(imagePopup, 'Width').nextElementSibling as HTMLInputElement;
@@ -484,17 +482,10 @@ describe('Default toolbar', () => {
       expect(editor.getMarkdown()).toBe('![image](myImageUrl =200x200)');
     });
 
-    it('should add wrong class when url or text are not filled out', () => {
-      const fileText = getByText(imagePopup, 'Select image file')
+    it('should add wrong class when url/path is not filled out', () => {
+      const urlText = getByText(imagePopup, 'URL or path to file')
         .nextElementSibling as HTMLInputElement;
-      const urlText = getByText(imagePopup, 'Image URL').nextElementSibling as HTMLInputElement;
       const OkBtn = getByText(imagePopup, 'OK');
-
-      OkBtn.click();
-
-      expect(fileText).toHaveClass('wrong');
-
-      getByLabelText(imagePopup, 'URL').click();
 
       OkBtn.click();
 

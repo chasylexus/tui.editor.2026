@@ -40,4 +40,20 @@ describe('image processor', () => {
 
     expect(spy).toHaveBeenCalledWith('addImage', { altText: 'file.jpg', imageUrl: '/file.jpg' });
   });
+
+  it('should use data URL for non-image files in default addImageBlobHook hook', () => {
+    addDefaultImageBlobHook(em);
+    mockReadAsDataURL();
+
+    const spy = jest.fn();
+    const file = new File([new ArrayBuffer(1)], 'audio.m4a', { type: 'audio/mp4' });
+
+    em.listen('command', spy);
+    emitImageBlobHook(em, file, 'drop');
+
+    expect(spy).toHaveBeenCalledWith('addImage', {
+      altText: 'audio.m4a',
+      imageUrl: '/file.jpg',
+    });
+  });
 });

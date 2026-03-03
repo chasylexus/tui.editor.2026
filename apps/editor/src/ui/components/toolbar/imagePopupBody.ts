@@ -1,16 +1,14 @@
 import { HookCallback } from '@t/editor';
 import { Emitter } from '@t/event';
-import { ExecCommand, HidePopup, TabInfo } from '@t/ui';
+import { ExecCommand, HidePopup } from '@t/ui';
 import i18n from '@/i18n/i18n';
 import { cls } from '@/utils/dom';
 import { Component } from '@/ui/vdom/component';
 import html from '@/ui/vdom/template';
 import { parseImageDimensionInput } from '@/convertors/imageSize';
-import { Tabs } from '../tabs';
+import { createInlineRecorderSource } from '@/utils/media';
 
 const TYPE_UI = 'ui';
-
-type TabType = 'url' | 'file';
 
 interface Props {
   show: boolean;
@@ -20,7 +18,6 @@ interface Props {
 }
 
 interface State {
-  activeTab: TabType;
   file: File | null;
   fileNameElClassName: string;
 }
@@ -31,18 +28,15 @@ interface ImageSizePayload {
 }
 
 export class ImagePopupBody extends Component<Props, State> {
-  private tabs: TabInfo[];
-
   constructor(props: Props) {
     super(props);
-    this.state = { activeTab: 'file', file: null, fileNameElClassName: '' };
-    this.tabs = [
-      { name: 'file', text: 'File' },
-      { name: 'url', text: 'URL' },
-    ];
+    this.state = {
+      file: null,
+      fileNameElClassName: '',
+    };
   }
 
-  private initialize = (activeTab: TabType = 'file') => {
+  private initialize = () => {
     const urlEl = this.refs.url as HTMLInputElement;
     const widthEl = this.refs.width as HTMLInputElement;
     const heightEl = this.refs.height as HTMLInputElement;
@@ -57,7 +51,10 @@ export class ImagePopupBody extends Component<Props, State> {
     widthEl.classList.remove('wrong');
     heightEl.classList.remove('wrong');
 
-    this.setState({ activeTab, file: null, fileNameElClassName: '' });
+    this.setState({
+      file: null,
+      fileNameElClassName: '',
+    });
   };
 
   private getImageSizePayload(): ImageSizePayload | null {
@@ -93,27 +90,27 @@ export class ImagePopupBody extends Component<Props, State> {
     };
   }
 
-  private emitAddImageBlob() {
+  private emitAddImageBlob(fileFromState?: File | null) {
     const sizePayload = this.getImageSizePayload();
     const { files } = this.refs.file as HTMLInputElement;
     const altTextEl = this.refs.altText as HTMLInputElement;
+    const mediaFile = fileFromState || this.state.file || (files?.length ? files.item(0) : null);
     let fileNameElClassName = ' wrong';
 
     if (!sizePayload) {
       return;
     }
 
-    if (files?.length) {
+    if (mediaFile) {
       fileNameElClassName = '';
-      const imageFile = files.item(0)!;
       const hookCallback: HookCallback = (url, text) =>
         this.props.execCommand('addImage', {
           imageUrl: url,
-          altText: text || altTextEl.value,
+          altText: text || altTextEl.value || mediaFile.name || 'media',
           ...sizePayload,
         });
 
-      this.props.eventEmitter.emit('addImageBlobHook', imageFile, hookCallback, TYPE_UI);
+      this.props.eventEmitter.emit('addImageBlobHook', mediaFile, hookCallback, TYPE_UI);
     }
     this.setState({ fileNameElClassName });
   }
@@ -142,17 +139,12 @@ export class ImagePopupBody extends Component<Props, State> {
   }
 
   private execCommand = () => {
-    if (this.state.activeTab === 'file') {
-      this.emitAddImageBlob();
-    } else {
-      this.emitAddImage();
+    if (this.state.file) {
+      this.emitAddImageBlob(this.state.file);
+      return;
     }
-  };
 
-  private toggleTab = (_: MouseEvent, activeTab: TabType) => {
-    if (activeTab !== this.state.activeTab) {
-      this.initialize(activeTab);
-    }
+    this.emitAddImage();
   };
 
   private showFileSelectBox = () => {
@@ -163,8 +155,32 @@ export class ImagePopupBody extends Component<Props, State> {
     const { files } = ev.target as HTMLInputElement;
 
     if (files?.length) {
-      this.setState({ file: files[0] });
+      this.setState({
+        file: files[0],
+        fileNameElClassName: '',
+      });
+      return;
     }
+
+    this.setState({ file: null });
+  };
+
+  private createInlineRecorderId() {
+    const randomSuffix = Math.random().toString(36).slice(2, 8);
+
+    return `rec-${Date.now()}-${randomSuffix}`;
+  }
+
+  private insertInlineAudioRecorder = () => {
+    const recorderId = this.createInlineRecorderId();
+    const source = createInlineRecorderSource(recorderId);
+    const label = (this.refs.altText as HTMLInputElement).value.trim() || 'audio';
+
+    this.props.execCommand('addImage', {
+      imageUrl: source,
+      altText: label,
+    });
+    this.props.hidePopup();
   };
 
   private preventSelectStart(ev: Event) {
@@ -178,20 +194,18 @@ export class ImagePopupBody extends Component<Props, State> {
   }
 
   render() {
-    const { activeTab, file, fileNameElClassName } = this.state;
+    const { file, fileNameElClassName } = this.state;
 
     return html`
       <div aria-label="${i18n.get('Insert image')}">
-        <${Tabs} tabs=${this.tabs} activeTab=${activeTab} onClick=${this.toggleTab} />
-        <div style="display:${activeTab === 'url' ? 'block' : 'none'}">
-          <label for="toastuiImageUrlInput">${i18n.get('Image URL')}</label>
-          <input
-            id="toastuiImageUrlInput"
-            type="text"
-            ref=${(el: HTMLInputElement) => (this.refs.url = el)}
-          />
-        </div>
-        <div style="display:${activeTab === 'file' ? 'block' : 'none'};position: relative;">
+        <label for="toastuiMediaRefInput">URL or path to file</label>
+        <input
+          id="toastuiMediaRefInput"
+          type="text"
+          placeholder="./audio.m4a or https://www.youtube.com/watch?v=..."
+          ref=${(el: HTMLInputElement) => (this.refs.url = el)}
+        />
+        <div style="position: relative; margin-top: 8px;">
           <label for="toastuiImageFileInput">${i18n.get('Select image file')}</label>
           <span
             class="${cls('file-name')}${file ? ' has-file' : fileNameElClassName}"
@@ -210,10 +224,19 @@ export class ImagePopupBody extends Component<Props, State> {
           <input
             id="toastuiImageFileInput"
             type="file"
-            accept="image/*"
+            accept="image/*,audio/*,video/*"
             onChange=${this.changeFile}
             ref=${(el: HTMLInputElement) => (this.refs.file = el)}
           />
+        </div>
+        <div class="${cls('media-recording')}">
+          <button
+            type="button"
+            class="${cls('file-select-button')}"
+            onClick=${this.insertInlineAudioRecorder}
+          >
+            Insert audio recorder button
+          </button>
         </div>
         <label for="toastuiAltTextInput">${i18n.get('Description')}</label>
         <input

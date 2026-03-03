@@ -5,9 +5,9 @@
     <title>20. Full Featured 2026</title>
     <link rel="stylesheet" href="./css/tuidoc-example-style.css" />
     <!-- Editor -->
-    <link rel="stylesheet" href="../dist/cdn/td-editor.css" />
+    <link rel="stylesheet" href="/dist/cdn/td-editor.css" />
     <!-- Dark theme -->
-    <link rel="stylesheet" href="../dist/cdn/theme/td-editor-dark.css" />
+    <link rel="stylesheet" href="/dist/cdn/theme/td-editor-dark.css" />
     <!-- Chart -->
     <link rel="stylesheet" href="/node_modules/@techie_doubts/tui.chart.2026/dist/td-chart.css" />
     <!-- Code Highlight -->
@@ -138,11 +138,9 @@
         <div id="editor"></div>
       </div>
     </div>
-    <!-- Added to check demo page in Internet Explorer -->
-    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <script src="./data/example20-full-featured-2026.js"></script>
     <!-- Editor -->
-    <script src="../dist/cdn/td-editor-all.js"></script>
+    <script src="/dist/cdn/td-editor-all.js"></script>
     <!-- Chart -->
     <script src="/node_modules/@techie_doubts/tui.chart.2026/dist/td-chart.js"></script>
     <!-- Color Picker -->
@@ -162,7 +160,7 @@
     <script src="/plugins/mermaid/dist/cdn/td-editor-plugin-mermaid.js"></script>
     <script src="/plugins/katex/dist/cdn/td-editor-plugin-katex.js"></script>
     <script src="/plugins/export/dist/cdn/td-editor-plugin-export.js"></script>
-    <script type="text/babel" class="code-js">
+    <script type="text/javascript" class="code-js">
       const { Editor } = toastui;
       const {
         chart,
@@ -186,6 +184,78 @@
         maxHeight: 300
       };
 
+      const LOCAL_MEDIA_ENDPOINT = '/__local_media';
+      const LOCAL_MEDIA_UPLOAD_ENDPOINT = '/__local_media_upload';
+
+      function resolveMediaPath(path, _mediaType) {
+        const raw = String(path || '').trim();
+
+        if (!raw) {
+          return raw;
+        }
+
+        if (/^(https?:|data:|blob:)/i.test(raw)) {
+          return raw;
+        }
+
+        if (raw.startsWith('~/') || raw.startsWith('/')) {
+          return `${LOCAL_MEDIA_ENDPOINT}?path=${encodeURIComponent(raw)}`;
+        }
+
+        return raw;
+      }
+
+      function readBlobAsDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onerror = () => reject(new Error('Failed to read media blob'));
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function persistMediaBlob(blob) {
+        const fileName =
+          blob && typeof blob.name === 'string' && blob.name.trim() ? blob.name.trim() : 'media';
+        const mimeType = String((blob && blob.type) || '').trim();
+        const query = new URLSearchParams({
+          fileName,
+          mimeType
+        });
+        const response = await fetch(`${LOCAL_MEDIA_UPLOAD_ENDPOINT}?${query.toString()}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream'
+          },
+          body: blob
+        });
+
+        if (!response.ok) {
+          let details = '';
+          try {
+            details = await response.text();
+          } catch (_error) {
+            details = '';
+          }
+
+          throw new Error(
+            details
+              ? `Upload failed (${response.status}): ${details}`
+              : `Upload failed with status ${response.status}`
+          );
+        }
+
+        const payload = await response.json();
+        const path = String((payload && payload.path) || '').trim();
+
+        if (!path) {
+          throw new Error('Upload response does not contain media path');
+        }
+
+        return path;
+      }
+
       const themeStorageKey = 'themeMode';
       const media = window.matchMedia('(prefers-color-scheme: dark)');
       const storedMode = localStorage.getItem(themeStorageKey);
@@ -202,6 +272,36 @@
         initialEditType: 'wysiwyg',
         initialValue: fullFeatured2026Content,
         theme: initialTheme,
+        hooks: {
+          resolveMediaPath,
+          addImageBlobHook: async (blob, callback) => {
+            const fileName =
+              blob && typeof blob.name === 'string' && blob.name.trim() ? blob.name.trim() : 'media';
+            const isImage = String((blob && blob.type) || '')
+              .toLowerCase()
+              .startsWith('image/');
+
+            if (isImage) {
+              const dataUrl = await readBlobAsDataUrl(blob);
+
+              callback(dataUrl, fileName);
+              return;
+            }
+
+            try {
+              const savedPath = await persistMediaBlob(blob);
+
+              callback(savedPath, fileName);
+            } catch (error) {
+              const details =
+                error && typeof error.message === 'string'
+                  ? error.message
+                  : 'Failed to persist media file';
+
+              alert(details);
+            }
+          }
+        },
         plugins: [
           [chart, chartOptions],
           [codeSyntaxHighlight, { highlighter: Prism }],

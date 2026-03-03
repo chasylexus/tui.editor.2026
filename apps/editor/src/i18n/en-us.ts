@@ -28,7 +28,7 @@ Editor.setLanguage(['en', 'en-US'], {
   'Anchor ID': 'Anchor ID',
   'Insert CodeBlock': 'Insert codeBlock',
   'Insert table': 'Insert table',
-  'Insert image': 'Insert image',
+  'Insert image': 'Insert media',
   Heading: 'Heading',
   'Image URL': 'Image URL',
   'Select image file': 'Select image file',

@@ -1563,6 +1563,33 @@ describe('editor', () => {
         expect(spy).toHaveBeenCalled();
         expect(defaultImageBlobHookSpy).not.toHaveBeenCalled();
       });
+
+      it('should resolve media paths through `resolveMediaPath` hook in preview', () => {
+        createEditor({
+          el: container,
+          previewHighlight: false,
+          initialValue: stripIndents`
+            ![image](~/Downloads/demo.png)
+
+            ![audio](~/Downloads/demo.m4a)
+          `,
+          hooks: {
+            resolveMediaPath: (source: string, mediaType: string) =>
+              `/__local_media?path=${encodeURIComponent(source)}&type=${encodeURIComponent(
+                mediaType
+              )}`,
+          },
+        });
+
+        const html = getPreviewHTML();
+
+        expect(html).toContain(
+          'src="/__local_media?path=~%2FDownloads%2Fdemo.png&amp;type=image"'
+        );
+        expect(html).toContain(
+          'src="/__local_media?path=~%2FDownloads%2Fdemo.m4a&amp;type=audio"'
+        );
+      });
     });
   });
 });

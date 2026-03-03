@@ -43,9 +43,11 @@ export interface EventMap {
 }
 
 type HookCallback = (url: string, text?: string) => void;
+type MediaType = 'image' | 'audio' | 'video' | 'embed';
 
 export type HookMap = {
   addImageBlobHook?: (blob: Blob | File, callback: HookCallback) => void;
+  resolveMediaPath?: (path: string, mediaType: MediaType) => string;
 };
 
 export type AutolinkParser = (
@@ -79,6 +81,7 @@ export interface ViewerOptions {
   el: HTMLElement;
   initialValue?: string;
   events?: EventMap;
+  hooks?: HookMap;
   plugins?: EditorPlugin[];
   extendedAutolinks?: ExtendedAutolinks;
   linkAttributes?: LinkAttributes;

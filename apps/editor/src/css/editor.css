@@ -572,6 +572,31 @@
   border-color: #cbcfdb;
 }
 
+.toastui-editor-popup-add-image .toastui-editor-media-recording {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.toastui-editor-popup-add-image .toastui-editor-media-recording .toastui-editor-file-select-button {
+  width: 33%;
+  margin-left: 0;
+}
+
+.toastui-editor-popup-add-image .toastui-editor-recording-status {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  color: #555;
+  font-size: 12px;
+}
+
+.toastui-editor-popup-add-image .toastui-editor-recording-status.recording {
+  color: #d64a4a;
+  font-weight: 600;
+}
+
 .toastui-editor-popup-add-table {
   width: auto;
 }

@@ -3,6 +3,12 @@ import { ProsemirrorNode, DOMOutputSpec } from 'prosemirror-model';
 import NodeSchema from '@/spec/node';
 import { escapeXml } from '@/utils/common';
 import { sanitizeHTML } from '@/sanitizer/htmlSanitizer';
+import {
+  isAudioReference,
+  isVideoFileReference,
+  parseVideoEmbedUrl,
+  parseInlineRecorderSource,
+} from '@/utils/media';
 
 import { EditorCommand } from '@t/spec';
 import { getCustomAttrs, getDefaultCustomAttrs } from '../helper/node';
@@ -58,10 +64,120 @@ export class Image extends NodeSchema {
         },
       ],
       toDOM({ attrs }: ProsemirrorNode): DOMOutputSpec {
+        const imageUrl = String(attrs.imageUrl || '');
+        const altText = String(attrs.altText || 'video');
+        const inlineRecorder = parseInlineRecorderSource(imageUrl);
+        const embeddedVideo = parseVideoEmbedUrl(imageUrl);
+
+        if (inlineRecorder) {
+          const recorderId = inlineRecorder.id || '';
+
+          return [
+            'span',
+            {
+              class: 'toastui-inline-recorder',
+              'data-recorder-id': recorderId,
+              'data-recorder-label': altText || 'audio',
+            },
+            [
+              'span',
+              {
+                class: 'toastui-inline-recorder-action',
+                role: 'button',
+                tabindex: '0',
+                'data-recorder-id': recorderId,
+                'data-recorder-action': 'start',
+              },
+              'Record',
+            ],
+            [
+              'span',
+              {
+                class: 'toastui-inline-recorder-action',
+                role: 'button',
+                tabindex: '0',
+                'data-recorder-id': recorderId,
+                'data-recorder-action': 'pause',
+                'data-disabled': 'true',
+              },
+              'Pause',
+            ],
+            [
+              'span',
+              {
+                class: 'toastui-inline-recorder-action',
+                role: 'button',
+                tabindex: '0',
+                'data-recorder-id': recorderId,
+                'data-recorder-action': 'stop',
+                'data-disabled': 'true',
+              },
+              'Stop',
+            ],
+            [
+              'span',
+              {
+                class: 'toastui-inline-recorder-dot',
+                'aria-hidden': 'true',
+              },
+            ],
+            [
+              'span',
+              {
+                class: 'toastui-inline-recorder-status',
+                'data-recorder-status': recorderId,
+              },
+              'Ready 000:00:00',
+            ],
+          ];
+        }
+
+        if (embeddedVideo) {
+          return [
+            'iframe',
+            {
+              src: embeddedVideo.embedUrl,
+              title: altText,
+              loading: 'lazy',
+              allow:
+                'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
+              allowfullscreen: '',
+              referrerpolicy: 'strict-origin-when-cross-origin',
+              ...(attrs.imageWidth && { width: attrs.imageWidth }),
+              ...(attrs.imageHeight && { height: attrs.imageHeight }),
+            },
+          ];
+        }
+
+        if (isAudioReference(imageUrl)) {
+          return [
+            'audio',
+            {
+              controls: '',
+              preload: 'metadata',
+              src: imageUrl,
+            },
+          ];
+        }
+
+        if (isVideoFileReference(imageUrl)) {
+          return [
+            'video',
+            {
+              controls: '',
+              preload: 'metadata',
+              playsinline: '',
+              src: imageUrl,
+              ...(attrs.imageWidth && { width: attrs.imageWidth }),
+              ...(attrs.imageHeight && { height: attrs.imageHeight }),
+            },
+          ];
+        }
+
         return [
           attrs.rawHTML || 'img',
           {
-            src: escapeXml(attrs.imageUrl),
+            src: escapeXml(imageUrl),
             ...(attrs.altText && { alt: attrs.altText }),
             ...(attrs.imageWidth && { width: attrs.imageWidth }),
             ...(attrs.imageHeight && { height: attrs.imageHeight }),

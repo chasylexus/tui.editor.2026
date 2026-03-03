@@ -64,8 +64,12 @@ export class WwToDOMAdaptor implements ToDOMAdaptor {
 
   convertors: HTMLConvertorMap;
 
-  constructor(linkAttributes: LinkAttributes | null, customRenderer: CustomHTMLRenderer) {
-    const convertors = getHTMLRenderConvertors(linkAttributes, customRenderer);
+  constructor(
+    linkAttributes: LinkAttributes | null,
+    customRenderer: CustomHTMLRenderer,
+    resolveMediaPath?: (path: string, mediaType: 'image' | 'audio' | 'video' | 'embed') => string
+  ) {
+    const convertors = getHTMLRenderConvertors(linkAttributes, customRenderer, resolveMediaPath);
     const customHTMLConvertor = { ...customRenderer.htmlBlock, ...customRenderer.htmlInline };
 
     // flatten the html block, inline convertor to other custom convertors

@@ -1,11 +1,15 @@
 import { HookCallback } from '@t/editor';
 import { Emitter } from '@t/event';
 
+function isImageFile(blob: Blob | File) {
+  return String(blob.type || '').toLowerCase().startsWith('image/');
+}
+
 export function addDefaultImageBlobHook(eventEmitter: Emitter) {
   eventEmitter.listen('addImageBlobHook', (blob: File, callback: HookCallback) => {
     const reader = new FileReader();
 
-    reader.onload = ({ target }) => callback(target!.result as string);
+    reader.onload = ({ target }) => callback(target!.result as string, blob.name);
     reader.readAsDataURL(blob);
   });
 }
@@ -33,4 +37,10 @@ export function pasteImageOnly(items: DataTransferItemList) {
   }
 
   return null;
+}
+
+export function isMediaFile(file: File) {
+  const type = String(file.type || '').toLowerCase();
+
+  return type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/');
 }

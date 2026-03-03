@@ -45,6 +45,7 @@ import {
   restoreTransformedFootnotes,
   transformMarkdownFootnotes,
 } from './utils/footnote';
+import { createInlineRecorderSource } from './utils/media';
 
 interface LineRange {
   startLine: number;
@@ -89,6 +90,38 @@ interface WwBlockRange {
   end: number;
 }
 
+type InlineRecorderViewState = 'idle' | 'recording' | 'paused' | 'processing';
+
+interface InlineRecorderLike {
+  state: 'inactive' | 'recording' | 'paused' | string;
+  mimeType: string;
+  start: (timeslice?: number) => void;
+  stop: () => void;
+  pause?: () => void;
+  resume?: () => void;
+  addEventListener: (type: string, listener: (...args: any[]) => void) => void;
+}
+
+interface InlineRecorderCtor {
+  new (stream: MediaStream, options?: { mimeType?: string }): InlineRecorderLike;
+  isTypeSupported?: (mimeType: string) => boolean;
+}
+
+interface InlineRecorderSession {
+  recorder: InlineRecorderLike;
+  stream: MediaStream;
+  chunks: Blob[];
+  label: string;
+  elapsedSeconds: number;
+  timerId: ReturnType<typeof setInterval> | null;
+}
+
+interface InlineRecorderDomStatus {
+  viewState: InlineRecorderViewState;
+  message: string;
+  isError: boolean;
+}
+
 /**
  * ToastUIEditorCore
  * @param {Object} options Option object
@@ -110,7 +143,7 @@ interface WwBlockRange {
  *         @param {function} [options.events.beforePreviewRender] - It would be emitted before rendering the markdown preview with html string
  *         @param {function} [options.events.beforeConvertWysiwygToMarkdown] - It would be emitted before converting wysiwyg to markdown with markdown text
  *     @param {Object} [options.hooks] - Hooks
- *         @param {addImageBlobHook} [options.hooks.addImageBlobHook] - hook for image upload
+ *         @param {addImageBlobHook} [options.hooks.addImageBlobHook] - hook for image/audio/video upload
  *     @param {string} [options.language='en-US'] - language
  *     @param {boolean} [options.useCommandShortcut=true] - whether use keyboard shortcuts to perform commands
  *     @param {boolean} [options.usageStatistics=true] - send hostname to google analytics
@@ -190,6 +223,12 @@ class ToastUIEditorCore {
   private mdSelectionAtWwEntry: SnapshotSelection | null = null;
 
   private wwSelectionAtWwEntry: [number, number] | null = null;
+
+  private inlineRecorderSessions = new Map<string, InlineRecorderSession>();
+
+  private inlineRecorderStatus = new Map<string, InlineRecorderDomStatus>();
+
+  private inlineRecorderClickHandler: ((ev: Event) => void) | null = null;
 
   private hashMd(text: string) {
     let hash = 0;
@@ -730,9 +769,15 @@ class ToastUIEditorCore {
       frontMatter,
       sanitizer: customHTMLSanitizer || sanitizeHTML,
     };
+    const resolveMediaPath = (path: string, mediaType: 'image' | 'audio' | 'video' | 'embed') =>
+      this.eventEmitter.emitReduce('resolveMediaPath', path, mediaType);
 
     this.previewSanitizer = rendererOptions.sanitizer;
-    const wwToDOMAdaptor = new WwToDOMAdaptor(linkAttributes, rendererOptions.customHTMLRenderer);
+    const wwToDOMAdaptor = new WwToDOMAdaptor(
+      linkAttributes,
+      rendererOptions.customHTMLRenderer,
+      resolveMediaPath
+    );
     const htmlSchemaMap = createHTMLSchemaMap(
       rendererOptions.customHTMLRenderer,
       rendererOptions.sanitizer,
@@ -759,6 +804,7 @@ class ToastUIEditorCore {
       ...rendererOptions,
       isViewer: false,
       highlight: this.options.previewHighlight,
+      resolveMediaPath,
     });
 
     this.wwEditor = new WysiwygEditor(this.eventEmitter, {
@@ -773,7 +819,7 @@ class ToastUIEditorCore {
     this.convertor = new Convertor(
       this.wwEditor.getSchema(),
       { ...toMarkdownRenderers, ...customMarkdownRenderer },
-      getHTMLRenderConvertors(linkAttributes, rendererOptions.customHTMLRenderer),
+      getHTMLRenderConvertors(linkAttributes, rendererOptions.customHTMLRenderer, resolveMediaPath),
       this.eventEmitter
     );
 
@@ -811,7 +857,11 @@ class ToastUIEditorCore {
     this.eventEmitter.listen('pasteMarkdownInWysiwyg', (markdownText: string) =>
       this.pasteMarkdownInWysiwyg(markdownText)
     );
-    this.eventEmitter.listen('updatePreview', () => this.renderFootnotePreviewIfNeeded());
+    this.eventEmitter.listen('updatePreview', () => {
+      this.renderFootnotePreviewIfNeeded();
+      this.refreshInlineRecorderDomState();
+    });
+    this.eventEmitter.listen('changeMode', () => this.refreshInlineRecorderDomState());
     this.eventEmitter.listen('change', (editorType: EditorType) => {
       if (editorType === 'markdown') {
         const nextMd = this.mdEditor.getMarkdown();
@@ -825,7 +875,12 @@ class ToastUIEditorCore {
           this.pushSnapshot(this.canonicalMd);
         }
       }
+      this.refreshInlineRecorderDomState();
     });
+
+    if (this.options.hooks?.resolveMediaPath) {
+      this.addHook('resolveMediaPath', this.options.hooks.resolveMediaPath);
+    }
 
     this.runProgrammatic(() => {
       this.setMarkdown(this.options.initialValue, false, false, true);
@@ -899,6 +954,545 @@ class ToastUIEditorCore {
       }
     });
     addDefaultImageBlobHook(this.eventEmitter);
+    this.bindInlineRecorderEvents();
+  }
+
+  private bindInlineRecorderEvents() {
+    if (this.inlineRecorderClickHandler) {
+      return;
+    }
+
+    this.inlineRecorderClickHandler = (ev: Event) => {
+      const target = ev.target as HTMLElement | null;
+      const actionNode = target?.closest?.('.toastui-inline-recorder-action') as
+        | HTMLElement
+        | null;
+
+      if (!actionNode) {
+        return;
+      }
+
+      const recorderId = String(actionNode.dataset.recorderId || '').trim();
+      const action = String(actionNode.dataset.recorderAction || '').trim();
+      const wrapper = actionNode.closest('.toastui-inline-recorder') as HTMLElement | null;
+      const label = String(wrapper?.dataset.recorderLabel || 'audio').trim() || 'audio';
+
+      if (!recorderId || !action) {
+        return;
+      }
+
+      if (actionNode.dataset.disabled === 'true') {
+        return;
+      }
+
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      if (action === 'start') {
+        void this.startOrResumeInlineRecorder(recorderId, label);
+        return;
+      }
+
+      if (action === 'pause') {
+        this.pauseInlineRecorder(recorderId);
+        return;
+      }
+
+      if (action === 'stop') {
+        this.stopInlineRecorder(recorderId);
+      }
+    };
+
+    this.options.el.addEventListener('click', this.inlineRecorderClickHandler);
+    this.refreshInlineRecorderDomState();
+  }
+
+  private unbindInlineRecorderEvents() {
+    if (this.inlineRecorderClickHandler) {
+      this.options.el.removeEventListener('click', this.inlineRecorderClickHandler);
+      this.inlineRecorderClickHandler = null;
+    }
+  }
+
+  private getPreferredInlineRecorderMimeType(recorderCtor: InlineRecorderCtor) {
+    if (typeof recorderCtor.isTypeSupported !== 'function') {
+      return '';
+    }
+
+    const candidates = [
+      'audio/mp4;codecs=mp4a.40.2',
+      'audio/mp4',
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/wav',
+    ];
+
+    const matched = candidates.find((mimeType) => recorderCtor.isTypeSupported!(mimeType));
+
+    return matched || '';
+  }
+
+  private guessAudioExtension(mimeType: string) {
+    const normalized = String(mimeType || '').toLowerCase();
+
+    if (normalized.includes('audio/mp4') || normalized.includes('m4a')) {
+      return 'm4a';
+    }
+    if (normalized.includes('audio/mpeg') || normalized.includes('mp3')) {
+      return 'mp3';
+    }
+    if (normalized.includes('audio/ogg')) {
+      return 'ogg';
+    }
+    if (normalized.includes('audio/wav')) {
+      return 'wav';
+    }
+    if (normalized.includes('audio/webm')) {
+      return 'webm';
+    }
+
+    return 'm4a';
+  }
+
+  private formatInlineRecorderDuration(totalSeconds: number) {
+    const safeTotal = Number.isFinite(totalSeconds) && totalSeconds > 0 ? Math.floor(totalSeconds) : 0;
+    const hours = Math.min(999, Math.floor(safeTotal / 3600));
+    const minutes = Math.floor((safeTotal % 3600) / 60);
+    const seconds = safeTotal % 60;
+
+    return `${String(hours).padStart(3, '0')}:${String(minutes).padStart(2, '0')}:${String(
+      seconds
+    ).padStart(2, '0')}`;
+  }
+
+  private getInlineRecorderStateMessage(viewState: InlineRecorderViewState, elapsedSeconds = 0) {
+    const duration = this.formatInlineRecorderDuration(elapsedSeconds);
+
+    if (viewState === 'recording') {
+      return `Recording ${duration}`;
+    }
+    if (viewState === 'paused') {
+      return `Paused ${duration}`;
+    }
+    if (viewState === 'processing') {
+      return `Processing ${duration}`;
+    }
+
+    return `Ready ${duration}`;
+  }
+
+  private stopInlineRecorderTimer(recorderId: string) {
+    const normalizedId = String(recorderId || '').trim();
+    const session = this.inlineRecorderSessions.get(normalizedId);
+
+    if (!session || !session.timerId) {
+      return;
+    }
+
+    clearInterval(session.timerId);
+    session.timerId = null;
+  }
+
+  private startInlineRecorderTimer(recorderId: string) {
+    const normalizedId = String(recorderId || '').trim();
+    const session = this.inlineRecorderSessions.get(normalizedId);
+
+    if (!session || session.timerId) {
+      return;
+    }
+
+    session.timerId = setInterval(() => {
+      const activeSession = this.inlineRecorderSessions.get(normalizedId);
+
+      if (!activeSession) {
+        return;
+      }
+
+      if (activeSession.recorder.state !== 'recording') {
+        return;
+      }
+
+      activeSession.elapsedSeconds += 1;
+      this.setInlineRecorderDomState(
+        normalizedId,
+        'recording',
+        this.getInlineRecorderStateMessage('recording', activeSession.elapsedSeconds)
+      );
+    }, 1000);
+  }
+
+  private setInlineRecorderDomState(
+    recorderId: string,
+    viewState: InlineRecorderViewState,
+    message: string,
+    isError = false
+  ) {
+    const normalizedId = String(recorderId || '').trim();
+
+    if (!normalizedId) {
+      return;
+    }
+
+    this.inlineRecorderStatus.set(normalizedId, {
+      viewState,
+      message,
+      isError,
+    });
+    this.applyInlineRecorderDomState(normalizedId);
+  }
+
+  private applyInlineRecorderDomState(recorderId: string) {
+    const normalizedId = String(recorderId || '').trim();
+
+    if (!normalizedId) {
+      return;
+    }
+
+    const state = this.inlineRecorderStatus.get(normalizedId) || {
+      viewState: 'idle' as InlineRecorderViewState,
+      message: this.getInlineRecorderStateMessage('idle', 0),
+      isError: false,
+    };
+
+    const wrapperNodes = this.options.el.querySelectorAll(
+      `.toastui-inline-recorder[data-recorder-id="${normalizedId}"]`
+    );
+    wrapperNodes.forEach((node) => {
+      if (!(node instanceof HTMLElement)) {
+        return;
+      }
+
+      node.dataset.recorderState = state.viewState;
+      node.classList.toggle('is-recording', state.viewState === 'recording');
+      node.classList.toggle('is-paused', state.viewState === 'paused');
+      node.classList.toggle('is-processing', state.viewState === 'processing');
+    });
+
+    const statusNodes = this.options.el.querySelectorAll(
+      `.toastui-inline-recorder-status[data-recorder-status="${normalizedId}"]`
+    );
+    statusNodes.forEach((node) => {
+      if (!(node instanceof HTMLElement)) {
+        return;
+      }
+      node.textContent = state.message;
+      node.classList.toggle('is-error', state.isError);
+    });
+
+    const buttonNodes = this.options.el.querySelectorAll(
+      `.toastui-inline-recorder-action[data-recorder-id="${normalizedId}"]`
+    );
+    buttonNodes.forEach((node) => {
+      if (!(node instanceof HTMLElement)) {
+        return;
+      }
+
+      const action = String(node.dataset.recorderAction || '');
+      const isStart = action === 'start';
+      const isPause = action === 'pause';
+      const isStop = action === 'stop';
+
+      if (isStart) {
+        if (state.viewState === 'paused') {
+          node.textContent = 'Resume';
+        } else if (state.viewState === 'recording') {
+          node.textContent = 'Recording';
+        } else {
+          node.textContent = 'Record';
+        }
+      }
+
+      let disabled = false;
+
+      if (state.viewState === 'recording') {
+        disabled = isStart;
+      } else if (state.viewState === 'paused') {
+        disabled = isPause;
+      } else if (state.viewState === 'processing') {
+        disabled = true;
+      } else {
+        disabled = isPause || isStop;
+      }
+
+      node.dataset.disabled = disabled ? 'true' : 'false';
+      node.classList.toggle('is-disabled', disabled);
+    });
+  }
+
+  private refreshInlineRecorderDomState() {
+    this.inlineRecorderStatus.forEach((_state, recorderId) => {
+      this.applyInlineRecorderDomState(recorderId);
+    });
+  }
+
+  private async startOrResumeInlineRecorder(recorderId: string, label: string) {
+    const normalizedId = String(recorderId || '').trim();
+
+    if (!normalizedId) {
+      return;
+    }
+
+    const existing = this.inlineRecorderSessions.get(normalizedId);
+
+    if (existing) {
+      if (existing.recorder.state === 'paused' && typeof existing.recorder.resume === 'function') {
+        existing.recorder.resume();
+        this.startInlineRecorderTimer(normalizedId);
+        this.setInlineRecorderDomState(
+          normalizedId,
+          'recording',
+          this.getInlineRecorderStateMessage('recording', existing.elapsedSeconds)
+        );
+      }
+      return;
+    }
+
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      this.setInlineRecorderDomState(normalizedId, 'idle', 'recording unavailable', true);
+      return;
+    }
+
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      this.setInlineRecorderDomState(normalizedId, 'idle', 'microphone unavailable', true);
+      return;
+    }
+
+    const recorderCtor = (window as Window & { MediaRecorder?: InlineRecorderCtor }).MediaRecorder;
+
+    if (!recorderCtor) {
+      this.setInlineRecorderDomState(normalizedId, 'idle', 'MediaRecorder unavailable', true);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = this.getPreferredInlineRecorderMimeType(recorderCtor);
+      const recorder = mimeType ? new recorderCtor(stream, { mimeType }) : new recorderCtor(stream);
+      const session: InlineRecorderSession = {
+        recorder,
+        stream,
+        chunks: [],
+        label: label || 'audio',
+        elapsedSeconds: 0,
+        timerId: null,
+      };
+
+      recorder.addEventListener('dataavailable', (event: { data?: Blob }) => {
+        if (event?.data && event.data.size > 0) {
+          session.chunks.push(event.data);
+        }
+      });
+      recorder.addEventListener('stop', () => {
+        void this.handleInlineRecorderStop(normalizedId);
+      });
+
+      this.inlineRecorderSessions.set(normalizedId, session);
+      recorder.start(250);
+      this.startInlineRecorderTimer(normalizedId);
+      this.setInlineRecorderDomState(
+        normalizedId,
+        'recording',
+        this.getInlineRecorderStateMessage('recording', session.elapsedSeconds)
+      );
+    } catch (_error) {
+      this.setInlineRecorderDomState(normalizedId, 'idle', 'recording failed', true);
+    }
+  }
+
+  private pauseInlineRecorder(recorderId: string) {
+    const normalizedId = String(recorderId || '').trim();
+    const session = this.inlineRecorderSessions.get(normalizedId);
+
+    if (!session || session.recorder.state !== 'recording' || typeof session.recorder.pause !== 'function') {
+      return;
+    }
+
+    session.recorder.pause();
+    this.stopInlineRecorderTimer(normalizedId);
+    this.setInlineRecorderDomState(
+      normalizedId,
+      'paused',
+      this.getInlineRecorderStateMessage('paused', session.elapsedSeconds)
+    );
+  }
+
+  private stopInlineRecorder(recorderId: string) {
+    const normalizedId = String(recorderId || '').trim();
+    const session = this.inlineRecorderSessions.get(normalizedId);
+
+    if (!session) {
+      return;
+    }
+
+    if (session.recorder.state !== 'recording' && session.recorder.state !== 'paused') {
+      return;
+    }
+
+    this.stopInlineRecorderTimer(normalizedId);
+    this.setInlineRecorderDomState(
+      normalizedId,
+      'processing',
+      this.getInlineRecorderStateMessage('processing', session.elapsedSeconds)
+    );
+    session.recorder.stop();
+  }
+
+  private stopAllInlineRecorders() {
+    this.inlineRecorderSessions.forEach((session, recorderId) => {
+      this.stopInlineRecorderTimer(recorderId);
+
+      try {
+        if (session.recorder.state === 'recording' || session.recorder.state === 'paused') {
+          session.recorder.stop();
+        }
+      } catch (_error) {
+        // Ignore recorder stop errors.
+      }
+
+      try {
+        session.stream.getTracks().forEach((track) => track.stop());
+      } catch (_error) {
+        // Ignore stream stop errors.
+      }
+
+      this.setInlineRecorderDomState(
+        recorderId,
+        'idle',
+        this.getInlineRecorderStateMessage('idle', session.elapsedSeconds)
+      );
+    });
+
+    this.inlineRecorderSessions.clear();
+  }
+
+  private resolveInlineRecorderBlob(file: File): Promise<{ url: string; text?: string }> {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        reject(new Error('Media hook timeout'));
+      }, 20000);
+
+      const callback = (url: string, text?: string) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timeoutId);
+
+        if (!String(url || '').trim()) {
+          reject(new Error('Media hook returned empty URL'));
+          return;
+        }
+
+        resolve({ url, text });
+      };
+
+      try {
+        this.eventEmitter.emit('addImageBlobHook', file, callback, 'inline-recorder');
+      } catch (error) {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(error);
+        }
+      }
+    });
+  }
+
+  private escapeForRegExp(value: string) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private replaceInlineRecorderWithAudioLink(recorderId: string, nextSource: string, fallbackLabel = 'audio') {
+    const normalizedId = String(recorderId || '').trim();
+    const normalizedSource = String(nextSource || '').trim();
+
+    if (!normalizedId || !normalizedSource) {
+      return false;
+    }
+
+    const markdown = this.getMarkdown();
+    const recorderSource = createInlineRecorderSource(normalizedId);
+    const regex = new RegExp(`!\\[([^\\]]*)\\]\\(${this.escapeForRegExp(recorderSource)}\\)`);
+    const match = markdown.match(regex);
+
+    if (!match) {
+      return false;
+    }
+
+    const label = String(match[1] || fallbackLabel || 'audio').trim() || 'audio';
+    const replacement = `![${label}](${normalizedSource})`;
+    const nextMarkdown = markdown.replace(regex, replacement);
+
+    if (nextMarkdown === markdown) {
+      return false;
+    }
+
+    this.runProgrammatic(() => {
+      this.setMarkdown(nextMarkdown, false, false, true);
+    });
+
+    return true;
+  }
+
+  private async handleInlineRecorderStop(recorderId: string) {
+    const normalizedId = String(recorderId || '').trim();
+    const session = this.inlineRecorderSessions.get(normalizedId);
+
+    if (!session) {
+      this.setInlineRecorderDomState(normalizedId, 'idle', this.getInlineRecorderStateMessage('idle', 0));
+      return;
+    }
+
+    this.stopInlineRecorderTimer(normalizedId);
+    this.inlineRecorderSessions.delete(normalizedId);
+    session.stream.getTracks().forEach((track) => track.stop());
+
+    if (!session.chunks.length) {
+      this.setInlineRecorderDomState(normalizedId, 'idle', 'no audio', true);
+      return;
+    }
+
+    const mimeType = session.recorder.mimeType || session.chunks[0]?.type || 'audio/webm';
+    const blob = new Blob(session.chunks, { type: mimeType });
+
+    if (!blob.size) {
+      this.setInlineRecorderDomState(normalizedId, 'idle', 'empty recording', true);
+      return;
+    }
+
+    try {
+      this.setInlineRecorderDomState(
+        normalizedId,
+        'processing',
+        `Saving ${this.formatInlineRecorderDuration(session.elapsedSeconds)}...`
+      );
+      const extension = this.guessAudioExtension(mimeType);
+      const fileName = `audio-${Date.now()}.${extension}`;
+      const file = new File([blob], fileName, { type: mimeType });
+      const payload = await this.resolveInlineRecorderBlob(file);
+      const replaced = this.replaceInlineRecorderWithAudioLink(
+        normalizedId,
+        payload.url,
+        payload.text || session.label || 'audio'
+      );
+
+      this.setInlineRecorderDomState(
+        normalizedId,
+        'idle',
+        replaced
+          ? `Saved ${this.formatInlineRecorderDuration(session.elapsedSeconds)}`
+          : `Saved (refresh) ${this.formatInlineRecorderDuration(session.elapsedSeconds)}`
+      );
+    } catch (_error) {
+      this.setInlineRecorderDomState(normalizedId, 'idle', 'save failed', true);
+    }
   }
 
   private addInitCommand(mdCommands: PluginCommandMap, wwCommands: PluginCommandMap) {
@@ -2645,6 +3239,8 @@ class ToastUIEditorCore {
    * Destroy TUIEditor from document
    */
   destroy() {
+    this.stopAllInlineRecorders();
+    this.unbindInlineRecorderEvents();
     this.wwEditor.destroy();
     this.mdEditor.destroy();
     this.preview.destroy();

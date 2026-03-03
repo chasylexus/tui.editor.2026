@@ -9,6 +9,7 @@ import {
   OpenTagToken,
   Context,
   HTMLConvertor,
+  HTMLToken,
 } from '@t/toastmark';
 import { LinkAttributes, CustomHTMLRenderer } from '@t/editor';
 import { HTMLMdNode } from '@t/markdown';
@@ -22,10 +23,117 @@ import {
   getCodeBlockLineCount,
 } from '@/convertors/codeBlockInfo';
 import { parseImageSizeSpec } from '@/convertors/imageSize';
+import {
+  parseVideoEmbedUrl,
+  isAudioReference,
+  isVideoFileReference,
+  parseInlineRecorderSource,
+} from '@/utils/media';
+import { registerTagWhitelistIfPossible } from '@/sanitizer/htmlSanitizer';
 
 type TokenAttrs = Record<string, any>;
+type MediaType = 'image' | 'audio' | 'video' | 'embed';
+type ResolveMediaPath = (path: string, mediaType: MediaType) => string;
 
 const reCloseTag = /^\s*<\s*\//;
+
+function extractNodeText(node: MdNode | null | undefined): string {
+  if (!node) {
+    return '';
+  }
+
+  let text = '';
+  let cursor: MdNode | null | undefined = node;
+
+  while (cursor) {
+    if (typeof cursor.literal === 'string') {
+      text += cursor.literal;
+    }
+
+    if (cursor.firstChild) {
+      text += extractNodeText(cursor.firstChild);
+    }
+
+    cursor = cursor.next;
+  }
+
+  return text;
+}
+
+function createInlineRecorderTokens(recorderId: string, label: string): HTMLToken[] {
+  return [
+    {
+      type: 'openTag',
+      tagName: 'span',
+      classNames: ['toastui-inline-recorder'],
+      attributes: {
+        'data-recorder-id': recorderId,
+        'data-recorder-label': label,
+      },
+    },
+    {
+      type: 'openTag',
+      tagName: 'span',
+      classNames: ['toastui-inline-recorder-action'],
+      attributes: {
+        role: 'button',
+        tabindex: '0',
+        'data-recorder-id': recorderId,
+        'data-recorder-action': 'start',
+      },
+    },
+    { type: 'text', content: 'Record' },
+    { type: 'closeTag', tagName: 'span' },
+    {
+      type: 'openTag',
+      tagName: 'span',
+      classNames: ['toastui-inline-recorder-action'],
+      attributes: {
+        role: 'button',
+        tabindex: '0',
+        'data-recorder-id': recorderId,
+        'data-recorder-action': 'pause',
+        'data-disabled': 'true',
+      },
+    },
+    { type: 'text', content: 'Pause' },
+    { type: 'closeTag', tagName: 'span' },
+    {
+      type: 'openTag',
+      tagName: 'span',
+      classNames: ['toastui-inline-recorder-action'],
+      attributes: {
+        role: 'button',
+        tabindex: '0',
+        'data-recorder-id': recorderId,
+        'data-recorder-action': 'stop',
+        'data-disabled': 'true',
+      },
+    },
+    { type: 'text', content: 'Stop' },
+    { type: 'closeTag', tagName: 'span' },
+    {
+      type: 'openTag',
+      tagName: 'span',
+      classNames: ['toastui-inline-recorder-dot'],
+      attributes: {
+        'aria-hidden': 'true',
+      },
+    },
+    { type: 'closeTag', tagName: 'span' },
+    {
+      type: 'openTag',
+      tagName: 'span',
+      classNames: ['toastui-inline-recorder-status'],
+      attributes: {
+        'data-recorder-status': recorderId,
+      },
+    },
+    { type: 'text', content: 'Ready 000:00:00' },
+    { type: 'closeTag', tagName: 'span' },
+    { type: 'closeTag', tagName: 'span' },
+  ] as HTMLToken[];
+}
 
 const baseConvertors: HTMLConvertorMap = {
   paragraph(_, { entering, origin, options }: Context) {
@@ -88,12 +196,108 @@ const baseConvertors: HTMLConvertorMap = {
     ];
   },
 
-  image(node: MdNode, { origin }: Context) {
+  image(node: MdNode, { origin, entering, skipChildren }: Context) {
+    if (!entering) {
+      return [];
+    }
+
+    if (skipChildren) {
+      skipChildren();
+    }
+
+    const linkNode = node as LinkMdNode;
+    const destination = String(linkNode.destination || '').trim();
+    const altText = extractNodeText(linkNode.firstChild).trim() || 'media';
+    const size = parseImageSizeSpec(linkNode.title);
+    const inlineRecorder = parseInlineRecorderSource(destination);
+    const embeddedVideo = parseVideoEmbedUrl(destination);
+
+    if (inlineRecorder) {
+      return createInlineRecorderTokens(inlineRecorder.id, altText || 'audio');
+    }
+
+    if (embeddedVideo) {
+      registerTagWhitelistIfPossible('iframe');
+      const iframeAttributes: TokenAttrs = {
+        src: embeddedVideo.embedUrl,
+        title: altText,
+        loading: 'lazy',
+        allow:
+          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
+        allowfullscreen: '',
+        referrerpolicy: 'strict-origin-when-cross-origin',
+      };
+
+      if (size && size.width !== null) {
+        iframeAttributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        iframeAttributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'iframe',
+          classNames: ['toastui-media', 'toastui-media-video-host'],
+          attributes: iframeAttributes,
+        },
+        { type: 'closeTag', tagName: 'iframe' },
+      ];
+    }
+
+    if (isAudioReference(destination)) {
+      registerTagWhitelistIfPossible('audio');
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'audio',
+          classNames: ['toastui-media', 'toastui-media-audio'],
+          attributes: {
+            controls: '',
+            preload: 'metadata',
+            src: destination,
+          },
+        },
+        { type: 'closeTag', tagName: 'audio' },
+      ];
+    }
+
+    if (isVideoFileReference(destination)) {
+      registerTagWhitelistIfPossible('video');
+
+      const attributes: TokenAttrs = {
+        controls: '',
+        preload: 'metadata',
+        playsinline: '',
+        src: destination,
+      };
+
+      if (size && size.width !== null) {
+        attributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        attributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'video',
+          classNames: ['toastui-media', 'toastui-media-video-file'],
+          attributes,
+        },
+        { type: 'closeTag', tagName: 'video' },
+      ];
+    }
+
     const result = origin!() as OpenTagToken | null;
 
     if (result && result.type === 'openTag') {
-      const size = parseImageSizeSpec((node as LinkMdNode).title);
-      const nodeTitle = (node as LinkMdNode).title;
+      const nodeTitle = linkNode.title;
 
       result.attributes = {
         ...(result.attributes || {}),
@@ -204,9 +408,140 @@ const PLUGIN_LANGUAGES = [
 
 export function getHTMLRenderConvertors(
   linkAttributes: LinkAttributes | null,
-  customConvertors: CustomHTMLRenderer
+  customConvertors: CustomHTMLRenderer,
+  resolveMediaPath?: ResolveMediaPath
 ) {
   const convertors = { ...baseConvertors };
+  const resolvePath: ResolveMediaPath = resolveMediaPath || ((path) => path);
+
+  convertors.image = (node: MdNode, { origin, entering, skipChildren }: Context) => {
+    if (!entering) {
+      return [];
+    }
+
+    if (skipChildren) {
+      skipChildren();
+    }
+
+    const linkNode = node as LinkMdNode;
+    const destination = String(linkNode.destination || '').trim();
+    const altText = extractNodeText(linkNode.firstChild).trim() || 'media';
+    const size = parseImageSizeSpec(linkNode.title);
+    const inlineRecorder = parseInlineRecorderSource(destination);
+    const embeddedVideo = parseVideoEmbedUrl(destination);
+
+    if (inlineRecorder) {
+      return createInlineRecorderTokens(inlineRecorder.id, altText || 'audio');
+    }
+
+    if (embeddedVideo) {
+      registerTagWhitelistIfPossible('iframe');
+      const iframeAttributes: TokenAttrs = {
+        src: resolvePath(embeddedVideo.embedUrl, 'embed'),
+        title: altText,
+        loading: 'lazy',
+        allow:
+          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
+        allowfullscreen: '',
+        referrerpolicy: 'strict-origin-when-cross-origin',
+      };
+
+      if (size && size.width !== null) {
+        iframeAttributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        iframeAttributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'iframe',
+          classNames: ['toastui-media', 'toastui-media-video-host'],
+          attributes: iframeAttributes,
+        },
+        { type: 'closeTag', tagName: 'iframe' },
+      ];
+    }
+
+    if (isAudioReference(destination)) {
+      registerTagWhitelistIfPossible('audio');
+      const resolvedAudio = resolvePath(destination, 'audio');
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'audio',
+          classNames: ['toastui-media', 'toastui-media-audio'],
+          attributes: {
+            controls: '',
+            preload: 'metadata',
+            src: resolvedAudio,
+          },
+        },
+        { type: 'closeTag', tagName: 'audio' },
+      ];
+    }
+
+    if (isVideoFileReference(destination)) {
+      registerTagWhitelistIfPossible('video');
+      const resolvedVideo = resolvePath(destination, 'video');
+
+      const attributes: TokenAttrs = {
+        controls: '',
+        preload: 'metadata',
+        playsinline: '',
+        src: resolvedVideo,
+      };
+
+      if (size && size.width !== null) {
+        attributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        attributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'video',
+          classNames: ['toastui-media', 'toastui-media-video-file'],
+          attributes,
+        },
+        { type: 'closeTag', tagName: 'video' },
+      ];
+    }
+
+    const result = origin!() as OpenTagToken | null;
+
+    if (result && result.type === 'openTag') {
+      const nodeTitle = linkNode.title;
+
+      result.attributes = {
+        ...(result.attributes || {}),
+        src: resolvePath(destination, 'image'),
+        referrerpolicy: 'no-referrer',
+      };
+
+      if (size) {
+        if (size.width !== null) {
+          result.attributes.width = String(size.width);
+        }
+
+        if (size.height !== null) {
+          result.attributes.height = String(size.height);
+        }
+
+        if (result.attributes.title === nodeTitle) {
+          delete result.attributes.title;
+        }
+      }
+    }
+
+    return result;
+  };
 
   if (linkAttributes) {
     convertors.link = (_, { entering, origin }: Context) => {

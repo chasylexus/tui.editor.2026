@@ -2,6 +2,18 @@
 /* eslint-disable no-var */
 var fullFeatured2026Content = `# Demo
 
+## Local media path test (as requested)
+These \`~/...\` paths are kept here for reproducibility.
+When the editor is opened via \`http://127.0.0.1:8080\`, browsers do not allow direct reads from local disk paths.
+
+![image](~/Downloads/AI-Agents-Crash-Course-RU-main/03/01_14.png)
+
+![audio](~/Downloads/test_audio.m4a)
+
+![youtube](https://www.youtube.com/watch?v=aqz-KE-bpKQ)
+
+![youtube-sized](https://www.youtube.com/watch?v=aqz-KE-bpKQ =640x360)
+
 Inline math example: $\\sum_{i=0}^{\\infty} x^i + 35$ right in the text.
 Inline math test: $\\sum_{i=0}^{\\infty} x^i$ should stay single backslashes.
 Inline newline test: $a \\\\ b$ should render b under a (inline stacked layout).
@@ -96,5 +108,5 @@ y = y(x,t) &= A e^{i\\theta} \\\\
 &= A\\cos \\frac{2\\pi}{\\lambda} (x - v t)
    + i A\\sin \\frac{2\\pi}{\\lambda} (x - v t)
 \\end{align*}
-$$
+$$ 
 `;

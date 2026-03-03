@@ -203,6 +203,162 @@ table.ProseMirror-selectednode {
   max-width: 100%;
 }
 
+.toastui-editor-contents .toastui-media {
+  margin: 8px 0 12px;
+  box-sizing: border-box;
+}
+
+.toastui-editor-contents audio.toastui-media,
+.toastui-editor-contents video.toastui-media,
+.toastui-editor-contents iframe.toastui-media {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  border: 0;
+}
+
+.toastui-editor-contents video.toastui-media[width],
+.toastui-editor-contents iframe.toastui-media[width] {
+  width: auto;
+}
+
+.toastui-editor-contents iframe.toastui-media-video-host {
+  aspect-ratio: 16 / 9;
+  min-height: 220px;
+}
+
+.toastui-editor-contents iframe.toastui-media-video-host[height] {
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+.toastui-editor-contents .toastui-inline-recorder {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 6px 10px;
+  border: 1px solid #d2d7e2;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f7ff 100%);
+  box-shadow: 0 1px 2px rgba(31, 41, 55, 0.08);
+  vertical-align: middle;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c7cedd;
+  background: #fff;
+  color: #1f2937;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease,
+    opacity 0.14s ease;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action:not(.is-disabled):hover {
+  background: #f7f9ff;
+  border-color: #b7c0d6;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action:focus-visible {
+  outline: 2px solid #4a90d9;
+  outline-offset: 1px;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action.is-disabled {
+  opacity: 0.44;
+  cursor: not-allowed;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #9aa5b1;
+  box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.35);
+  transition: background-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.toastui-editor-contents .toastui-inline-recorder.is-recording .toastui-inline-recorder-dot {
+  background: #e63946;
+  animation: toastui-inline-recorder-pulse 1.1s ease-in-out infinite;
+}
+
+.toastui-editor-contents .toastui-inline-recorder.is-paused .toastui-inline-recorder-dot {
+  background: #f59e0b;
+  animation: none;
+}
+
+.toastui-editor-contents .toastui-inline-recorder.is-processing .toastui-inline-recorder-dot {
+  background: #4a90d9;
+  animation: none;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-status {
+  font-size: 12px;
+  color: #4b5563;
+  min-width: 20ch;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-status.is-error {
+  color: #c03737;
+}
+
+.toastui-editor-dark .toastui-editor-contents .toastui-inline-recorder {
+  border-color: #3a3f48;
+  background: linear-gradient(180deg, #1f242d 0%, #1a1f27 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.toastui-editor-dark .toastui-editor-contents .toastui-inline-recorder-action {
+  border-color: #4a4f58;
+  background: #282d36;
+  color: #e7ebf3;
+}
+
+.toastui-editor-dark .toastui-editor-contents .toastui-inline-recorder-action:not(.is-disabled):hover {
+  background: #303644;
+  border-color: #5a6170;
+}
+
+.toastui-editor-dark .toastui-editor-contents .toastui-inline-recorder-status {
+  color: #c2c8d2;
+}
+
+.toastui-editor-dark .toastui-editor-contents .toastui-inline-recorder-dot {
+  background: #7b8794;
+}
+
+.toastui-editor-dark .toastui-editor-contents .toastui-inline-recorder-status.is-error {
+  color: #ff8888;
+}
+
+@keyframes toastui-inline-recorder-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.36);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(230, 57, 70, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(230, 57, 70, 0);
+  }
+}
+
 /* Keep inline KaTeX behavior consistent with WYSIWYG:
    multiline inline formulas (e.g. $a \\ b$) should stay as one tall inline box. */
 .toastui-editor-md-preview .toastui-editor-contents .katex {

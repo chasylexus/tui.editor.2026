@@ -60,6 +60,7 @@ class ToastUIEditorViewer {
         customHTMLSanitizer: null,
         frontMatter: false,
         usageStatistics: true,
+        hooks: null,
         theme: 'light',
       },
       options
@@ -99,6 +100,14 @@ class ToastUIEditorViewer {
       });
     }
 
+    if (this.options.hooks) {
+      Object.entries(this.options.hooks).forEach(([key, fn]) => {
+        if (fn) {
+          this.addHook(key, fn);
+        }
+      });
+    }
+
     const { el, initialValue, theme } = this.options;
     const existingHTML = el.innerHTML;
 
@@ -118,6 +127,8 @@ class ToastUIEditorViewer {
     this.preview = new MarkdownPreview(this.eventEmitter, {
       ...rendererOptions,
       isViewer: true,
+      resolveMediaPath: (path: string, mediaType: 'image' | 'audio' | 'video' | 'embed') =>
+        this.eventEmitter.emitReduce('resolveMediaPath', path, mediaType),
     });
 
     this.preview.previewContent!.addEventListener('mousedown', this.toggleTask.bind(this));

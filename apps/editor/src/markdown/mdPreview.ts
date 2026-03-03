@@ -39,6 +39,7 @@ interface Options {
   isViewer: boolean;
   highlight?: boolean;
   sanitizer: Sanitizer;
+  resolveMediaPath?: (path: string, mediaType: 'image' | 'audio' | 'video' | 'embed') => string;
 }
 
 /**
@@ -92,7 +93,11 @@ class MarkdownPreview {
     this.renderer = new Renderer({
       gfm: true,
       nodeId: true,
-      convertors: getHTMLRenderConvertors(linkAttributes, customHTMLRenderer),
+      convertors: getHTMLRenderConvertors(
+        linkAttributes,
+        customHTMLRenderer,
+        options.resolveMediaPath
+      ),
     });
 
     this.cursorNodeId = null;

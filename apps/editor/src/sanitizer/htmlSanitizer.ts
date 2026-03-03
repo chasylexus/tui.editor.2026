@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 import { includes } from '@/utils/common';
 
-const CAN_BE_WHITE_TAG_LIST = ['iframe', 'embed'];
+const CAN_BE_WHITE_TAG_LIST = ['iframe', 'embed', 'audio', 'video', 'source', 'track'];
 const whiteTagList: string[] = [];
 
 export function registerTagWhitelistIfPossible(tagName: string) {
@@ -16,7 +16,25 @@ export function sanitizeHTML<T extends string | HTMLElement | DocumentFragment =
 ) {
   return DOMPurify.sanitize(html, {
     ADD_TAGS: whiteTagList,
-    ADD_ATTR: ['rel', 'target', 'hreflang', 'type', 'referrerpolicy'],
+    ADD_ATTR: [
+      'rel',
+      'target',
+      'hreflang',
+      'type',
+      'referrerpolicy',
+      'allow',
+      'allowfullscreen',
+      'frameborder',
+      'loading',
+      'playsinline',
+      'controls',
+      'preload',
+      'poster',
+      'muted',
+      'loop',
+      'autoplay',
+      'crossorigin',
+    ],
     FORBID_TAGS: [
       'input',
       'script',

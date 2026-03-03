@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const webpack = require('webpack');
 const pkg = require('./package.json');
 
@@ -18,6 +20,101 @@ const ENTRY_VIEWER = './src/indexViewer.ts';
 let isProduction;
 let minify;
 let analyze;
+
+function registerDevMediaRoutes(app) {
+  if (!app || typeof app.get !== 'function' || typeof app.post !== 'function') {
+    return;
+  }
+
+  app.post('/__local_media_upload', (req, res) => {
+    const mimeType = String((req.query && req.query.mimeType) || req.headers['content-type'] || '')
+      .toLowerCase()
+      .trim();
+    const requestedName = String((req.query && req.query.fileName) || '').trim();
+    const baseName = path.basename(requestedName || 'media');
+    const extFromName = path.extname(baseName).replace(/^\./, '');
+    const extFromMime = (() => {
+      if (mimeType.includes('audio/mp4') || mimeType.includes('m4a')) return 'm4a';
+      if (mimeType.includes('audio/mpeg') || mimeType.includes('mp3')) return 'mp3';
+      if (mimeType.includes('audio/wav')) return 'wav';
+      if (mimeType.includes('audio/ogg')) return 'ogg';
+      if (mimeType.includes('audio/webm')) return 'webm';
+      if (mimeType.includes('video/mp4')) return 'mp4';
+      if (mimeType.includes('video/webm')) return 'webm';
+      if (mimeType.includes('video/ogg')) return 'ogv';
+      return '';
+    })();
+    const extension = extFromName || extFromMime || 'bin';
+    const fileStem = (path.basename(baseName, path.extname(baseName)) || 'media')
+      .replace(/[^\w.-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const targetDir = path.join(os.homedir(), '.tui.editor.2026', 'media');
+    const randomSuffix = Math.random().toString(36).slice(2, 8);
+    const targetFile = path.join(
+      targetDir,
+      `${fileStem || 'media'}-${Date.now()}-${randomSuffix}.${extension}`
+    );
+    const chunks = [];
+
+    req.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      try {
+        fs.mkdirSync(targetDir, { recursive: true });
+        fs.writeFileSync(targetFile, Buffer.concat(chunks));
+        res.json({ path: targetFile });
+      } catch (error) {
+        res.status(500).json({
+          message: error && error.message ? error.message : 'Failed to save media',
+        });
+      }
+    });
+
+    req.on('error', () => {
+      res.status(500).json({ message: 'Failed to read request body' });
+    });
+  });
+
+  app.get('/__local_media', (req, res) => {
+    const rawPath = String((req.query && req.query.path) || '').trim();
+
+    if (!rawPath) {
+      res.status(400).send('Missing path');
+      return;
+    }
+
+    const homeDir = os.homedir();
+    const normalizedInput = rawPath.replace(/\\\\/g, '/');
+    const expanded =
+      normalizedInput.startsWith('~/') || normalizedInput === '~'
+        ? path.join(homeDir, normalizedInput.slice(2))
+        : normalizedInput;
+    const absolutePath = path.isAbsolute(expanded)
+      ? path.normalize(expanded)
+      : path.resolve(homeDir, expanded);
+
+    if (!absolutePath.startsWith(homeDir)) {
+      res.status(403).send('Path is outside home directory');
+      return;
+    }
+
+    if (!fs.existsSync(absolutePath)) {
+      res.status(404).send('File not found');
+      return;
+    }
+
+    const stat = fs.statSync(absolutePath);
+
+    if (!stat.isFile()) {
+      res.status(400).send('Path is not a file');
+      return;
+    }
+
+    res.sendFile(absolutePath);
+  });
+}
 
 function addFileManagerPlugin(config) {
   // When an entry option's value is set to a CSS file,
@@ -85,8 +182,17 @@ function setDevelopConfig(config) {
     host: '0.0.0.0',
     port: 8080,
     disableHostCheck: true,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+      'Surrogate-Control': 'no-store',
+    },
     contentBase: [path.resolve(__dirname), path.resolve(__dirname, '../..')],
     watchContentBase: true,
+    before(app) {
+      registerDevMediaRoutes(app);
+    },
   };
 }
 

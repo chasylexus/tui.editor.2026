@@ -69,4 +69,60 @@ describe('Viewer', () => {
 
     expect(getViewerHTML()).toBe(expected);
   });
+
+  it('should render markdown image with youtube url as embedded iframe', () => {
+    viewer.setMarkdown('![youtube](https://www.youtube.com/watch?v=aqz-KE-bpKQ =560x315)');
+
+    const html = getViewerHTML();
+
+    expect(html).toContain('class="toastui-media toastui-media-video-host"');
+    expect(html).toContain('src="https://www.youtube.com/embed/aqz-KE-bpKQ"');
+    expect(html).toContain('referrerpolicy="strict-origin-when-cross-origin"');
+    expect(html).toContain('width="560"');
+    expect(html).toContain('height="315"');
+  });
+
+  it('should keep normal image markdown rendering unchanged', () => {
+    viewer.setMarkdown('![img](https://octodex.github.com/images/minion.png)');
+
+    const html = getViewerHTML();
+
+    expect(html).toContain('<img');
+    expect(html).toContain('src="https://octodex.github.com/images/minion.png"');
+  });
+
+  it('should render markdown image with audio file url as audio player', () => {
+    viewer.setMarkdown('![audio](https://example.com/test.m4a)');
+
+    const html = getViewerHTML();
+
+    expect(html).toContain('<audio');
+    expect(html).toContain('class="toastui-media toastui-media-audio"');
+    expect(html).toContain('src="https://example.com/test.m4a"');
+    expect(html).toContain('controls=""');
+  });
+
+  it('should render markdown image with video file url as video player', () => {
+    viewer.setMarkdown('![video](https://example.com/test.mp4 =640x360)');
+
+    const html = getViewerHTML();
+
+    expect(html).toContain('<video');
+    expect(html).toContain('class="toastui-media toastui-media-video-file"');
+    expect(html).toContain('src="https://example.com/test.mp4"');
+    expect(html).toContain('width="640"');
+    expect(html).toContain('height="360"');
+  });
+
+  it('should render inline recorder placeholder controls for record://audio sources', () => {
+    viewer.setMarkdown('![voice note](record://audio?id=rec-12345)');
+
+    const html = getViewerHTML();
+
+    expect(html).toContain('class="toastui-inline-recorder"');
+    expect(html).toContain('data-recorder-id="rec-12345"');
+    expect(html).toContain('data-recorder-action="start"');
+    expect(html).toContain('data-recorder-action="pause"');
+    expect(html).toContain('data-recorder-action="stop"');
+  });
 });
