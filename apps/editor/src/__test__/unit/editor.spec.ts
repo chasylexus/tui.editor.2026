@@ -390,6 +390,52 @@ describe('editor', () => {
       expect(editor.getSelection()).toEqual(expected);
     });
 
+    it('should keep selection stable on ww->md mode switch for multiline fenced content', () => {
+      const markdown = source`
+        Intro
+
+        \`\`\`bash
+        echo first
+        echo second
+        \`\`\`
+
+        Tail
+      `;
+
+      editor.setMarkdown(markdown);
+      editor.setSelection([8, 3], [8, 3]);
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+
+      expect(editor.getSelection()).toEqual([
+        [8, 3],
+        [8, 3],
+      ]);
+    });
+
+    it('should keep cursor position stable on md->ww->md switch for large markdown documents', () => {
+      const lines: string[] = ['# Large doc', ''];
+
+      for (let i = 1; i <= 450; i += 1) {
+        lines.push(`Section ${i}`);
+        lines.push(`- item ${i}.1`);
+        lines.push(`- item ${i}.2 with \`code-${i}\``);
+        lines.push('');
+      }
+
+      const markdown = lines.join('\n');
+
+      editor.setMarkdown(markdown);
+      editor.setSelection([800, 12], [800, 12]);
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+
+      expect(editor.getSelection()).toEqual([
+        [800, 12],
+        [800, 12],
+      ]);
+    });
+
     it('should set wysiwyg selection without scroll when changing mode from markdown', () => {
       editor.setMarkdown('line1\nline2');
       editor.setSelection([1, 3], [2, 2]);

@@ -1,5 +1,6 @@
 import { DOMParser, Node as ProsemirrorNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
+import { EditorView } from 'prosemirror-view';
 import { Emitter, Handler } from '@t/event';
 import {
   Base,
@@ -70,6 +71,22 @@ interface MdBlockSlice {
   content: string;
   separator: string;
   type: string;
+}
+
+interface MdRootBlockInfo {
+  blockId: number;
+  startOffset: number;
+}
+
+interface MdRootBlockRange {
+  blockId: number;
+  startOffset: number;
+  endOffset: number;
+}
+
+interface WwBlockRange {
+  start: number;
+  end: number;
 }
 
 /**
@@ -169,6 +186,10 @@ class ToastUIEditorCore {
   private baselineCanonicalMd: string | null = null;
 
   private lastWysiwygMdSelection: SnapshotSelection | null = null;
+
+  private mdSelectionAtWwEntry: SnapshotSelection | null = null;
+
+  private wwSelectionAtWwEntry: [number, number] | null = null;
 
   private hashMd(text: string) {
     let hash = 0;
@@ -272,6 +293,350 @@ class ToastUIEditorCore {
     if (window.scrollX !== scrollX || window.scrollY !== scrollY) {
       window.scrollTo(scrollX, scrollY);
     }
+  }
+
+  private clampNumber(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  private ensureSelectionVisibleInEditor(view: EditorView, ratio = 0.33) {
+    const container = view?.dom as HTMLElement | undefined;
+
+    if (!container || container.clientHeight <= 0) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(container.scrollHeight - container.clientHeight, 0);
+
+    if (maxScrollTop <= 0) {
+      return;
+    }
+
+    const minPos = 1;
+    const maxPos = Math.max(view.state.doc.content.size - 1, minPos);
+    const selectionPos = this.clampNumber(view.state.selection.head, minPos, maxPos);
+    let coords: { top: number; bottom: number };
+
+    try {
+      coords = view.coordsAtPos(selectionPos);
+    } catch (_error) {
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const caretTop = container.scrollTop + (coords.top - containerRect.top);
+    const targetTop = this.clampNumber(
+      caretTop - container.clientHeight * ratio,
+      0,
+      maxScrollTop
+    );
+    const viewTop = container.scrollTop;
+    const viewBottom = viewTop + container.clientHeight;
+    const padding = Math.max(8, Math.round(container.clientHeight * 0.04));
+    const inViewport = caretTop >= viewTop + padding && caretTop <= viewBottom - padding;
+    const farFromTarget =
+      Math.abs(container.scrollTop - targetTop) > Math.max(24, Math.round(container.clientHeight * 0.12));
+
+    if (!inViewport || farFromTarget) {
+      container.scrollTop = targetTop;
+    }
+  }
+
+  private ensureSelectionVisibleInCurrentMode() {
+    if (this.isWysiwygMode()) {
+      this.ensureSelectionVisibleInEditor(this.wwEditor.view);
+    } else {
+      this.ensureSelectionVisibleInEditor(this.mdEditor.view);
+    }
+  }
+
+  private compareMdPos(a: MdPos, b: MdPos) {
+    if (a[0] !== b[0]) {
+      return a[0] - b[0];
+    }
+
+    return a[1] - b[1];
+  }
+
+  private getMdRootBlockInfoAtPos(md: string, pos: MdPos): MdRootBlockInfo | null {
+    const toastMark = this.createToastMark(md);
+    const root = toastMark.getRootNode();
+    const target = this.clampMdPos(md, pos);
+    let blockId = 0;
+    let node = root.firstChild as MdNode | null;
+
+    while (node) {
+      const source = node.sourcepos;
+
+      if (source) {
+        const start = source[0] as MdPos;
+        const end = source[1] as MdPos;
+        const inRange = this.compareMdPos(target, start) >= 0 && this.compareMdPos(target, end) <= 0;
+
+        if (inRange) {
+          return {
+            blockId,
+            startOffset: this.mdPosToOffset(md, start),
+          };
+        }
+      }
+
+      blockId += 1;
+      node = node.next as MdNode | null;
+    }
+
+    return null;
+  }
+
+  private getMdRootBlockRangeById(md: string, blockId: number): MdRootBlockRange | null {
+    const toastMark = this.createToastMark(md);
+    const root = toastMark.getRootNode();
+    let node = root.firstChild as MdNode | null;
+    let index = 0;
+    let startOffset: number | null = null;
+    let nextStartOffset: number | null = null;
+
+    while (node) {
+      const source = node.sourcepos;
+
+      if (source) {
+        const nodeStart = this.mdPosToOffset(md, source[0] as MdPos);
+
+        if (index === blockId) {
+          startOffset = nodeStart;
+        } else if (index === blockId + 1) {
+          nextStartOffset = nodeStart;
+          break;
+        }
+      }
+
+      index += 1;
+      node = node.next as MdNode | null;
+    }
+
+    if (startOffset === null) {
+      return null;
+    }
+
+    return {
+      blockId,
+      startOffset,
+      endOffset: Math.max(startOffset, nextStartOffset ?? md.length),
+    };
+  }
+
+  private getMdBlockIdAtWysiwygPos(pos: number) {
+    const { doc } = this.wwEditor.view.state;
+    const minPos = 1;
+    const maxPos = Math.max(doc.content.size - 1, minPos);
+    const safePos = this.clampNumber(pos, minPos, maxPos);
+    const $pos = doc.resolve(safePos);
+
+    for (let depth = $pos.depth; depth >= 0; depth -= 1) {
+      const node = $pos.node(depth);
+      const blockId = node.attrs?.mdBlockId;
+
+      if (typeof blockId === 'number') {
+        return blockId;
+      }
+    }
+
+    return null;
+  }
+
+  private commonPrefixLength(a: string, b: string) {
+    const max = Math.min(a.length, b.length);
+    let i = 0;
+
+    while (i < max && a.charCodeAt(i) === b.charCodeAt(i)) {
+      i += 1;
+    }
+
+    return i;
+  }
+
+  private commonSuffixLength(a: string, b: string) {
+    const max = Math.min(a.length, b.length);
+    let i = 0;
+
+    while (i < max && a.charCodeAt(a.length - 1 - i) === b.charCodeAt(b.length - 1 - i)) {
+      i += 1;
+    }
+
+    return i;
+  }
+
+  private refineCanonicalOffsetByContext(
+    serializedMarkdown: string,
+    serializedOffset: number,
+    approxCanonicalOffset: number,
+    canonicalStart: number,
+    canonicalEnd: number
+  ) {
+    const canonical = this.canonicalMd;
+    const window = 24;
+    const safeSerializedOffset = this.clampNumber(serializedOffset, 0, serializedMarkdown.length);
+    const pre = serializedMarkdown.slice(Math.max(0, safeSerializedOffset - window), safeSerializedOffset);
+    const post = serializedMarkdown.slice(
+      safeSerializedOffset,
+      Math.min(serializedMarkdown.length, safeSerializedOffset + window)
+    );
+    const start = this.clampNumber(canonicalStart, 0, canonical.length);
+    const end = this.clampNumber(canonicalEnd, start, canonical.length);
+    const radius = 512;
+    const lo = this.clampNumber(approxCanonicalOffset - radius, start, end);
+    const hi = this.clampNumber(approxCanonicalOffset + radius, lo, end);
+    let bestOffset = this.clampNumber(approxCanonicalOffset, lo, hi);
+    let bestScore = -1;
+
+    for (let candidate = lo; candidate <= hi; candidate += 1) {
+      const beforeCandidate = canonical.slice(Math.max(start, candidate - pre.length), candidate);
+      const afterCandidate = canonical.slice(candidate, Math.min(end, candidate + post.length));
+      const suffix = this.commonSuffixLength(beforeCandidate, pre);
+      const prefix = this.commonPrefixLength(afterCandidate, post);
+      const score = suffix + prefix;
+
+      if (
+        score > bestScore ||
+        (score === bestScore &&
+          Math.abs(candidate - approxCanonicalOffset) < Math.abs(bestOffset - approxCanonicalOffset))
+      ) {
+        bestScore = score;
+        bestOffset = candidate;
+      }
+    }
+
+    return bestOffset;
+  }
+
+  private mapSerializedOffsetToCanonicalByWysiwygPos(
+    serializedMarkdown: string,
+    serializedOffset: number,
+    wwPos: number
+  ) {
+    const safeSerializedOffset = this.clampNumber(serializedOffset, 0, serializedMarkdown.length);
+    const blockId = this.getMdBlockIdAtWysiwygPos(wwPos);
+
+    if (typeof blockId !== 'number') {
+      return this.clampNumber(safeSerializedOffset, 0, this.canonicalMd.length);
+    }
+
+    const canonicalBlock = this.getMdRootBlockRangeById(this.canonicalMd, blockId);
+
+    if (!canonicalBlock) {
+      return this.clampNumber(safeSerializedOffset, 0, this.canonicalMd.length);
+    }
+
+    const wwRange = this.getFirstWwBlockRangeByMdBlockId(blockId);
+
+    if (!wwRange) {
+      return this.clampNumber(
+        safeSerializedOffset,
+        canonicalBlock.startOffset,
+        canonicalBlock.endOffset
+      );
+    }
+
+    const serializedBlockStart = this.getMdOffsetForWysiwygPos(wwRange.start);
+    const serializedBlockEnd = this.getMdOffsetForWysiwygPos(wwRange.end);
+
+    if (typeof serializedBlockStart !== 'number') {
+      return this.clampNumber(
+        safeSerializedOffset,
+        canonicalBlock.startOffset,
+        canonicalBlock.endOffset
+      );
+    }
+
+    let adjustedOffset = safeSerializedOffset - (serializedBlockStart - canonicalBlock.startOffset);
+
+    if (typeof serializedBlockEnd === 'number' && serializedBlockEnd > serializedBlockStart) {
+      const serializedSpan = Math.max(serializedBlockEnd - serializedBlockStart, 1);
+      const canonicalSpan = Math.max(canonicalBlock.endOffset - canonicalBlock.startOffset, 1);
+      const relative = this.clampNumber(
+        safeSerializedOffset - serializedBlockStart,
+        0,
+        serializedSpan
+      );
+
+      adjustedOffset =
+        canonicalBlock.startOffset + Math.round((relative / serializedSpan) * canonicalSpan);
+    }
+
+    const clampedAdjusted = this.clampNumber(
+      adjustedOffset,
+      canonicalBlock.startOffset,
+      canonicalBlock.endOffset
+    );
+
+    if (serializedMarkdown === this.canonicalMd) {
+      return clampedAdjusted;
+    }
+
+    return this.refineCanonicalOffsetByContext(
+      serializedMarkdown,
+      safeSerializedOffset,
+      clampedAdjusted,
+      canonicalBlock.startOffset,
+      canonicalBlock.endOffset
+    );
+  }
+
+  private getWwBlockRangesByMdBlockId(blockId: number): WwBlockRange[] {
+    const ranges: WwBlockRange[] = [];
+    const { doc } = this.wwEditor.view.state;
+
+    doc.descendants((node: ProsemirrorNode, pos: number) => {
+      if (!node.isBlock) {
+        return true;
+      }
+
+      if (node.attrs?.mdBlockId === blockId) {
+        const start = pos + 1;
+        const end = pos + node.nodeSize - 1;
+
+        if (end >= start) {
+          ranges.push({ start, end });
+        }
+      }
+
+      return true;
+    });
+
+    return ranges;
+  }
+
+  private getNearestWwBlockRangeByMdBlockId(blockId: number, nearPos: number): WwBlockRange | null {
+    const ranges = this.getWwBlockRangesByMdBlockId(blockId);
+
+    if (!ranges.length) {
+      return null;
+    }
+
+    let best = ranges[0];
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    ranges.forEach((range) => {
+      const distance =
+        nearPos < range.start ? range.start - nearPos : nearPos > range.end ? nearPos - range.end : 0;
+
+      if (distance < bestDistance) {
+        best = range;
+        bestDistance = distance;
+      }
+    });
+
+    return best;
+  }
+
+  private getFirstWwBlockRangeByMdBlockId(blockId: number): WwBlockRange | null {
+    const ranges = this.getWwBlockRangesByMdBlockId(blockId);
+
+    if (!ranges.length) {
+      return null;
+    }
+
+    return ranges.reduce((best, current) => (current.start < best.start ? current : best), ranges[0]);
   }
 
   eventEmitter: Emitter;
@@ -419,6 +784,8 @@ class ToastUIEditorCore {
     this.eventEmitter.listen('wwUserEdit', (range?: WwEditRange) => {
       this.logWwDirty(true, 'wwUserEdit');
       this.wwDirty = true;
+      this.mdSelectionAtWwEntry = null;
+      this.wwSelectionAtWwEntry = null;
       if (range) {
         this.addWwEditRange(range);
       }
@@ -429,6 +796,14 @@ class ToastUIEditorCore {
         return;
       }
 
+      const isEntrySelection =
+        Boolean(this.wwSelectionAtWwEntry) &&
+        this.wwSelectionAtWwEntry![0] === from &&
+        this.wwSelectionAtWwEntry![1] === to;
+
+      if (!isEntrySelection) {
+        this.mdSelectionAtWwEntry = null;
+      }
       const mapped = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [MdPos, MdPos];
 
       this.lastWysiwygMdSelection = this.getClampedSelectionForMd(this.canonicalMd, mapped);
@@ -1046,11 +1421,9 @@ class ToastUIEditorCore {
 
     const fallbackSelection = this.getWysiwygSelectionForMd(this.canonicalMd);
     const anchor = this.createPasteAnchor();
-
-    this.insertWysiwygProbe(anchor);
-
-    const serialized = this.serializeCurrentWysiwygMarkdown();
-    const anchorIndex = serialized.indexOf(anchor);
+    const marked = this.serializeWysiwygMarkdownWithAnchor(anchor);
+    const serialized = marked?.markdown ?? '';
+    const anchorIndex = marked?.anchorIndex ?? -1;
 
     if (anchorIndex < 0) {
       const next = this.replaceMdRange(
@@ -1083,24 +1456,8 @@ class ToastUIEditorCore {
     return `TOASTUIPASTEANCHOR${Date.now()}${Math.random().toString(36).slice(2)}`;
   }
 
-  private insertWysiwygProbe(anchor: string) {
-    const { view } = this.wwEditor;
-    const { state, dispatch } = view;
-    const selection =
-      state.selection instanceof TextSelection
-        ? state.selection
-        : TextSelection.create(state.doc, state.selection.from, state.selection.to);
-    const tr = state.tr
-      .setSelection(selection)
-      .insertText(anchor, selection.from, selection.to)
-      .setMeta('addToHistory', false)
-      .setMeta('toastuiProgrammatic', true);
-
-    dispatch(tr);
-  }
-
-  private serializeCurrentWysiwygMarkdown() {
-    let markdown = this.convertor.toMarkdownText(this.wwEditor.getModel());
+  private serializeWysiwygDocToMarkdown(doc: ProsemirrorNode) {
+    let markdown = this.convertor.toMarkdownText(doc);
 
     if (
       hasFootnoteSyntax(this.canonicalMd) ||
@@ -1111,6 +1468,196 @@ class ToastUIEditorCore {
     }
 
     return markdown;
+  }
+
+  private serializeWysiwygMarkdownWithAnchor(anchor: string) {
+    const { view } = this.wwEditor;
+    const { state } = view;
+    const selection =
+      state.selection instanceof TextSelection
+        ? state.selection
+        : TextSelection.create(state.doc, state.selection.from, state.selection.to);
+    const markedDoc = state.tr.setSelection(selection).insertText(anchor, selection.from, selection.to).doc;
+    const markdown = this.serializeWysiwygDocToMarkdown(markedDoc);
+    const anchorIndex = markdown.indexOf(anchor);
+
+    if (anchorIndex < 0) {
+      return null;
+    }
+
+    return { markdown, anchorIndex };
+  }
+
+  private getMdOffsetForWysiwygPos(pos: number) {
+    const { state } = this.wwEditor.view;
+    const minPos = 1;
+    const maxPos = Math.max(state.doc.content.size - 1, minPos);
+    const safePos = this.clampNumber(pos, minPos, maxPos);
+    const marker = this.createPasteAnchor();
+    const markedDoc = state.tr.insertText(marker, safePos, safePos).doc;
+    const markdown = this.serializeWysiwygDocToMarkdown(markedDoc);
+    const markerIndex = markdown.indexOf(marker);
+
+    return markerIndex >= 0 ? markerIndex : null;
+  }
+
+  private refineWysiwygCursorPosByMdOffset(
+    targetMdOffset: number,
+    initialPos: number,
+    boundStart?: number,
+    boundEnd?: number
+  ) {
+    const { state } = this.wwEditor.view;
+    const hardMinPos = 1;
+    const hardMaxPos = Math.max(state.doc.content.size - 1, hardMinPos);
+    const minPos = this.clampNumber(
+      typeof boundStart === 'number' ? boundStart : hardMinPos,
+      hardMinPos,
+      hardMaxPos
+    );
+    const maxPos = this.clampNumber(
+      typeof boundEnd === 'number' ? boundEnd : hardMaxPos,
+      minPos,
+      hardMaxPos
+    );
+    const startPos = this.clampNumber(initialPos, minPos, maxPos);
+    const offsetCache = new Map<number, number | null>();
+    const getOffset = (candidatePos: number) => {
+      const safePos = this.clampNumber(candidatePos, minPos, maxPos);
+
+      if (offsetCache.has(safePos)) {
+        return offsetCache.get(safePos) as number | null;
+      }
+
+      const offset = this.getMdOffsetForWysiwygPos(safePos);
+
+      offsetCache.set(safePos, offset);
+
+      return offset;
+    };
+    const evalDistance = (candidatePos: number) => {
+      const offset = getOffset(candidatePos);
+
+      return offset === null ? null : Math.abs(offset - targetMdOffset);
+    };
+    let bestPos = startPos;
+    let bestDistance = evalDistance(startPos);
+
+    if (bestDistance === null || bestDistance === 0) {
+      return startPos;
+    }
+
+    let lo = minPos;
+    let hi = maxPos;
+    let iteration = 0;
+    const maxIterations = 32;
+
+    while (lo <= hi && iteration < maxIterations) {
+      const mid = Math.floor((lo + hi) / 2);
+      const midOffset = getOffset(mid);
+
+      if (midOffset === null) {
+        break;
+      }
+
+      const midDistance = Math.abs(midOffset - targetMdOffset);
+      if (
+        midDistance < (bestDistance as number) ||
+        (midDistance === bestDistance && Math.abs(mid - startPos) < Math.abs(bestPos - startPos))
+      ) {
+        bestPos = mid;
+        bestDistance = midDistance;
+      }
+
+      if (midOffset === targetMdOffset) {
+        return mid;
+      }
+
+      if (midOffset < targetMdOffset) {
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+
+      iteration += 1;
+    }
+
+    const fineRadius = 24;
+    const fineStart = this.clampNumber(bestPos - fineRadius, minPos, maxPos);
+    const fineEnd = this.clampNumber(bestPos + fineRadius, minPos, maxPos);
+
+    for (let candidatePos = fineStart; candidatePos <= fineEnd; candidatePos += 1) {
+      const candidateDistance = evalDistance(candidatePos);
+
+      if (candidateDistance === null) {
+        continue;
+      }
+
+      if (
+        candidateDistance < (bestDistance as number) ||
+        (candidateDistance === bestDistance &&
+          Math.abs(candidatePos - startPos) < Math.abs(bestPos - startPos))
+      ) {
+        bestPos = candidatePos;
+        bestDistance = candidateDistance;
+      }
+    }
+
+    return bestPos;
+  }
+
+  private getExactMdSelectionFromWysiwyg(): SnapshotSelection | null {
+    const { view } = this.wwEditor;
+    const { state } = view;
+    const { from, to } = state.selection;
+    const markerStart = this.createPasteAnchor();
+    const markerEnd = this.createPasteAnchor();
+    const selection =
+      state.selection instanceof TextSelection
+        ? state.selection
+        : TextSelection.create(state.doc, from, to);
+    let tr = state.tr.setSelection(selection);
+    const collapsed = from === to;
+
+    if (collapsed) {
+      tr = tr.insertText(markerStart, from, to);
+    } else {
+      tr = tr.insertText(markerEnd, to, to);
+      tr = tr.insertText(markerStart, from, from);
+    }
+
+    const markedMarkdown = this.serializeWysiwygDocToMarkdown(tr.doc);
+    const startIndex = markedMarkdown.indexOf(markerStart);
+
+    if (startIndex < 0) {
+      return null;
+    }
+
+    if (collapsed) {
+      const withoutMarker = markedMarkdown.replace(markerStart, '');
+      const canonicalOffset = this.mapSerializedOffsetToCanonicalByWysiwygPos(
+        withoutMarker,
+        startIndex,
+        from
+      );
+      const cursor = this.clampMdPos(this.canonicalMd, this.mdOffsetToPos(this.canonicalMd, canonicalOffset));
+
+      return this.createSnapshotSelection(cursor, cursor);
+    }
+
+    const endIndex = markedMarkdown.indexOf(markerEnd);
+
+    if (endIndex < 0 || endIndex < startIndex) {
+      return null;
+    }
+
+    const withoutMarkers = markedMarkdown.replace(markerStart, '').replace(markerEnd, '');
+    const anchorOffset = startIndex;
+    const headOffset = endIndex - markerStart.length;
+    const anchor = this.clampMdPos(withoutMarkers, this.mdOffsetToPos(withoutMarkers, anchorOffset));
+    const head = this.clampMdPos(withoutMarkers, this.mdOffsetToPos(withoutMarkers, headOffset));
+
+    return this.createSnapshotSelection(anchor, head);
   }
 
   private addWwEditRange(range: WwEditRange) {
@@ -1927,20 +2474,41 @@ class ToastUIEditorCore {
     const prevMode = this.mode;
     let mappedMdSelection: [MdPos, MdPos] | null = null;
     let mappedWwSelection: [MdPos, MdPos] | null = null;
+    let mappedWwTargetMdOffset: number | null = null;
+    let mappedWwBlockInfo: MdRootBlockInfo | null = null;
+    let nextWwEntrySelection: SnapshotSelection | null = null;
+    let nextWwEntrySelectionPos: [number, number] | null = null;
 
     if (prevMode === 'wysiwyg' && mode === 'markdown') {
-      const selection = this.getWysiwygSelectionForMd(this.canonicalMd);
+      if (!this.wwDirty && this.mdSelectionAtWwEntry) {
+        mappedMdSelection = [this.mdSelectionAtWwEntry.anchor, this.mdSelectionAtWwEntry.head];
+      } else {
+        const exactSelection = this.getExactMdSelectionFromWysiwyg();
 
-      mappedMdSelection = [selection.anchor, selection.head];
+        if (exactSelection) {
+          mappedMdSelection = [exactSelection.anchor, exactSelection.head];
+        } else {
+          const selection = this.getWysiwygSelectionForMd(this.canonicalMd);
+
+          mappedMdSelection = [selection.anchor, selection.head];
+        }
+      }
     } else if (prevMode === 'markdown' && mode === 'wysiwyg') {
       const sourceMd = this.mdEditor.getMarkdown();
       const [anchor, head] = this.mdEditor.getSelection() as [MdPos, MdPos];
+      const clampedAnchor = this.clampMdPos(sourceMd, anchor);
+      const clampedHead = this.clampMdPos(sourceMd, head);
 
-      mappedWwSelection = [this.clampMdPos(sourceMd, anchor), this.clampMdPos(sourceMd, head)];
+      mappedWwSelection = [clampedAnchor, clampedHead];
       this.lastWysiwygMdSelection = this.createSnapshotSelection(
         mappedWwSelection[0],
         mappedWwSelection[1]
       );
+      nextWwEntrySelection = this.createSnapshotSelection(clampedAnchor, clampedHead);
+      mappedWwBlockInfo = this.getMdRootBlockInfoAtPos(sourceMd, clampedAnchor);
+      if (clampedAnchor[0] === clampedHead[0] && clampedAnchor[1] === clampedHead[1]) {
+        mappedWwTargetMdOffset = this.mdPosToOffset(sourceMd, clampedAnchor);
+      }
     }
 
     this.mode = mode;
@@ -1999,8 +2567,48 @@ class ToastUIEditorCore {
           mappedWwSelection[0],
           mappedWwSelection[1]
         );
+        const shouldRefine = mappedWwTargetMdOffset !== null && from === to;
+        let refinedFrom = from;
 
-        this.wwEditor.setSelection(from, to, false);
+        if (shouldRefine) {
+          const targetOffset = mappedWwTargetMdOffset as number;
+          const blockInfo = mappedWwBlockInfo;
+          const initialOffset = this.getMdOffsetForWysiwygPos(from);
+
+          if (typeof initialOffset === 'number' && Math.abs(initialOffset - targetOffset) <= 1) {
+            refinedFrom = from;
+          } else if (blockInfo) {
+            const blockRange = this.getNearestWwBlockRangeByMdBlockId(blockInfo.blockId, from);
+
+            if (blockRange) {
+              const blockStartOffsetInSerialized = this.getMdOffsetForWysiwygPos(blockRange.start);
+
+              if (typeof blockStartOffsetInSerialized === 'number') {
+                const drift = blockStartOffsetInSerialized - blockInfo.startOffset;
+                const adjustedTargetOffset = targetOffset + drift;
+
+                refinedFrom = this.refineWysiwygCursorPosByMdOffset(
+                  adjustedTargetOffset,
+                  from,
+                  blockRange.start,
+                  blockRange.end
+                );
+              } else {
+                refinedFrom = this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
+              }
+            } else {
+              refinedFrom = this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
+            }
+          } else {
+            refinedFrom = this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
+          }
+        }
+        const refinedTo = shouldRefine ? refinedFrom : to;
+
+        this.wwEditor.setSelection(refinedFrom, refinedTo, false);
+        if (nextWwEntrySelection) {
+          nextWwEntrySelectionPos = [refinedFrom, refinedTo];
+        }
       } else if (this.isWysiwygMode() && typeof pos === 'number') {
         this.wwEditor.setSelection(pos, pos, false);
       } else if (!this.isWysiwygMode() && mappedMdSelection) {
@@ -2017,6 +2625,19 @@ class ToastUIEditorCore {
       } else {
         this.mdEditor.view.focus();
       }
+
+      this.ensureSelectionVisibleInCurrentMode();
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => this.ensureSelectionVisibleInCurrentMode());
+      }
+    }
+
+    if (this.isWysiwygMode()) {
+      this.mdSelectionAtWwEntry = nextWwEntrySelection;
+      this.wwSelectionAtWwEntry = nextWwEntrySelectionPos;
+    } else {
+      this.mdSelectionAtWwEntry = null;
+      this.wwSelectionAtWwEntry = null;
     }
   }
 
@@ -2078,6 +2699,8 @@ class ToastUIEditorCore {
     this.wwBaselineDoc = null;
     this.baselineCanonicalMd = null;
     this.lastWysiwygMdSelection = null;
+    this.mdSelectionAtWwEntry = null;
+    this.wwSelectionAtWwEntry = null;
   }
 
   /**
