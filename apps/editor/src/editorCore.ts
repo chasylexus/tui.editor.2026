@@ -1,4 +1,5 @@
 import { DOMParser, Node as ProsemirrorNode } from 'prosemirror-model';
+import { TextSelection } from 'prosemirror-state';
 import { Emitter, Handler } from '@t/event';
 import {
   Base,
@@ -166,6 +167,8 @@ class ToastUIEditorCore {
   private wwBaselineDoc: ProsemirrorNode | null = null;
 
   private baselineCanonicalMd: string | null = null;
+
+  private lastWysiwygMdSelection: SnapshotSelection | null = null;
 
   private hashMd(text: string) {
     let hash = 0;
@@ -421,6 +424,15 @@ class ToastUIEditorCore {
       }
       this.scheduleWwSerialize();
     });
+    this.eventEmitter.listen('wwSelectionChange', ({ from, to }: { from: number; to: number }) => {
+      if (!this.isWysiwygMode()) {
+        return;
+      }
+
+      const mapped = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [MdPos, MdPos];
+
+      this.lastWysiwygMdSelection = this.getClampedSelectionForMd(this.canonicalMd, mapped);
+    });
     this.eventEmitter.listen('pasteMarkdownInWysiwyg', (markdownText: string) =>
       this.pasteMarkdownInWysiwyg(markdownText)
     );
@@ -456,6 +468,10 @@ class ToastUIEditorCore {
       this.canonicalMd = this.mdEditor.getMarkdown();
     }
     this.pushSnapshot(this.canonicalMd);
+    this.lastWysiwygMdSelection = this.getClampedSelectionForMd(
+      this.canonicalMd,
+      this.mdEditor.getSelection() as [MdPos, MdPos]
+    );
     if (this.isWysiwygMode()) {
       this.setWwBaseline('init');
       this.setBaselineCanonicalMd('init');
@@ -872,9 +888,12 @@ class ToastUIEditorCore {
       // eslint-disable-next-line no-console
       console.log({ phase: 'ww-flush-start', wwDirty: this.wwDirty });
     }
+    const prevMd = this.canonicalMd;
+    const prevSelection = this.getWysiwygSelectionForMd(prevMd);
     const nextMd = this.flushSerialize();
 
-    if (nextMd !== this.canonicalMd) {
+    if (nextMd !== prevMd) {
+      this.lastWysiwygMdSelection = this.transformSelectionByDiff(prevMd, nextMd, prevSelection);
       this.logCanonicalChange(nextMd, 'ww-flush-serialize');
       this.canonicalMd = nextMd;
       this.pushSnapshot(nextMd);
@@ -1025,18 +1044,73 @@ class ToastUIEditorCore {
       return false;
     }
 
-    this.flushPendingWwSerialize();
+    const fallbackSelection = this.getWysiwygSelectionForMd(this.canonicalMd);
+    const anchor = this.createPasteAnchor();
 
-    const [from, to] = this.wwEditor.getSelection();
-    const mapped = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [MdPos, MdPos];
-    const start = this.clampMdPos(this.canonicalMd, mapped[0]);
-    const end = this.clampMdPos(this.canonicalMd, mapped[1]);
-    const next = this.replaceMdRange(this.canonicalMd, start, end, normalized);
+    this.insertWysiwygProbe(anchor);
 
-    this.applyProgrammatic(next.markdown, next.selection);
-    this.pushSnapshot(next.markdown);
+    const serialized = this.serializeCurrentWysiwygMarkdown();
+    const anchorIndex = serialized.indexOf(anchor);
+
+    if (anchorIndex < 0) {
+      const next = this.replaceMdRange(
+        this.canonicalMd,
+        fallbackSelection.anchor,
+        fallbackSelection.head,
+        normalized
+      );
+
+      this.applyProgrammatic(next.markdown, next.selection);
+      this.pushSnapshot(next.markdown);
+
+      return true;
+    }
+
+    const markdown = `${serialized.slice(0, anchorIndex)}${normalized}${serialized.slice(
+      anchorIndex + anchor.length
+    )}`;
+    const cursorOffset = anchorIndex + normalized.length;
+    const cursor = this.clampMdPos(markdown, this.mdOffsetToPos(markdown, cursorOffset));
+    const selection = this.createSnapshotSelection(cursor, cursor);
+
+    this.applyProgrammatic(markdown, selection);
+    this.pushSnapshot(markdown);
 
     return true;
+  }
+
+  private createPasteAnchor() {
+    return `TOASTUIPASTEANCHOR${Date.now()}${Math.random().toString(36).slice(2)}`;
+  }
+
+  private insertWysiwygProbe(anchor: string) {
+    const { view } = this.wwEditor;
+    const { state, dispatch } = view;
+    const selection =
+      state.selection instanceof TextSelection
+        ? state.selection
+        : TextSelection.create(state.doc, state.selection.from, state.selection.to);
+    const tr = state.tr
+      .setSelection(selection)
+      .insertText(anchor, selection.from, selection.to)
+      .setMeta('addToHistory', false)
+      .setMeta('toastuiProgrammatic', true);
+
+    dispatch(tr);
+  }
+
+  private serializeCurrentWysiwygMarkdown() {
+    let markdown = this.convertor.toMarkdownText(this.wwEditor.getModel());
+
+    if (
+      hasFootnoteSyntax(this.canonicalMd) ||
+      hasTransformedFootnoteMarkup(this.canonicalMd) ||
+      hasTransformedFootnoteMarkup(markdown)
+    ) {
+      markdown = restoreTransformedFootnotes(markdown).markdown;
+    }
+
+    return markdown;
   }
 
   private addWwEditRange(range: WwEditRange) {
@@ -1383,6 +1457,122 @@ class ToastUIEditorCore {
     return [lineIndex, ch];
   }
 
+  private createSnapshotSelection(anchor: MdPos, head: MdPos): SnapshotSelection {
+    return {
+      anchor,
+      head,
+      collapsed: anchor[0] === head[0] && anchor[1] === head[1],
+    };
+  }
+
+  private getClampedSelectionForMd(md: string, selection: [MdPos, MdPos]): SnapshotSelection {
+    const anchor = this.clampMdPos(md, selection[0]);
+    const head = this.clampMdPos(md, selection[1]);
+
+    return this.createSnapshotSelection(anchor, head);
+  }
+
+  private getWysiwygSelectionForMd(md: string): SnapshotSelection {
+    if (this.lastWysiwygMdSelection) {
+      const anchor = this.clampMdPos(md, this.lastWysiwygMdSelection.anchor);
+      const head = this.clampMdPos(md, this.lastWysiwygMdSelection.head);
+
+      return this.createSnapshotSelection(anchor, head);
+    }
+
+    const [from, to] = this.wwEditor.getSelection();
+    const selection = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [MdPos, MdPos];
+
+    return this.getClampedSelectionForMd(md, selection);
+  }
+
+  private mdPosToOffset(md: string, pos: MdPos) {
+    const lines = md.split('\n');
+    const lineIndex = Math.min(Math.max(pos[0] - 1, 0), Math.max(lines.length - 1, 0));
+    let offset = 0;
+
+    for (let i = 0; i < lineIndex; i += 1) {
+      offset += (lines[i] ?? '').length + 1;
+    }
+
+    const lineText = lines[lineIndex] ?? '';
+    const chIndex = Math.min(Math.max(pos[1] - 1, 0), lineText.length);
+
+    return offset + chIndex;
+  }
+
+  private mdOffsetToPos(md: string, offset: number): MdPos {
+    const lines = md.split('\n');
+    let remaining = Math.min(Math.max(offset, 0), md.length);
+
+    for (let i = 0; i < lines.length; i += 1) {
+      const lineLength = (lines[i] ?? '').length;
+
+      if (remaining <= lineLength) {
+        return [i + 1, remaining + 1];
+      }
+
+      remaining -= lineLength;
+      if (remaining > 0) {
+        remaining -= 1;
+      }
+    }
+
+    const lastLine = lines[lines.length - 1] ?? '';
+
+    return [Math.max(lines.length, 1), lastLine.length + 1];
+  }
+
+  private transformOffsetByDiff(prevMd: string, nextMd: string, offset: number) {
+    const minLength = Math.min(prevMd.length, nextMd.length);
+    let start = 0;
+
+    while (start < minLength && prevMd.charCodeAt(start) === nextMd.charCodeAt(start)) {
+      start += 1;
+    }
+
+    let prevEnd = prevMd.length;
+    let nextEnd = nextMd.length;
+
+    while (
+      prevEnd > start &&
+      nextEnd > start &&
+      prevMd.charCodeAt(prevEnd - 1) === nextMd.charCodeAt(nextEnd - 1)
+    ) {
+      prevEnd -= 1;
+      nextEnd -= 1;
+    }
+
+    if (offset < start) {
+      return offset;
+    }
+
+    if (offset > prevEnd) {
+      return nextEnd + (offset - prevEnd);
+    }
+
+    if (prevEnd === start) {
+      return nextEnd;
+    }
+
+    return nextEnd;
+  }
+
+  private transformSelectionByDiff(
+    prevMd: string,
+    nextMd: string,
+    selection: SnapshotSelection
+  ): SnapshotSelection {
+    const anchorOffset = this.mdPosToOffset(prevMd, this.clampMdPos(prevMd, selection.anchor));
+    const headOffset = this.mdPosToOffset(prevMd, this.clampMdPos(prevMd, selection.head));
+    const nextAnchorOffset = this.transformOffsetByDiff(prevMd, nextMd, anchorOffset);
+    const nextHeadOffset = this.transformOffsetByDiff(prevMd, nextMd, headOffset);
+    const anchor = this.clampMdPos(nextMd, this.mdOffsetToPos(nextMd, nextAnchorOffset));
+    const head = this.clampMdPos(nextMd, this.mdOffsetToPos(nextMd, nextHeadOffset));
+
+    return this.createSnapshotSelection(anchor, head);
+  }
+
   private getSelectionForSnapshot(md: string): SnapshotSelection {
     let anchor: MdPos;
     let head: MdPos;
@@ -1393,11 +1583,10 @@ class ToastUIEditorCore {
       anchor = selection[0];
       head = selection[1];
     } else {
-      const [from, to] = this.wwEditor.getSelection();
-      const selection = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [MdPos, MdPos];
+      const selection = this.getWysiwygSelectionForMd(md);
 
-      anchor = selection[0];
-      head = selection[1];
+      anchor = selection.anchor;
+      head = selection.head;
     }
 
     const clampedAnchor = this.clampMdPos(md, anchor);
@@ -1452,6 +1641,10 @@ class ToastUIEditorCore {
       this.setWwBaseline('snapshot-apply');
       this.setBaselineCanonicalMd('snapshot-apply');
       this.restoreSelection(selection, md);
+      this.lastWysiwygMdSelection = this.createSnapshotSelection(
+        this.clampMdPos(md, selection.anchor),
+        this.clampMdPos(md, selection.head)
+      );
       if (typeof scrollTop === 'number') {
         this.getCurrentModeEditor().setScrollTop(scrollTop);
       }
@@ -1736,17 +1929,18 @@ class ToastUIEditorCore {
     let mappedWwSelection: [MdPos, MdPos] | null = null;
 
     if (prevMode === 'wysiwyg' && mode === 'markdown') {
-      const [from, to] = this.wwEditor.getSelection();
+      const selection = this.getWysiwygSelectionForMd(this.canonicalMd);
 
-      mappedMdSelection = getEditorToMdPos(this.wwEditor.view.state.doc, from, to) as [
-        MdPos,
-        MdPos
-      ];
+      mappedMdSelection = [selection.anchor, selection.head];
     } else if (prevMode === 'markdown' && mode === 'wysiwyg') {
       const sourceMd = this.mdEditor.getMarkdown();
       const [anchor, head] = this.mdEditor.getSelection() as [MdPos, MdPos];
 
       mappedWwSelection = [this.clampMdPos(sourceMd, anchor), this.clampMdPos(sourceMd, head)];
+      this.lastWysiwygMdSelection = this.createSnapshotSelection(
+        mappedWwSelection[0],
+        mappedWwSelection[1]
+      );
     }
 
     this.mode = mode;
@@ -1883,6 +2077,7 @@ class ToastUIEditorCore {
     this.wwDirty = false;
     this.wwBaselineDoc = null;
     this.baselineCanonicalMd = null;
+    this.lastWysiwygMdSelection = null;
   }
 
   /**

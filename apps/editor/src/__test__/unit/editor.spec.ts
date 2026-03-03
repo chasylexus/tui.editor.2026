@@ -827,6 +827,89 @@ describe('editor', () => {
     });
 
     describe('paste markdown in wysiwyg', () => {
+      it('should append a second markdown paste after multiline fenced content without splitting first paste', () => {
+        const first = source`
+          Debian setup
+
+          \`\`\`bash
+          sudo apt update
+          sudo apt install -y ca-certificates curl gnupg
+          sudo install -m 0755 -d /etc/apt/keyrings
+          \`\`\`
+
+          Continue
+        `;
+        const second = source`
+          Keycloak setup
+
+          \`\`\`bash
+          docker compose up -d
+          docker compose ps
+          \`\`\`
+
+          Done
+        `;
+
+        editor.changeMode('wysiwyg');
+
+        const firstHandled = (editor as any).eventEmitter
+          .emit('pasteMarkdownInWysiwyg', first)
+          .some(Boolean);
+        const secondHandled = (editor as any).eventEmitter
+          .emit('pasteMarkdownInWysiwyg', second)
+          .some(Boolean);
+
+        expect(firstHandled).toBe(true);
+        expect(secondHandled).toBe(true);
+        expect(editor.getMarkdown()).toBe(`${first}${second}`);
+      });
+
+      it('should keep insertion position after adding blank lines before second markdown paste', () => {
+        const first = source`
+          Intro
+
+          \`\`\`bash
+          echo 1
+          \`\`\`
+
+          Tail
+        `;
+        const second = source`
+          Next
+
+          \`\`\`bash
+          echo 2
+          \`\`\`
+        `;
+
+        editor.changeMode('wysiwyg');
+        (editor as any).eventEmitter.emit('pasteMarkdownInWysiwyg', first).some(Boolean);
+        editor.replaceSelection('\n\n');
+        (editor as any).eventEmitter.emit('pasteMarkdownInWysiwyg', second).some(Boolean);
+
+        const markdown = editor.getMarkdown();
+
+        expect(markdown).toContain('```bash\necho 1\n```');
+        expect(markdown).toContain('Tail');
+        expect(markdown).toContain('```bash\necho 2\n```');
+        expect(markdown).toContain('Next');
+        expect(markdown.indexOf('Tail')).toBeLessThan(markdown.indexOf('Next'));
+      });
+
+      it('should insert markdown paste at the current middle cursor position in wysiwyg', () => {
+        const first = 'START\nmiddle\nEND';
+        const second = 'X\nY';
+
+        editor.changeMode('wysiwyg');
+        (editor as any).eventEmitter.emit('pasteMarkdownInWysiwyg', first).some(Boolean);
+        editor.changeMode('markdown');
+        editor.setSelection([2, 4], [2, 4]);
+        editor.changeMode('wysiwyg');
+        (editor as any).eventEmitter.emit('pasteMarkdownInWysiwyg', second).some(Boolean);
+
+        expect(editor.getMarkdown()).toBe('START\nmidX\nYdle\nEND');
+      });
+
       it('should keep footnote markdown syntax without transforming to rendered html', () => {
         const footnoteMd = source`
           Footnote 1 link[^first].

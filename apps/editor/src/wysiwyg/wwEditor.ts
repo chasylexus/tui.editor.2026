@@ -264,12 +264,19 @@ export default class WysiwygEditor extends EditorBase {
         ...this.createPluginNodeViews(),
       },
       dispatchTransaction: (tr) => {
+        const prevSelection = this.view.state.selection;
         const prevDoc = this.view.state.doc;
         const { state } = this.view.state.applyTransaction(tr);
 
         this.view.updateState(state);
         this.emitChangeEvent(tr.scrollIntoView());
         this.eventEmitter.emit('setFocusedNode', state.selection.$from.node(1));
+        if (prevSelection.from !== state.selection.from || prevSelection.to !== state.selection.to) {
+          this.eventEmitter.emit('wwSelectionChange', {
+            from: state.selection.from,
+            to: state.selection.to,
+          });
+        }
         if (typeof window !== 'undefined' && (window as any).__TOASTUI_SNAPSHOT_DEBUG__) {
           // eslint-disable-next-line no-console
           console.log({
