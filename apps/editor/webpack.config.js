@@ -20,6 +20,7 @@ const ENTRY_VIEWER = './src/indexViewer.ts';
 let isProduction;
 let minify;
 let analyze;
+let failOnLintError;
 
 function registerDevMediaRoutes(app) {
   if (!app || typeof app.get !== 'function' || typeof app.post !== 'function') {
@@ -226,9 +227,17 @@ function setProductionConfigForAll(config) {
 }
 
 module.exports = (env) => {
+  const lintFailFlag = env?.LINT_FAIL;
   minify = !!env.minify;
   analyze = !!env.analyze;
   isProduction = env.WEBPACK_BUILD;
+  failOnLintError =
+    lintFailFlag === false ||
+    lintFailFlag === 0 ||
+    lintFailFlag === '0' ||
+    lintFailFlag === 'false'
+      ? false
+      : isProduction;
 
   const configs = Array(isProduction ? 2 : 1)
     .fill(0)
@@ -298,7 +307,7 @@ module.exports = (env) => {
           new ESLintPlugin({
             extensions: ['js', 'ts'],
             exclude: ['node_modules', 'dist'],
-            failOnError: isProduction,
+            failOnError: failOnLintError,
           }),
         ],
         externals: [
