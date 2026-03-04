@@ -122,7 +122,6 @@ describe('Viewer', () => {
     expect(html).toContain('class="toastui-inline-recorder"');
     expect(html).toContain('data-recorder-id="rec-12345"');
     expect(html).toContain('data-recorder-action="start"');
-    expect(html).toContain('data-recorder-action="pause"');
     expect(html).toContain('data-recorder-action="stop"');
   });
 });

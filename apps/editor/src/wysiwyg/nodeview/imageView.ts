@@ -121,30 +121,23 @@ export class ImageView implements NodeView {
     wrapper.dataset.recorderLabel = label;
 
     const startButton = document.createElement('span');
-    startButton.className = 'toastui-inline-recorder-action';
+    startButton.className = 'toastui-inline-recorder-action toastui-inline-recorder-action-primary';
     startButton.dataset.recorderId = recorderId;
     startButton.dataset.recorderAction = 'start';
+    startButton.dataset.recorderVisual = 'record';
     startButton.setAttribute('role', 'button');
     startButton.setAttribute('tabindex', '0');
-    startButton.textContent = 'Record';
-
-    const pauseButton = document.createElement('span');
-    pauseButton.className = 'toastui-inline-recorder-action';
-    pauseButton.dataset.recorderId = recorderId;
-    pauseButton.dataset.recorderAction = 'pause';
-    pauseButton.dataset.disabled = 'true';
-    pauseButton.setAttribute('role', 'button');
-    pauseButton.setAttribute('tabindex', '0');
-    pauseButton.textContent = 'Pause';
+    startButton.textContent = '';
 
     const stopButton = document.createElement('span');
-    stopButton.className = 'toastui-inline-recorder-action';
+    stopButton.className = 'toastui-inline-recorder-action toastui-inline-recorder-action-stop';
     stopButton.dataset.recorderId = recorderId;
     stopButton.dataset.recorderAction = 'stop';
+    stopButton.dataset.recorderVisual = 'stop';
     stopButton.dataset.disabled = 'true';
     stopButton.setAttribute('role', 'button');
     stopButton.setAttribute('tabindex', '0');
-    stopButton.textContent = 'Stop';
+    stopButton.textContent = '';
 
     const dot = document.createElement('span');
     dot.className = 'toastui-inline-recorder-dot';
@@ -156,7 +149,6 @@ export class ImageView implements NodeView {
     status.textContent = 'Ready 000:00:00';
 
     wrapper.appendChild(startButton);
-    wrapper.appendChild(pauseButton);
     wrapper.appendChild(stopButton);
     wrapper.appendChild(dot);
     wrapper.appendChild(status);

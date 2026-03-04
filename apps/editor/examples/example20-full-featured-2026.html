@@ -147,6 +147,8 @@
     <script src="/node_modules/@techie_doubts/tui.color-picker.2026/dist/tui-color-picker.js"></script>
     <!-- Mermaid -->
     <script src="/node_modules/mermaid/dist/mermaid.min.js"></script>
+    <!-- Prism (required before code-syntax-highlight-all bundle) -->
+    <script src="/node_modules/prismjs/prism.js"></script>
     <!-- Editor's Plugin -->
     <script src="/plugins/chart/dist/cdn/td-editor-plugin-chart.js"></script>
     <script src="/plugins/code-syntax-highlight/dist/cdn/td-editor-plugin-code-syntax-highlight-all.js"></script>
@@ -160,7 +162,53 @@
     <script src="/plugins/mermaid/dist/cdn/td-editor-plugin-mermaid.js"></script>
     <script src="/plugins/katex/dist/cdn/td-editor-plugin-katex.js"></script>
     <script src="/plugins/export/dist/cdn/td-editor-plugin-export.js"></script>
+    <script>
+      (function setupExample20Debug() {
+        function ensurePanel() {
+          var existing = document.getElementById('example20-error-panel');
+          if (existing) {
+            return existing;
+          }
+
+          var panel = document.createElement('pre');
+          panel.id = 'example20-error-panel';
+          panel.style.position = 'fixed';
+          panel.style.inset = '0';
+          panel.style.margin = '0';
+          panel.style.padding = '16px';
+          panel.style.background = '#111';
+          panel.style.color = '#f5f5f5';
+          panel.style.whiteSpace = 'pre-wrap';
+          panel.style.overflow = 'auto';
+          panel.style.font = '12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace';
+          panel.style.zIndex = '99999';
+          panel.style.display = 'none';
+          document.body.appendChild(panel);
+          return panel;
+        }
+
+        window.__ex20ShowError = function(message) {
+          var panel = ensurePanel();
+          panel.style.display = 'block';
+          panel.textContent = String(message || 'Unknown example20 error');
+        };
+
+        window.addEventListener('error', function(event) {
+          var details = event && event.error && event.error.stack
+            ? event.error.stack
+            : (event && event.message) || 'window.error without message';
+          window.__ex20ShowError('[window.error]\\n' + details);
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = event && event.reason;
+          var details = reason && reason.stack ? reason.stack : String(reason);
+          window.__ex20ShowError('[unhandledrejection]\\n' + details);
+        });
+      })();
+    </script>
     <script type="text/javascript" class="code-js">
+      try {
       const { Editor } = toastui;
       const {
         chart,
@@ -544,6 +592,12 @@
         if (exportGroup) {
           exportGroup.classList.add('export-toolbar-group');
         }
+      }
+      } catch (error) {
+        const details =
+          error && error.stack ? error.stack : String(error);
+        window.__ex20ShowError('[bootstrap]\\n' + details);
+        throw error;
       }
     </script>
   </body>

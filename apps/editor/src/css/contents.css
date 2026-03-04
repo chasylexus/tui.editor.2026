@@ -254,7 +254,8 @@ table.ProseMirror-selectednode {
   background: #fff;
   color: #1f2937;
   border-radius: 999px;
-  padding: 3px 10px;
+  min-height: 26px;
+  padding: 3px 8px;
   font-size: 12px;
   line-height: 17px;
   font-weight: 600;
@@ -262,6 +263,83 @@ table.ProseMirror-selectednode {
   user-select: none;
   transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease,
     opacity 0.14s ease;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action-primary {
+  width: 74px;
+  min-width: 74px;
+  text-align: center;
+}
+
+.toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='record'],
+.toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='pause'] {
+  background: #ff3b30;
+  border-color: #ff3b30;
+  color: #ffffff;
+}
+
+.toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='record']:not(.is-disabled):hover,
+.toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='pause']:not(.is-disabled):hover {
+  background: #f03228;
+  border-color: #f03228;
+}
+
+.toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='resume'] {
+  background: #ffecef;
+  border-color: #ffc3cc;
+  color: #cf2638;
+}
+
+.toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='resume']:not(.is-disabled):hover {
+  background: #ffe2e7;
+  border-color: #ffb2be;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action-primary[data-recorder-visual='record']::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action-primary[data-recorder-visual='pause']::before {
+  content: '';
+  width: 10px;
+  height: 12px;
+  background: linear-gradient(
+    to right,
+    currentColor 0,
+    currentColor 37%,
+    transparent 37%,
+    transparent 63%,
+    currentColor 63%,
+    currentColor 100%
+  );
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action-stop {
+  width: 32px;
+  min-width: 32px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.toastui-editor-contents .toastui-inline-recorder-action-stop::before {
+  content: '';
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-1px) rotate(-45deg);
+  box-sizing: border-box;
 }
 
 .toastui-editor-contents .toastui-inline-recorder-action:not(.is-disabled):hover {
@@ -328,6 +406,42 @@ table.ProseMirror-selectednode {
   border-color: #4a4f58;
   background: #282d36;
   color: #e7ebf3;
+}
+
+.toastui-editor-dark
+  .toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='record'],
+.toastui-editor-dark
+  .toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='pause'] {
+  background: #ff453a;
+  border-color: #ff453a;
+  color: #ffffff;
+}
+
+.toastui-editor-dark
+  .toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='record']:not(.is-disabled):hover,
+.toastui-editor-dark
+  .toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='pause']:not(.is-disabled):hover {
+  background: #ff3b30;
+  border-color: #ff3b30;
+}
+
+.toastui-editor-dark
+  .toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='resume'] {
+  background: #3f272b;
+  border-color: #6f3a42;
+  color: #ff7a85;
+}
+
+.toastui-editor-dark
+  .toastui-editor-contents
+  .toastui-inline-recorder-action-primary[data-recorder-visual='resume']:not(.is-disabled):hover {
+  background: #4b2e33;
+  border-color: #82444d;
 }
 
 .toastui-editor-dark .toastui-editor-contents .toastui-inline-recorder-action:not(.is-disabled):hover {

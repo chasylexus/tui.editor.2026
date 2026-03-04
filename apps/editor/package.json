@@ -1,6 +1,6 @@
 {
   "name": "@techie_doubts/tui.editor.2026",
-  "version": "3.3.5",
+  "version": "3.3.6",
   "publishConfig": {
     "access": "public"
   },
@@ -92,6 +92,7 @@
     "prosemirror-keymap": "1.2.0",
     "prosemirror-model": "1.17.0",
     "prosemirror-state": "1.3.4",
+    "prosemirror-transform": "1.4.2",
     "prosemirror-view": "1.18.1"
   }
 }

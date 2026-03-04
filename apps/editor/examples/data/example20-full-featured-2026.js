@@ -96,7 +96,6 @@ C D E F | G A B c |
 
 ## LaTeX (block)
 $$
-
 \\begin{align*}
 \\LaTeX\\\\
 y = y(x,t) &= A e^{i\\theta} \\\\
@@ -108,5 +107,5 @@ y = y(x,t) &= A e^{i\\theta} \\\\
 &= A\\cos \\frac{2\\pi}{\\lambda} (x - v t)
    + i A\\sin \\frac{2\\pi}{\\lambda} (x - v t)
 \\end{align*}
-$$ 
+$$
 `;

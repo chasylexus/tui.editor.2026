@@ -989,6 +989,13 @@ class ToastUIEditorCore {
       ev.stopPropagation();
 
       if (action === 'start') {
+        const currentViewState = this.inlineRecorderStatus.get(recorderId)?.viewState;
+
+        if (currentViewState === 'recording') {
+          this.pauseInlineRecorder(recorderId);
+          return;
+        }
+
         void this.startOrResumeInlineRecorder(recorderId, label);
         return;
       }
@@ -1191,29 +1198,35 @@ class ToastUIEditorCore {
 
       const action = String(node.dataset.recorderAction || '');
       const isStart = action === 'start';
-      const isPause = action === 'pause';
       const isStop = action === 'stop';
 
       if (isStart) {
         if (state.viewState === 'paused') {
           node.textContent = 'Resume';
+          node.dataset.recorderVisual = 'resume';
         } else if (state.viewState === 'recording') {
-          node.textContent = 'Recording';
+          node.textContent = '';
+          node.dataset.recorderVisual = 'pause';
         } else {
-          node.textContent = 'Record';
+          node.textContent = '';
+          node.dataset.recorderVisual = 'record';
         }
+      }
+      if (isStop) {
+        node.textContent = '';
+        node.dataset.recorderVisual = 'stop';
       }
 
       let disabled = false;
 
       if (state.viewState === 'recording') {
-        disabled = isStart;
+        disabled = false;
       } else if (state.viewState === 'paused') {
-        disabled = isPause;
+        disabled = false;
       } else if (state.viewState === 'processing') {
         disabled = true;
       } else {
-        disabled = isPause || isStop;
+        disabled = isStop;
       }
 
       node.dataset.disabled = disabled ? 'true' : 'false';

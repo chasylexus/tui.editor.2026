@@ -82,37 +82,27 @@ export class Image extends NodeSchema {
             [
               'span',
               {
-                class: 'toastui-inline-recorder-action',
+                class: 'toastui-inline-recorder-action toastui-inline-recorder-action-primary',
                 role: 'button',
                 tabindex: '0',
                 'data-recorder-id': recorderId,
                 'data-recorder-action': 'start',
+                'data-recorder-visual': 'record',
               },
-              'Record',
+              '',
             ],
             [
               'span',
               {
-                class: 'toastui-inline-recorder-action',
-                role: 'button',
-                tabindex: '0',
-                'data-recorder-id': recorderId,
-                'data-recorder-action': 'pause',
-                'data-disabled': 'true',
-              },
-              'Pause',
-            ],
-            [
-              'span',
-              {
-                class: 'toastui-inline-recorder-action',
+                class: 'toastui-inline-recorder-action toastui-inline-recorder-action-stop',
                 role: 'button',
                 tabindex: '0',
                 'data-recorder-id': recorderId,
                 'data-recorder-action': 'stop',
+                'data-recorder-visual': 'stop',
                 'data-disabled': 'true',
               },
-              'Stop',
+              '',
             ],
             [
               'span',
