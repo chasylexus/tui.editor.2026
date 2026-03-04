@@ -997,7 +997,7 @@ describe('keymap', () => {
       setContent('<p><br></p>');
       wwe.setSelection(1, 1);
 
-      const changed = forceKeymapFn('paragraph', 'makeCodeByBacktick');
+      const changed = forceTextInput('`');
 
       expect(changed).toBe(true);
       expect(wwe.getHTML()).toBe('<p>``</p>');
@@ -1008,7 +1008,7 @@ describe('keymap', () => {
       setContent('<p>``</p>');
       wwe.setSelection(2, 2); // between paired backticks
 
-      const changed = forceKeymapFn('paragraph', 'makeCodeByBacktick');
+      const changed = forceTextInput('`');
 
       expect(changed).toBe(true);
       expect(wwe.getHTML()).toBe('<p>``</p>');
@@ -1019,11 +1019,21 @@ describe('keymap', () => {
       setContent('<p>``</p>');
       wwe.setSelection(3, 3); // after paired backticks
 
-      const changed = forceKeymapFn('paragraph', 'makeCodeByBacktick');
+      const changed = forceTextInput('`');
 
       expect(changed).toBe(true);
       expect(wwe.getModel().firstChild?.type.name).toBe('codeBlock');
       expect(wwe.getModel().firstChild?.textContent).toBe('');
+    });
+
+    it('should not treat non-backtick keyboard layout characters as backtick shortcut', () => {
+      setContent('<p><br></p>');
+      wwe.setSelection(1, 1);
+
+      const handled = forceTextInput('ё');
+
+      expect(handled).toBe(false);
+      expect(wwe.getHTML()).toBe('<p><br></p>');
     });
 
     it('should convert text input between paired backticks to inline code', () => {

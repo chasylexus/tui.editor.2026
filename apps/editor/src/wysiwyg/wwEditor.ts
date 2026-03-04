@@ -1,7 +1,7 @@
 import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode, Slice, Fragment, Mark, Schema } from 'prosemirror-model';
 import { Transaction } from 'prosemirror-state';
-import { wrapIn } from 'prosemirror-commands';
+import { setBlockType, wrapIn } from 'prosemirror-commands';
 import EditorBase from '@/base';
 import { getWwCommands } from '@/commands/wwCommands';
 
@@ -54,6 +54,7 @@ interface PluginNodeViews {
 
 const CONTENTS_CLASS_NAME = cls('contents');
 const BACKTICK = '`';
+const EMPTY_INLINE_CODE_MARKER = '``';
 
 export default class WysiwygEditor extends EditorBase {
   private toDOMAdaptor: ToDOMAdaptor;
@@ -137,6 +138,103 @@ export default class WysiwygEditor extends EditorBase {
       .setSelection(createTextSelection(nextTr, from - 1 + text.length))
       .setStoredMarks([codeMark]);
     view.dispatch(nextTr.scrollIntoView());
+
+    return true;
+  }
+
+  private handleBacktickInput(view: EditorView, from: number, to: number, text: string) {
+    const { state } = view;
+    const {
+      selection: { $from, empty },
+      doc,
+      schema,
+    } = state;
+    const { paragraph, codeBlock } = schema.nodes;
+
+    if (text !== BACKTICK || from !== to || !empty || $from.parent.type !== paragraph) {
+      return false;
+    }
+
+    const isBetweenBacktickPair =
+      from > 0 &&
+      doc.textBetween(from - 1, from, '', '') === BACKTICK &&
+      doc.textBetween(from, from + 1, '', '') === BACKTICK;
+
+    // Keep one auto-inserted closing backtick and move caret past it.
+    if (isBetweenBacktickPair) {
+      const { tr } = state;
+
+      tr.setSelection(createTextSelection(tr, from + 1));
+      view.dispatch(tr.scrollIntoView());
+
+      return true;
+    }
+
+    const paragraphText = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+
+    if (
+      paragraphText === EMPTY_INLINE_CODE_MARKER &&
+      $from.parentOffset === EMPTY_INLINE_CODE_MARKER.length
+    ) {
+      const codeBlockCommand = setBlockType(codeBlock);
+      const runCodeBlockCommand = (): {
+        commandResult: boolean;
+        transaction: Transaction | null;
+      } => {
+        let transaction: Transaction | null = null;
+        const commandResult = codeBlockCommand(state, (nextTr: Transaction) => {
+          transaction = nextTr;
+        });
+
+        return { commandResult, transaction };
+      };
+      const { commandResult, transaction } = runCodeBlockCommand();
+
+      if (!commandResult || !transaction) {
+        return false;
+      }
+      const trFromCommand = transaction;
+
+      const {
+        selection: { from: commandSelectionFrom },
+      } = trFromCommand;
+      const currentText = trFromCommand.selection.$from.parent.textBetween(
+        0,
+        trFromCommand.selection.$from.parent.content.size,
+        '',
+        ''
+      );
+
+      if (
+        trFromCommand.selection.$from.parent.type === codeBlock &&
+        trFromCommand.selection.$from.parentOffset === EMPTY_INLINE_CODE_MARKER.length &&
+        currentText === EMPTY_INLINE_CODE_MARKER
+      ) {
+        const markerStart = commandSelectionFrom - EMPTY_INLINE_CODE_MARKER.length;
+
+        trFromCommand
+          .delete(markerStart, commandSelectionFrom)
+          .setSelection(createTextSelection(trFromCommand, markerStart));
+      }
+
+      const cbNode = trFromCommand.selection.$from.parent;
+      const codeBlockPos = trFromCommand.selection.$from.before();
+
+      trFromCommand.setNodeMarkup(codeBlockPos, null, {
+        ...cbNode.attrs,
+        language: 'python',
+        lineNumber: 1,
+      });
+
+      view.dispatch(trFromCommand.scrollIntoView());
+
+      return true;
+    }
+
+    const tr = state.tr.insertText(EMPTY_INLINE_CODE_MARKER, from, to);
+
+    tr.setSelection(createTextSelection(tr, from + 1));
+    view.dispatch(tr.scrollIntoView());
 
     return true;
   }
@@ -271,7 +369,10 @@ export default class WysiwygEditor extends EditorBase {
         this.view.updateState(state);
         this.emitChangeEvent(tr.scrollIntoView());
         this.eventEmitter.emit('setFocusedNode', state.selection.$from.node(1));
-        if (prevSelection.from !== state.selection.from || prevSelection.to !== state.selection.to) {
+        if (
+          prevSelection.from !== state.selection.from ||
+          prevSelection.to !== state.selection.to
+        ) {
           this.eventEmitter.emit('wwSelectionChange', {
             from: state.selection.from,
             to: state.selection.to,
@@ -376,6 +477,7 @@ export default class WysiwygEditor extends EditorBase {
         changePastedSlice(slice, this.schema, isInTableNode(this.view.state.selection.$from)),
       handlePaste: (view: EditorView, _: ClipboardEvent, slice: Slice) => pasteToTable(view, slice),
       handleTextInput: (view, from, to, text) =>
+        this.handleBacktickInput(view, from, to, text) ||
         this.convertThematicBreak(view, from, to, text) ||
         this.convertBlockquote(view, from, to, text) ||
         this.convertBacktickPairToInlineCode(view, from, to, text),

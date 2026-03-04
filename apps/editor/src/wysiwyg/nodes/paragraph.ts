@@ -8,8 +8,6 @@ import { changeList } from '@/wysiwyg/command/list';
 import { getDefaultCustomAttrs, getCustomAttrs } from '@/wysiwyg/helper/node';
 
 const BULLET_LIST_MARKERS = new Set(['-', '+', '*']);
-const BACKTICK = '`';
-const EMPTY_INLINE_CODE_MARKER = '``';
 const ORDERED_LIST_RE = /^(\d+)\.$/;
 const HEADING_RE = /^(#{1,6})$/;
 
@@ -237,104 +235,6 @@ export class Paragraph extends NodeSchema {
     };
   }
 
-  private makeCodeByBacktick(): Command {
-    return (state, dispatch) => {
-      const {
-        selection: { $from, from, empty },
-        schema,
-        tr: stateTr,
-        doc,
-      } = state;
-      const { paragraph, codeBlock } = schema.nodes;
-
-      if (!empty || $from.parent.type !== paragraph || !dispatch) {
-        return false;
-      }
-
-      const isBetweenBacktickPair =
-        from > 0 &&
-        doc.textBetween(from - 1, from, '', '') === BACKTICK &&
-        doc.textBetween(from, from + 1, '', '') === BACKTICK;
-
-      // Keep one auto-inserted closing backtick and move caret past it.
-      if (isBetweenBacktickPair) {
-        dispatch(stateTr.setSelection(createTextSelection(stateTr, from + 1)).scrollIntoView());
-
-        return true;
-      }
-
-      const text = $from.parent.textBetween(0, $from.parent.content.size, '', '');
-
-      if (
-        text === EMPTY_INLINE_CODE_MARKER &&
-        $from.parentOffset === EMPTY_INLINE_CODE_MARKER.length
-      ) {
-        const codeBlockCommand = setBlockType(codeBlock);
-        const runCodeBlockCommand = (): {
-          commandResult: boolean;
-          transaction: Transaction | null;
-        } => {
-          let transaction: Transaction | null = null;
-          const commandResult = codeBlockCommand(state, (nextTr: Transaction) => {
-            transaction = nextTr;
-          });
-
-          return { commandResult, transaction };
-        };
-        const { commandResult, transaction } = runCodeBlockCommand();
-
-        if (!commandResult || !transaction) {
-          return false;
-        }
-
-        const trFromCommand = transaction;
-        const {
-          selection: { from: commandSelectionFrom },
-        } = trFromCommand;
-        const currentText = trFromCommand.selection.$from.parent.textBetween(
-          0,
-          trFromCommand.selection.$from.parent.content.size,
-          '',
-          ''
-        );
-
-        if (
-          trFromCommand.selection.$from.parent.type === codeBlock &&
-          trFromCommand.selection.$from.parentOffset === EMPTY_INLINE_CODE_MARKER.length &&
-          currentText === EMPTY_INLINE_CODE_MARKER
-        ) {
-          const markerStart = commandSelectionFrom - EMPTY_INLINE_CODE_MARKER.length;
-
-          trFromCommand
-            .delete(markerStart, commandSelectionFrom)
-            .setSelection(createTextSelection(trFromCommand, markerStart));
-        }
-
-        const cbNode = trFromCommand.selection.$from.parent;
-        const codeBlockPos = trFromCommand.selection.$from.before();
-
-        trFromCommand.setNodeMarkup(codeBlockPos, null, {
-          ...cbNode.attrs,
-          language: 'python',
-          lineNumber: 1,
-        });
-
-        dispatch(trFromCommand.scrollIntoView());
-
-        return true;
-      }
-
-      dispatch(
-        stateTr
-          .insertText(EMPTY_INLINE_CODE_MARKER, from, from)
-          .setSelection(createTextSelection(stateTr, from + 1))
-          .scrollIntoView()
-      );
-
-      return true;
-    };
-  }
-
   keymaps() {
     const bulletListCommand = this.makeBulletListByMarker();
     const orderedListCommand = this.makeOrderedListByNumber();
@@ -347,7 +247,6 @@ export class Paragraph extends NodeSchema {
 
     return {
       Space: handleSpace,
-      '`': this.makeCodeByBacktick(),
     };
   }
 }
