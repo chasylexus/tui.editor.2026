@@ -34,4 +34,15 @@ describe('link utils', () => {
     expect(findFragmentTarget(container, '#My%20ID')?.id).toBe('My_ID');
     expect(findFragmentTarget(container, '#My ID')?.id).toBe('My_ID');
   });
+
+  it('resolves heading targets by heading text when id is missing', () => {
+    container.innerHTML = `
+      <h2>Анализ рекламного digital-рынка в России</h2>
+    `;
+
+    const target = findFragmentTarget(container, '#Анализ рекламного digital-рынка в России');
+
+    expect(target?.tagName).toBe('H2');
+    expect(target?.textContent).toContain('Анализ рекламного digital-рынка в России');
+  });
 });

@@ -78,6 +78,22 @@ export function findFragmentTarget(root: FragmentRoot, href: string) {
     }
   }
 
+  const headingElements = root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6');
+
+  for (const heading of Array.from(headingElements)) {
+    const text = String(heading.textContent || '').trim();
+
+    if (!text) {
+      continue;
+    }
+
+    const headingCandidates = [text, normalizeFragmentId(text), createAnchorIdFromText(text)];
+
+    if (headingCandidates.some((candidate) => candidates.includes(candidate))) {
+      return heading;
+    }
+  }
+
   return null;
 }
 
