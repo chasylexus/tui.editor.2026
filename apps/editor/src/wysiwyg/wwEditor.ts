@@ -508,21 +508,40 @@ export default class WysiwygEditor extends EditorBase {
       handleDOMEvents: {
         click: (_, ev: MouseEvent) => {
           const target = ev.target as HTMLElement;
-          const anchor = target.closest('a[href^="#"]') as HTMLAnchorElement | null;
+          const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
 
           if (!anchor) {
             return false;
           }
 
           const href = anchor.getAttribute('href') || '';
-          const fragmentTarget = findFragmentTarget(this.view.dom, href);
 
-          if (!fragmentTarget) {
+          if (!href) {
             return false;
           }
 
+          if (href[0] === '#') {
+            const fragmentTarget = findFragmentTarget(this.view.dom, href);
+
+            if (!fragmentTarget) {
+              return false;
+            }
+
+            ev.preventDefault();
+            fragmentTarget.scrollIntoView({ block: 'start' });
+
+            return true;
+          }
+
+          const lowered = href.toLowerCase();
+
+          if (lowered.startsWith('javascript:') || lowered.startsWith('data:')) {
+            ev.preventDefault();
+            return true;
+          }
+
           ev.preventDefault();
-          fragmentTarget.scrollIntoView({ block: 'start' });
+          window.open(href, '_blank', 'noopener,noreferrer');
 
           return true;
         },

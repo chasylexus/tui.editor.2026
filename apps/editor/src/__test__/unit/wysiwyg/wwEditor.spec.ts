@@ -192,4 +192,40 @@ describe('WysiwygEditor', () => {
       '<iframe height="315" width="420" class="html-block ProseMirror-selectednode" draggable="true"></iframe>'
     );
   });
+
+  it('should scroll to internal fragment target when clicking hash link in wysiwyg', () => {
+    setContent('<p><a href="#target">Jump</a></p>');
+
+    const link = wwe.view.dom.querySelector('a[href="#target"]') as HTMLAnchorElement;
+    const target = document.createElement('p');
+    const scrollIntoView = jest.fn();
+
+    target.id = 'target';
+    wwe.view.dom.appendChild(target);
+
+    Object.defineProperty(target, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+  });
+
+  it('should open external links in a new tab when clicking in wysiwyg', () => {
+    setContent('<p><a href="https://example.com/docs">Open</a></p>');
+
+    const link = wwe.view.dom.querySelector('a[href="https://example.com/docs"]') as HTMLAnchorElement;
+    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
+
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://example.com/docs',
+      '_blank',
+      'noopener,noreferrer'
+    );
+  });
 });
