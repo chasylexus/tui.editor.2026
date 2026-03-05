@@ -138,7 +138,13 @@ export class ScrollSync {
       return null;
     }
 
-    const { el, mdNode } = getParentNodeObj(this.previewRoot, mdNodeAtProbe);
+    const parent = getParentNodeObj(this.previewRoot, mdNodeAtProbe);
+
+    if (!parent.el || !parent.mdNode) {
+      return null;
+    }
+
+    const { el, mdNode } = parent;
     const { doc } = this.editorView.state;
     const startLine = getMdStartLine(mdNode) - 1;
     const startLineEl = children[startLine] as HTMLElement | undefined;
@@ -184,7 +190,13 @@ export class ScrollSync {
       return null;
     }
 
-    const { el, mdNode: parentNode } = getParentNodeObj(this.previewRoot, mdNode);
+    const parent = getParentNodeObj(this.previewRoot, mdNode);
+
+    if (!parent.el || !parent.mdNode) {
+      return null;
+    }
+
+    const { el, mdNode: parentNode } = parent;
     const startLine = getMdStartLine(parentNode) - 1;
     const startLineEl = children[startLine] as HTMLElement | undefined;
 
@@ -293,7 +305,13 @@ export class ScrollSync {
       return null;
     }
 
-    const { el } = getParentNodeObj(this.previewRoot, renderedNode);
+    const parent = getParentNodeObj(this.previewRoot, renderedNode);
+
+    if (!parent.el) {
+      return null;
+    }
+
+    const { el } = parent;
 
     if (!el) {
       return null;
@@ -310,9 +328,20 @@ export class ScrollSync {
 
   private getScrollTopByCaretPos() {
     const pos = this.mdEditor.getSelection();
-    const firstMdNode = this.toastMark.findFirstNodeAtLine(pos[0][0])!;
+    const firstMdNode = this.toastMark.findFirstNodeAtLine(pos[0][0]) as MdNode | null;
+
+    if (!firstMdNode) {
+      return null;
+    }
+
     const previewHeight = this.previewEl.clientHeight;
-    const { el } = getParentNodeObj(this.previewRoot, firstMdNode);
+    const parent = getParentNodeObj(this.previewRoot, firstMdNode);
+
+    if (!parent.el) {
+      return null;
+    }
+
+    const { el } = parent;
     const totalOffsetTop = getTotalOffsetTop(el, this.previewRoot) || el.offsetTop;
     const nodeHeight = el.clientHeight;
     // multiply 0.5 for calculating the position in the middle of preview area
@@ -404,10 +433,22 @@ export class ScrollSync {
 
       const { children } = dom;
       const mdNodeId = Number(targetNode.getAttribute('data-nodeid'));
-      const { mdNode, el } = getParentNodeObj(this.previewRoot, toastMark.findNodeById(mdNodeId)!);
-      const mdNodeStartLine = getMdStartLine(mdNode);
+      const foundNode = (toastMark.findNodeById(mdNodeId) as MdNode | null) || null;
+      const parent = getParentNodeObj(this.previewRoot, foundNode);
 
-      targetScrollTop = (children[mdNodeStartLine - 1] as HTMLElement).offsetTop;
+      if (!parent.mdNode || !parent.el) {
+        return;
+      }
+
+      const { mdNode, el } = parent;
+      const mdNodeStartLine = getMdStartLine(mdNode);
+      const lineEl = children[mdNodeStartLine - 1] as HTMLElement | undefined;
+
+      if (!lineEl) {
+        return;
+      }
+
+      targetScrollTop = lineEl.offsetTop;
 
       const { height } = getEditorRangeHeightInfo(state.doc, mdNode, children);
       const { nodeHeight, offsetTop } = getAndSaveOffsetInfo(el, previewRoot, mdNodeId);

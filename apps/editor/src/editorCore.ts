@@ -1786,7 +1786,9 @@ class ToastUIEditorCore {
         const oldSlice = nextBlocks[mdBlockId];
         // Replace exact mdBlockId slice with full serialized content. No heuristics: all WW blocks
         // with this mdBlockId were serialized together, so newBlock is the full slice (avoids tail loss).
-        const nextContent = newBlock;
+        // Preserve trailing newlines from the previous block to avoid collapsing user-authored
+        // blank separators at block boundaries (e.g. list -> heading).
+        const nextContent = this.preserveTrailingLineBreaks(oldSlice.content, newBlock);
 
         nextBlocks[mdBlockId] = {
           content: nextContent,
@@ -1800,6 +1802,7 @@ class ToastUIEditorCore {
 
     if (shouldSerializeAll) {
       nextMd = this.convertor.toMarkdownText(wwDoc);
+      nextMd = this.preserveCanonicalSeparators(this.canonicalMd, nextMd);
     }
 
     if (
@@ -2268,7 +2271,11 @@ class ToastUIEditorCore {
   }
 
   private addWwEditRange(range: WwEditRange) {
-    if (range.hasMissingId || hasFootnoteSyntax(this.canonicalMd)) {
+    const hasTrackableBlocks = range.mdBlockIds.length > 0;
+    const mustFallbackToFullSerialize =
+      Boolean(range.hasMissingId) && !hasTrackableBlocks;
+
+    if (mustFallbackToFullSerialize || hasFootnoteSyntax(this.canonicalMd)) {
       this.pendingWwInvalidMapping = true;
     }
     range.mdBlockIds.forEach((id) => this.pendingMdBlockIds.add(id));
@@ -2376,8 +2383,45 @@ class ToastUIEditorCore {
     return blocks.map((block) => `${block.content}${block.separator}`).join('');
   }
 
+  private preserveCanonicalSeparators(prevMd: string, nextMd: string) {
+    if (!prevMd || !nextMd || prevMd === nextMd) {
+      return nextMd;
+    }
+
+    const prevBlocks = this.buildMdBlockSlices(prevMd);
+    const nextBlocks = this.buildMdBlockSlices(nextMd);
+
+    if (!prevBlocks || !nextBlocks || prevBlocks.length !== nextBlocks.length) {
+      return nextMd;
+    }
+
+    for (let i = 0; i < prevBlocks.length; i += 1) {
+      if (prevBlocks[i].type !== nextBlocks[i].type) {
+        return nextMd;
+      }
+    }
+
+    const merged = nextBlocks.map((block, index) => ({
+      ...block,
+      separator: prevBlocks[index].separator,
+    }));
+
+    return this.joinMdBlocks(merged);
+  }
+
   private normalizeBlockText(text: string) {
     return text.replace(/\s+/g, ' ');
+  }
+
+  private preserveTrailingLineBreaks(prevContent: string, nextContent: string) {
+    const prevTrailing = (prevContent.match(/\n+$/) || [''])[0].length;
+    const nextTrailing = (nextContent.match(/\n+$/) || [''])[0].length;
+
+    if (prevTrailing <= nextTrailing) {
+      return nextContent;
+    }
+
+    return `${nextContent}${'\n'.repeat(prevTrailing - nextTrailing)}`;
   }
 
   private buildNormalizedMapping(text: string) {

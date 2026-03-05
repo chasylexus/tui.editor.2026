@@ -29,6 +29,25 @@ describe('editor', () => {
       .trim();
   }
 
+  function dispatchPlainTextPaste(target: HTMLElement, text: string, withItems = true) {
+    const event = new Event('paste', { bubbles: true, cancelable: true }) as ClipboardEvent;
+    const clipboardData = {
+      getData: jest.fn((type: string) => (type === 'text/plain' ? text : '')),
+    } as any;
+
+    if (withItems) {
+      clipboardData.items = [{ kind: 'string', type: 'text/plain' }] as unknown as DataTransferItemList;
+    }
+
+    Object.defineProperty(event, 'clipboardData', {
+      value: clipboardData as DataTransfer,
+    });
+
+    target.dispatchEvent(event);
+
+    return { event, clipboardData };
+  }
+
   describe('instance API', () => {
     beforeEach(() => {
       container = document.createElement('div');
@@ -434,6 +453,103 @@ describe('editor', () => {
         [800, 12],
         [800, 12],
       ]);
+    });
+
+    it('should preserve a blank line between a list and the following heading after md->ww->md switch', () => {
+      const markdown = ['## A', '* 1', '* 2', '', '## B', '```', '1', '```'].join('\n');
+
+      editor.setMarkdown('');
+      editor.setSelection([1, 1], [1, 1]);
+      editor.replaceSelection(markdown);
+
+      expect(editor.getMarkdown().replace(/\n$/, '')).toBe(markdown);
+
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+
+      expect(editor.getMarkdown().replace(/\n$/, '')).toBe(markdown);
+      expect(editor.getMarkdown()).toContain('* 2\n\n## B');
+    });
+
+    it('should keep the list-heading separator when content is pasted in markdown then switched md->ww->md', () => {
+      const markdown = ['## A', '* 1', '* 2', '', '## B', '```', '1', '```'].join('\n');
+      const mdProsemirror = mdEditor.querySelector('.ProseMirror') as HTMLElement;
+
+      editor.setMarkdown('');
+      editor.setSelection([1, 1], [1, 1]);
+      dispatchPlainTextPaste(mdProsemirror, markdown);
+
+      expect(editor.getMarkdown().replace(/\n$/, '')).toBe(markdown);
+
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+
+      expect(editor.getMarkdown().replace(/\n$/, '')).toBe(markdown);
+      expect(editor.getMarkdown()).toContain('* 2\n\n## B');
+    });
+
+    it('should preserve markdown paste separators even when clipboardData.items is unavailable', () => {
+      const markdown = ['## A', '* 1', '* 2', '', '## B', '```', '1', '```'].join('\n');
+      const mdProsemirror = mdEditor.querySelector('.ProseMirror') as HTMLElement;
+
+      editor.setMarkdown('');
+      editor.setSelection([1, 1], [1, 1]);
+      dispatchPlainTextPaste(mdProsemirror, markdown, false);
+
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+
+      expect(editor.getMarkdown()).toContain('* 2\n\n## B');
+      expect(editor.getMarkdown()).not.toContain('* 2## B');
+    });
+
+    it('should keep a blank line before heading after a wysiwyg edit near the second list item end', () => {
+      const markdown = ['## A', '* 1', '* 2', '', '## B', '```', '1', '```'].join('\n');
+
+      editor.setMarkdown(markdown);
+      editor.changeMode('wysiwyg');
+
+      const [insertPos] = editor.convertPosToMatchEditorMode([3, 4]) as [number, number];
+      editor.setSelection(insertPos, insertPos);
+      editor.insertText('x');
+      editor.changeMode('markdown');
+
+      const result = editor.getMarkdown();
+
+      expect(result).toContain('* 2\n\n## B');
+      expect(result).not.toContain('* 2## B');
+    });
+
+    it('should keep a blank line before heading after editing the second list item in markdown', () => {
+      const markdown = ['## A', '* 1', '* 2', '', '## B', '```', '1', '```'].join('\n');
+
+      editor.setMarkdown(markdown);
+      editor.setSelection([3, 4], [3, 4]);
+      editor.insertText('x');
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+
+      const result = editor.getMarkdown();
+
+      expect(result).toContain('* 2x\n\n## B');
+      expect(result).not.toContain('* 2x## B');
+    });
+
+    it('should keep list-heading separator after a prior md->ww->md cycle and markdown edit', () => {
+      const markdown = ['## A', '* 1', '* 2', '', '## B', '```', '1', '```'].join('\n');
+
+      editor.setMarkdown(markdown);
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+      editor.setSelection([3, 4], [3, 4]);
+      editor.insertText('x');
+      editor.changeMode('wysiwyg');
+      editor.changeMode('markdown');
+
+      const result = editor.getMarkdown();
+
+      expect(result).toContain('* 2x\n\n## B');
+      expect(result).not.toContain('* 2x## B');
     });
 
     it('should set wysiwyg selection without scroll when changing mode from markdown', () => {

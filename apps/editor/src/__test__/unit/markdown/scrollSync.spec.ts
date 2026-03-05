@@ -1,5 +1,6 @@
 import EventEmitter from '@/event/eventEmitter';
 import { ScrollSync } from '@/markdown/scroll/scrollSync';
+import * as scrollDom from '@/markdown/scroll/dom';
 
 function setDimension(el: Element, key: string, value: number) {
   Object.defineProperty(el, key, {
@@ -93,5 +94,18 @@ describe('ScrollSync', () => {
 
     expect(mapSpy).toHaveBeenCalled();
     expect(runSpy).toHaveBeenCalledWith('editor', 777, 0);
+  });
+
+  it('should not throw when parent preview node mapping is missing during caret-based sync', () => {
+    const { scrollSync } = createScrollSync('line 1\nline 2');
+
+    jest.spyOn(scrollDom, 'getParentNodeObj').mockReturnValue({
+      mdNode: null,
+      el: null,
+    } as any);
+
+    expect(() => {
+      (scrollSync as any).syncPreviewScrollTop(true);
+    }).not.toThrow();
   });
 });

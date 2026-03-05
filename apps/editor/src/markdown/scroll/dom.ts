@@ -116,14 +116,31 @@ export function getAdditionalPos(
   return ratio * targetNodeHeight;
 }
 
-export function getParentNodeObj(previewContent: HTMLElement, mdNode: MdNode) {
-  let el = previewContent.querySelector<HTMLElement>(`[data-nodeid="${mdNode.id}"]`);
-
-  while (!el || isStyledInlineNode(mdNode)) {
-    mdNode = mdNode.parent!;
-    el = previewContent.querySelector<HTMLElement>(`[data-nodeid="${mdNode.id}"]`);
+export function getParentNodeObj(previewContent: HTMLElement, mdNode: MdNode | null) {
+  if (!mdNode) {
+    return { mdNode: null, el: null };
   }
-  return getNonNestableNodeObj({ mdNode, el });
+
+  let currentNode: MdNode | null = mdNode;
+  let el: HTMLElement | null = previewContent.querySelector<HTMLElement>(
+    `[data-nodeid="${currentNode.id}"]`
+  );
+
+  while (currentNode && (!el || isStyledInlineNode(currentNode))) {
+    currentNode = (currentNode.parent as MdNode | null) || null;
+
+    if (!currentNode) {
+      break;
+    }
+
+    el = previewContent.querySelector<HTMLElement>(`[data-nodeid="${currentNode.id}"]`);
+  }
+
+  if (!currentNode || !el) {
+    return { mdNode: null, el: null };
+  }
+
+  return getNonNestableNodeObj({ mdNode: currentNode, el });
 }
 
 function getNonNestableNodeObj({ mdNode, el }: { mdNode: MdNode; el: HTMLElement }) {

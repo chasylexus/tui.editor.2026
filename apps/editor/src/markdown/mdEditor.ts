@@ -301,12 +301,14 @@ export default class MdEditor extends EditorBase {
             Array.from(items || []).some(
               (item) => item.kind === 'string' && item.type === 'text/plain'
             );
+          const shouldUseRawPlainTextPaste =
+            typeof plainText === 'string' && (hasPlainTextItem || plainText.length > 0);
 
           // Keep raw markdown text as-is (including consecutive blank lines) instead of
           // letting the default ProseMirror parser normalize line breaks.
-          if (hasPlainTextItem && typeof plainText === 'string') {
+          if (shouldUseRawPlainTextPaste) {
             ev.preventDefault();
-            this.replaceSelection(plainText, void 0, void 0, false);
+            this.replaceSelection(plainText as string, void 0, void 0, false);
             this.stabilizeWindowScroll(scrollX, scrollY);
             return true;
           }
