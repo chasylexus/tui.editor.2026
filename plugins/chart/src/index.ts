@@ -9,7 +9,7 @@
  * Jan,21,23
  * Feb,35,45
  *
- * type: area                   => editorChart.type  (bar | column | line | area | pie)
+ * type: area                   => editorChart.type  (bar | column | line | area | pie | scatter)
  * url: http://url/to/data      => editorChart.url   (fetch CSV from URL)
  * width: 700                   => chart.width
  * height: 300                  => chart.height
@@ -27,6 +27,8 @@
  * y.thousands: true             => yAxis.label.formatter  (adds thousand separators)
  * series.lineWidth: 3          => series.lineWidth (global line thickness)
  * series.lineStyle: "dashed"   => series.lineStyle (global line dash preset)
+ * series.connectNulls: true     => connect line/area segments across null values (default true)
+ * series.breakOnNull: true      => force gap breaks on null values (overrides connectNulls)
  * series.styles: {"Plan":{"lineStyle":"dashDot","lineWidth":2}} => per-series line style/width
  * ```
  */
@@ -38,6 +40,7 @@ import Chart, {
   BarChart,
   PieChart,
   ColumnChart,
+  ScatterChart,
 } from '@techie_doubts/tui.chart.2026';
 import { PluginOptions } from '@t/index';
 import csv from './csv';
@@ -53,7 +56,23 @@ const reGroupByDelimiter = /([^:]+)?:?(.*)/;
 const DEFAULT_DELIMITER = /\s+/;
 const DELIMITERS = [',', '\t'];
 const MINIMUM_DELIM_CNT = 2;
-const SUPPORTED_CHART_TYPES = ['bar', 'column', 'line', 'area', 'pie'];
+const SUPPORTED_CHART_TYPES = ['bar', 'column', 'line', 'area', 'pie', 'scatter'];
+const SERIES_THEME_TYPE_KEYS = [
+  'line',
+  'area',
+  'column',
+  'bar',
+  'pie',
+  'scatter',
+  'bubble',
+  'radar',
+  'treemap',
+  'heatmap',
+  'boxPlot',
+  'bullet',
+  'gauge',
+  'radialBar',
+];
 const CATEGORY_CHART_TYPES = ['line', 'area'];
 const DEFAULT_DIMENSION_OPTIONS = {
   minWidth: 0,
@@ -72,6 +91,7 @@ const chart = {
   area: Chart.areaChart,
   line: Chart.lineChart,
   pie: Chart.pieChart,
+  scatter: Chart.scatterChart,
 };
 const chartMap: Record<string, ChartInstance> = {};
 const chartRenderVersionMap: Record<string, number> = {};
@@ -134,24 +154,49 @@ function ensureChartStyles() {
 
 type ChartType = keyof typeof chart;
 export type ChartOptions = BaseOptions & { editorChart: { type?: ChartType; url?: string } };
-type ChartInstance = BarChart | ColumnChart | AreaChart | LineChart | PieChart;
+type ChartInstance = BarChart | ColumnChart | AreaChart | LineChart | PieChart | ScatterChart;
+type ChartCoordinatePoint = [string | number, number];
+type ScatterPoint = { x: string | number; y: number; label?: string };
 type ChartData = {
   categories: string[];
-  series: { data: (number | null)[]; name?: string }[];
+  series: {
+    data: (number | null)[];
+    name?: string;
+  }[];
 };
-type ParserCallback = (parsedInfo?: { data: ChartData; options?: ChartOptions }) => void;
+type ScatterChartData = {
+  categories?: string[];
+  series: {
+    data: ScatterPoint[];
+    name?: string;
+  }[];
+};
+type RenderableChartData = {
+  categories?: string[];
+  series: {
+    data: (number | null | ChartCoordinatePoint | ScatterPoint)[];
+    name?: string;
+    editorRawData?: (number | null)[];
+  }[];
+};
+type ParsedChartData = ChartData | ScatterChartData;
+type ParserCallback = (parsedInfo?: { data: ParsedChartData; options?: ChartOptions }) => void;
 type OnSuccess = (res: { data: any }) => void;
 
 export function parse(text: string, callback: ParserCallback) {
   text = trimKeepingTabs(text);
   const [firstTexts, secondTexts] = text.split(/\n{2,}/);
-  const urlOptions = parseToChartOption(firstTexts);
+  const inlineOptions = parseToChartOption(firstTexts);
+  const blockOptions = parseToChartOption(secondTexts);
+  const dataOptions = Object.keys(blockOptions).length ? blockOptions : inlineOptions;
+  const chartType = dataOptions?.editorChart?.type;
+  const urlOptions = inlineOptions;
   const url = urlOptions?.editorChart?.url;
 
   // if first text is `options` and has `url` option, fetch data from url
   if (typeof url === 'string') {
     const success: OnSuccess = ({ data }) => {
-      callback({ data: parseToChartData(data), options: parseToChartOption(firstTexts) });
+      callback({ data: parseToChartData(data, chartType), options: inlineOptions });
     };
     const error = () => callback();
 
@@ -160,8 +205,8 @@ export function parse(text: string, callback: ParserCallback) {
       .then((data) => success({ data }))
       .catch(() => error());
   } else {
-    const data = parseToChartData(firstTexts);
-    const options = parseToChartOption(secondTexts);
+    const options = blockOptions;
+    const data = parseToChartData(firstTexts, chartType);
 
     callback({ data, options });
   }
@@ -185,7 +230,109 @@ export function detectDelimiter(text: string) {
   return delimiter;
 }
 
-export function parseToChartData(text: string, delimiter?: string | RegExp) {
+function parseScatterValue(value: string) {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : value;
+}
+
+function hasScatterHeader(firstRow: string[]) {
+  if (firstRow.length < 2) {
+    return false;
+  }
+
+  const xCandidate = firstRow.length >= 3 ? firstRow[1] : firstRow[0];
+  const yCandidate = firstRow.length >= 3 ? firstRow[2] : firstRow[1];
+
+  return !isNumeric(xCandidate) || !isNumeric(yCandidate);
+}
+
+function parseToScatterChartData(
+  text: string,
+  delimiter?: string | RegExp | null
+): ScatterChartData {
+  text = trimKeepingTabs(text);
+
+  // @ts-ignore
+  csv.COLUMN_SEPARATOR = delimiter || detectDelimiter(text);
+  let dsv: string[][] = csv.parse(text);
+
+  dsv = dsv
+    .map((arr) => arr.map((val) => val.trim()))
+    .filter((row) => row.some((value) => value.length));
+
+  if (!dsv.length || !dsv[0]?.length) {
+    return { series: [] };
+  }
+
+  if (hasScatterHeader(dsv[0])) {
+    dsv.shift();
+  }
+
+  const points = dsv.reduce<ScatterPoint[]>((acc, row) => {
+    const [first = '', second = '', third = ''] = row;
+    let label: string | null = null;
+    let xValue = '';
+    let yValue = '';
+
+    if (!isNumeric(first) && isNumeric(second) && isNumeric(third)) {
+      label = first || null;
+      xValue = second;
+      yValue = third;
+    } else if (isNumeric(first) && isNumeric(second)) {
+      xValue = first;
+      yValue = second;
+      label = !isNumeric(third) && third ? third : null;
+    } else {
+      return acc;
+    }
+
+    const parsedYValue = Number(yValue);
+
+    if (!Number.isFinite(parsedYValue)) {
+      return acc;
+    }
+
+    acc.push({
+      x: parseScatterValue(xValue),
+      y: parsedYValue,
+      ...(label ? { label } : {}),
+    });
+
+    return acc;
+  }, []);
+
+  return {
+    series: [
+      {
+        name: 'Points',
+        data: points,
+      },
+    ],
+  };
+}
+
+export function parseToChartData(
+  text: string,
+  delimiterOrChartType?: string | RegExp | ChartType | null,
+  chartType?: ChartType
+) {
+  let delimiter = delimiterOrChartType as string | RegExp | null;
+  let resolvedChartType = chartType;
+
+  if (
+    typeof delimiterOrChartType === 'string' &&
+    SUPPORTED_CHART_TYPES.includes(delimiterOrChartType) &&
+    typeof chartType !== 'string'
+  ) {
+    resolvedChartType = delimiterOrChartType as ChartType;
+    delimiter = null;
+  }
+
+  if (resolvedChartType === 'scatter') {
+    return parseToScatterChartData(text, delimiter);
+  }
+
   // trim all heading/trailing blank lines
   text = trimKeepingTabs(text);
 
@@ -196,26 +343,50 @@ export function parseToChartData(text: string, delimiter?: string | RegExp) {
   // trim all values in 2D array
   dsv = dsv.map((arr) => arr.map((val) => val.trim()));
 
+  if (!dsv.length || !dsv[0]?.length) {
+    return { categories: [], series: [] };
+  }
+
   // test a first row for legends. ['anything', '1', '2', '3'] === false, ['anything', 't1', '2', 't3'] === true
   const hasLegends = dsv[0]
     .filter((_, i) => i > 0)
     .reduce((hasNaN, item) => hasNaN || !isNumeric(item), false);
   const legends = hasLegends ? dsv.shift()! : [];
 
+  // Treat a leading empty legend cell (",seriesA,seriesB") as an explicit category column,
+  // even when categories are numeric (0, 1, 2...).
+  const hasLeadingLegendPlaceholder = hasLegends && (legends[0] || '') === '';
   // test a first column for categories
-  const hasCategories = dsv.slice(1).reduce((hasNaN, row) => hasNaN || !isNumeric(row[0]), false);
+  const hasTextualCategories = dsv
+    .slice(1)
+    .reduce((hasNaN, row) => hasNaN || !isNumeric(row[0]), false);
+  const hasCategories = hasLeadingLegendPlaceholder || hasTextualCategories;
   const categories = hasCategories ? dsv.map((arr) => arr.shift()!) : [];
 
   if (hasCategories) {
     legends.shift();
   }
 
+  const columnCount = dsv.reduce((max, row) => Math.max(max, row.length), 0);
+  const normalizedDsv =
+    columnCount > 0
+      ? dsv.map((row) => {
+          const normalized = row.slice();
+
+          while (normalized.length < columnCount) {
+            normalized.push('');
+          }
+
+          return normalized;
+        })
+      : [];
+
   // transpose dsv, parse number
   // [['1','2','3']    [[1,4,7]
   //  ['4','5','6'] =>  [2,5,8]
   //  ['7','8','9']]    [3,6,9]]
-  const tdsv = dsv[0].map((_, i) =>
-    dsv.map((x) => {
+  const tdsv = Array.from({ length: columnCount }, (_, i) =>
+    normalizedDsv.map((x) => {
       const v = parseFloat(x[i]);
 
       return Number.isNaN(v) ? null : v;
@@ -386,7 +557,7 @@ function normalizeSeriesStyleKey(value: string) {
     .toLowerCase();
 }
 
-function assignSeriesStyleByIndex(chartOptions: ChartOptions, chartData?: ChartData) {
+function assignSeriesStyleByIndex(chartOptions: ChartOptions, chartData?: ParsedChartData) {
   if (!chartData || !isPlainObject(chartOptions.series)) {
     return;
   }
@@ -400,7 +571,7 @@ function assignSeriesStyleByIndex(chartOptions: ChartOptions, chartData?: ChartD
   const styles = seriesOptions.styles as Record<string, unknown>;
   const indexBySeriesName = new Map<string, number>();
 
-  chartData.series.forEach((seriesItem, seriesIndex) => {
+  (chartData.series as Array<{ name?: string }>).forEach((seriesItem, seriesIndex: number) => {
     if (typeof seriesItem?.name === 'string' && seriesItem.name.trim()) {
       indexBySeriesName.set(normalizeSeriesStyleKey(seriesItem.name), seriesIndex);
     }
@@ -423,6 +594,225 @@ function assignSeriesStyleByIndex(chartOptions: ChartOptions, chartData?: ChartD
       styles[indexKey] = styles[styleKey];
     }
   });
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function applyScatterLegendDefaults(chartOptions: ChartOptions, chartData?: ParsedChartData) {
+  if (chartOptions.editorChart?.type !== 'scatter') {
+    return;
+  }
+
+  const scatterData = chartData as ScatterChartData | undefined;
+  const series = scatterData?.series || [];
+  const isSingleSeries = series.length === 1;
+  const firstSeriesName = typeof series[0]?.name === 'string' ? series[0].name.trim() : '';
+  const isDefaultSinglePoints =
+    isSingleSeries && (!firstSeriesName || firstSeriesName === 'Points');
+
+  if (!isDefaultSinglePoints) {
+    return;
+  }
+
+  if (!isPlainObject(chartOptions.legend)) {
+    chartOptions.legend = { visible: false };
+
+    return;
+  }
+
+  const legendOptions = chartOptions.legend as Record<string, unknown>;
+
+  if (typeof legendOptions.visible === 'undefined') {
+    legendOptions.visible = false;
+  }
+}
+
+function hasOnlyIsolatedPoints(seriesData: (number | null)[]) {
+  let hasValue = false;
+  let previousWasValue = false;
+
+  for (let i = 0; i < seriesData.length; i += 1) {
+    const currentIsValue = isFiniteNumber(seriesData[i]);
+
+    if (!currentIsValue) {
+      previousWasValue = false;
+      continue;
+    }
+
+    hasValue = true;
+
+    if (previousWasValue) {
+      return false;
+    }
+
+    previousWasValue = true;
+  }
+
+  return hasValue;
+}
+
+function applySparseSeriesVisibilityFallback(
+  chartOptions: ChartOptions,
+  chartData?: ParsedChartData
+) {
+  const chartType = chartOptions.editorChart?.type;
+
+  if (!chartData || (chartType !== 'line' && chartType !== 'area')) {
+    return;
+  }
+
+  const categoryChartData = chartData as ChartData;
+  const hasSparseOnlySeries = categoryChartData.series.some((seriesItem) =>
+    hasOnlyIsolatedPoints(seriesItem.data)
+  );
+
+  if (!hasSparseOnlySeries) {
+    return;
+  }
+
+  if (!isPlainObject(chartOptions.series)) {
+    chartOptions.series = {};
+  }
+
+  const seriesOptions = chartOptions.series as Record<string, unknown>;
+
+  if (typeof seriesOptions.showDot === 'undefined') {
+    seriesOptions.showDot = true;
+  }
+}
+
+function shouldBreakLineOnNull(chartOptions: ChartOptions) {
+  if (!isPlainObject(chartOptions.series)) {
+    return false;
+  }
+
+  const seriesOptions = chartOptions.series as Record<string, unknown>;
+
+  if (typeof seriesOptions.breakOnNull === 'boolean') {
+    return seriesOptions.breakOnNull;
+  }
+
+  if (typeof seriesOptions.connectNulls === 'boolean') {
+    return !seriesOptions.connectNulls;
+  }
+
+  return false;
+}
+
+function cleanLineGapOptions(chartOptions: ChartOptions) {
+  if (!isPlainObject(chartOptions.series)) {
+    return;
+  }
+
+  const seriesOptions = chartOptions.series as Record<string, unknown>;
+
+  delete seriesOptions.breakOnNull;
+  delete seriesOptions.connectNulls;
+}
+
+function buildCoordinateSeriesData(chartData: ChartData, seriesData: (number | null)[]) {
+  const coordinateData: ChartCoordinatePoint[] = [];
+
+  seriesData.forEach((value, index) => {
+    if (!isFiniteNumber(value)) {
+      return;
+    }
+
+    const categoryValue = chartData.categories[index];
+    const numericCategoryValue = Number(categoryValue);
+    let xValue: string | number = index;
+
+    if (typeof categoryValue !== 'undefined') {
+      xValue = Number.isFinite(numericCategoryValue) ? numericCategoryValue : categoryValue;
+    }
+
+    coordinateData.push([xValue, value]);
+  });
+
+  return coordinateData;
+}
+
+export function applyLineNullGapMode(
+  chartOptions: ChartOptions,
+  chartData?: ParsedChartData
+): RenderableChartData | null {
+  if (!chartData) {
+    return null;
+  }
+
+  const chartType = chartOptions.editorChart?.type;
+
+  if (chartType !== 'line' && chartType !== 'area') {
+    cleanLineGapOptions(chartOptions);
+
+    return chartData as RenderableChartData;
+  }
+
+  const categoryChartData = chartData as ChartData;
+
+  const breakOnNull = shouldBreakLineOnNull(chartOptions);
+
+  cleanLineGapOptions(chartOptions);
+
+  if (breakOnNull) {
+    (chartOptions as any).editorCategoryLabels = categoryChartData.categories;
+
+    return categoryChartData;
+  }
+
+  const hasNullGap = categoryChartData.series.some((seriesItem) =>
+    seriesItem.data.some((value) => value === null)
+  );
+
+  (chartOptions as any).editorCategoryLabels = categoryChartData.categories;
+
+  if (!hasNullGap) {
+    return categoryChartData;
+  }
+
+  if (!isPlainObject(chartOptions.series)) {
+    chartOptions.series = {};
+  }
+  const seriesOptions = chartOptions.series as Record<string, unknown>;
+
+  if (typeof seriesOptions.eventDetectType === 'undefined') {
+    // Keep near detection so tooltip is anchored close to cursor/active marker
+    // while plugin-level formatter resolves exact per-series values by X category.
+    seriesOptions.eventDetectType = 'near';
+  }
+
+  const transformedSeries = categoryChartData.series.map((seriesItem) => {
+    const rawData = seriesItem.data;
+
+    return {
+      ...seriesItem,
+      editorRawData: rawData.map((value) => (isFiniteNumber(value) ? value : null)),
+      data: buildCoordinateSeriesData(categoryChartData, rawData),
+    };
+  });
+
+  const nextData: RenderableChartData = {
+    ...categoryChartData,
+    series: transformedSeries,
+  };
+
+  delete nextData.categories;
+
+  return nextData;
+}
+
+function isCoordinateSeriesData(data: RenderableChartData) {
+  const [firstSeries] = data.series;
+
+  if (!firstSeries || !Array.isArray(firstSeries.data)) {
+    return false;
+  }
+
+  const firstValue = firstSeries.data.find((value) => value !== null);
+
+  return Array.isArray(firstValue);
 }
 
 function escapeHTML(value: unknown) {
@@ -529,17 +919,47 @@ function inferThousandsOptionsFromFormatter(
   return { mode: 'none' };
 }
 
-function getYAxisThousandsOptions(tooltipComponent: any): ThousandsOptions {
+function getPrimaryAxisOptions(tooltipComponent: any, axisKey: 'xAxis' | 'yAxis') {
   const chartOptions = tooltipComponent?.store?.state?.options;
-  const yAxisOptions = Array.isArray(chartOptions?.yAxis)
-    ? chartOptions.yAxis[0]
-    : chartOptions?.yAxis;
+  const axisOptions = Array.isArray(chartOptions?.[axisKey])
+    ? chartOptions[axisKey][0]
+    : chartOptions?.[axisKey];
 
-  if (!isPlainObject(yAxisOptions)) {
+  return isPlainObject(axisOptions) ? (axisOptions as Record<string, unknown>) : null;
+}
+
+function formatTooltipAxisValue(
+  axisKey: 'xAxis' | 'yAxis',
+  value: unknown,
+  tooltipComponent: any
+): string {
+  const axisOptions = getPrimaryAxisOptions(tooltipComponent, axisKey);
+
+  if (!axisOptions) {
+    return String(value ?? '');
+  }
+
+  const formatter = (axisOptions as any).label?.formatter;
+
+  if (typeof formatter === 'function') {
+    try {
+      return String(formatter(String(value ?? '')));
+    } catch (error) {
+      return String(value ?? '');
+    }
+  }
+
+  return String(value ?? '');
+}
+
+function getYAxisThousandsOptions(tooltipComponent: any): ThousandsOptions {
+  const yAxisOptions = getPrimaryAxisOptions(tooltipComponent, 'yAxis');
+
+  if (!yAxisOptions) {
     return { mode: 'none' };
   }
 
-  const metadata = (yAxisOptions as Record<string, unknown>).__editorThousands;
+  const metadata = yAxisOptions.__editorThousands;
 
   if (isThousandsOptions(metadata)) {
     return metadata;
@@ -556,6 +976,10 @@ function getYAxisThousandsOptions(tooltipComponent: any): ThousandsOptions {
   }
 
   return { mode: 'none' };
+}
+
+function formatTooltipCategory(value: unknown, tooltipComponent: any) {
+  return formatTooltipAxisValue('xAxis', value, tooltipComponent);
 }
 
 function getTooltipFontStyle(themePart: any) {
@@ -582,6 +1006,20 @@ function getTooltipFontStyle(themePart: any) {
 }
 
 function formatTooltipNumber(value: unknown, tooltipComponent: any): string {
+  if (isPlainObject(value) && 'x' in value && 'y' in value) {
+    const xValue = formatTooltipAxisValue('xAxis', (value as any).x, tooltipComponent);
+    const yValue = formatTooltipAxisValue('yAxis', (value as any).y, tooltipComponent);
+
+    if ('r' in value) {
+      return `(${xValue}, ${yValue}), r: ${formatTooltipNumber(
+        (value as any).r,
+        tooltipComponent
+      )}`;
+    }
+
+    return `(${xValue}, ${yValue})`;
+  }
+
   const thousandsOptions = getYAxisThousandsOptions(tooltipComponent);
 
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -609,6 +1047,67 @@ function formatTooltipNumber(value: unknown, tooltipComponent: any): string {
   return String(value ?? '');
 }
 
+function resolveScatterDataLabelFormatter(chartOptions: ChartOptions) {
+  const chartType = chartOptions.editorChart?.type;
+
+  if (chartType !== 'scatter') {
+    return;
+  }
+
+  const seriesOptions = isPlainObject(chartOptions.series)
+    ? (chartOptions.series as Record<string, any>)
+    : null;
+  const dataLabelOptionCandidates = [seriesOptions?.dataLabels, seriesOptions?.scatter?.dataLabels];
+
+  dataLabelOptionCandidates.forEach((dataLabelOptions) => {
+    if (!isPlainObject(dataLabelOptions)) {
+      return;
+    }
+
+    if (dataLabelOptions.formatter === 'label') {
+      dataLabelOptions.formatter = (_value: unknown, pointData?: { label?: string }) =>
+        String(pointData?.label ?? '');
+    }
+  });
+}
+
+function normalizeSingleChartSeriesTheme(chartOptions: ChartOptions) {
+  const chartType = chartOptions.editorChart?.type;
+
+  if (!chartType) {
+    return;
+  }
+
+  const themeOptions = (chartOptions as any).theme;
+
+  if (!isPlainObject(themeOptions) || !isPlainObject(themeOptions.series)) {
+    return;
+  }
+
+  const seriesTheme = themeOptions.series as Record<string, unknown>;
+  const typedSeriesTheme = seriesTheme[chartType];
+
+  if (!isPlainObject(typedSeriesTheme)) {
+    return;
+  }
+
+  const flattenedSeriesTheme = Object.keys(seriesTheme).reduce<Record<string, unknown>>(
+    (acc, key) => {
+      if (!SERIES_THEME_TYPE_KEYS.includes(key)) {
+        acc[key] = seriesTheme[key];
+      }
+
+      return acc;
+    },
+    {}
+  );
+
+  themeOptions.series = mergeChartOptions(
+    flattenedSeriesTheme,
+    typedSeriesTheme as Record<string, unknown>
+  );
+}
+
 function getTooltipSeriesCollection(tooltipComponent: any) {
   const seriesState = tooltipComponent?.store?.state?.series;
 
@@ -629,7 +1128,7 @@ function getTooltipSeriesCollection(tooltipComponent: any) {
   return [];
 }
 
-function getTooltipCategoryIndex(model: any) {
+function getTooltipModelCategoryIndex(model: any) {
   if (!Array.isArray(model?.data)) {
     return null;
   }
@@ -637,6 +1136,71 @@ function getTooltipCategoryIndex(model: any) {
   const indexOwner = model.data.find((item: any) => Number.isInteger(item?.index));
 
   return indexOwner ? indexOwner.index : null;
+}
+
+function getTooltipCategoryLabel(model: any) {
+  if (typeof model?.category === 'string' || typeof model?.category === 'number') {
+    return model.category;
+  }
+
+  if (!Array.isArray(model?.data)) {
+    return null;
+  }
+
+  const categoryOwner = model.data.find(
+    (item: any) => typeof item?.category === 'string' || typeof item?.category === 'number'
+  );
+
+  return categoryOwner ? categoryOwner.category : null;
+}
+
+function parseLooseNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value
+    .trim()
+    .replace(/[\s,_]/g, '')
+    .replace(/,/g, '.');
+  const parsed = Number(normalized);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function resolveTooltipCategoryIndex(tooltipComponent: any, model: any) {
+  const optionCategoryLabels = tooltipComponent?.store?.state?.options?.editorCategoryLabels;
+  const categoryLabel = getTooltipCategoryLabel(model);
+
+  if (Array.isArray(optionCategoryLabels) && optionCategoryLabels.length && !isNil(categoryLabel)) {
+    const numericCategoryLabel = parseLooseNumber(categoryLabel);
+    const numericLabels = optionCategoryLabels.map((value: unknown) => parseLooseNumber(value));
+    const hasNumericLabels = numericLabels.every((value) => Number.isFinite(value));
+
+    if (Number.isFinite(numericCategoryLabel) && hasNumericLabels) {
+      for (let index = numericLabels.length - 1; index >= 0; index -= 1) {
+        if ((numericLabels[index] as number) <= (numericCategoryLabel as number)) {
+          return index;
+        }
+      }
+
+      return 0;
+    }
+
+    const resolvedIndex = optionCategoryLabels.findIndex(
+      (labelValue: unknown) => String(labelValue) === String(categoryLabel)
+    );
+
+    if (resolvedIndex >= 0) {
+      return resolvedIndex;
+    }
+  }
+
+  return getTooltipModelCategoryIndex(model);
 }
 
 function getTooltipSeriesColor(colorValue: unknown) {
@@ -711,6 +1275,18 @@ function normalizeTooltipSeriesValue(rawValue: any): string | number | null {
   return null;
 }
 
+export function getTooltipRawSeriesValue(seriesItem: any, categoryIndex: number) {
+  if (Array.isArray(seriesItem?.editorRawData)) {
+    return seriesItem.editorRawData[categoryIndex] ?? null;
+  }
+
+  if (Array.isArray(seriesItem?.rawData)) {
+    return seriesItem.rawData[categoryIndex] ?? null;
+  }
+
+  return null;
+}
+
 function wrapTooltipTemplate(theme: any, headerMarkup: string, bodyMarkup: string) {
   const borderWidth = Number.isFinite(theme?.borderWidth) ? theme.borderWidth : 1;
   const borderStyle = theme?.borderStyle || 'solid';
@@ -729,7 +1305,8 @@ function buildFullSeriesTooltip(
   theme: any
 ) {
   const seriesCollection = getTooltipSeriesCollection(tooltipComponent);
-  const categoryIndex = getTooltipCategoryIndex(model);
+  const categoryIndex = resolveTooltipCategoryIndex(tooltipComponent, model);
+  const optionCategoryLabels = tooltipComponent?.store?.state?.options?.editorCategoryLabels;
 
   if (!seriesCollection.length || isNil(categoryIndex) || categoryIndex < 0) {
     return wrapTooltipTemplate(theme, defaultTemplate?.header || '', defaultTemplate?.body || '');
@@ -748,10 +1325,10 @@ function buildFullSeriesTooltip(
       const tooltipData = visibleModelSeries.get(seriesIndex);
       const label = tooltipData?.label || seriesItem?.name || `Series ${seriesIndex + 1}`;
       const color = getTooltipSeriesColor(tooltipData?.color ?? seriesItem?.color);
-      const rawSeriesValue = Array.isArray(seriesItem?.rawData)
-        ? seriesItem.rawData[categoryIndex]
-        : null;
-      const rawValue = tooltipData?.value ?? rawSeriesValue;
+      const rawSeriesValue = getTooltipRawSeriesValue(seriesItem, categoryIndex);
+      const hasRawData =
+        Array.isArray(seriesItem?.editorRawData) || Array.isArray(seriesItem?.rawData);
+      const rawValue = hasRawData ? rawSeriesValue : tooltipData?.value ?? rawSeriesValue;
       const normalizedValue = normalizeTooltipSeriesValue(rawValue);
       const valueMarkup = isNil(normalizedValue)
         ? '<span class="td-chart-tooltip-none">None</span>'
@@ -767,10 +1344,16 @@ function buildFullSeriesTooltip(
     })
     .join('');
 
-  const headerMarkup = model.category
+  const headerCategory =
+    Array.isArray(optionCategoryLabels) && !isNil(categoryIndex) && categoryIndex >= 0
+      ? optionCategoryLabels[categoryIndex]
+      : model.category;
+  const formattedHeaderCategory = formatTooltipCategory(headerCategory, tooltipComponent);
+  const hasHeaderCategory = !isNil(headerCategory) && String(headerCategory).length > 0;
+  const headerMarkup = hasHeaderCategory
     ? `<div class="td-chart-tooltip-category" style="${getTooltipFontStyle(
         theme?.header
-      )}">${escapeHTML(model.category)}</div>`
+      )}">${escapeHTML(formattedHeaderCategory)}</div>`
     : '';
   const bodyMarkup = `<div class="td-chart-tooltip-series-wrapper" style="${getTooltipFontStyle(
     theme?.body
@@ -783,7 +1366,7 @@ export function setDefaultOptions(
   chartOptions: ChartOptions,
   pluginOptions: PluginOptions,
   chartContainer: HTMLElement,
-  chartData?: ChartData
+  chartData?: ParsedChartData
 ) {
   chartOptions = (mergeChartOptions(
     getPluginChartOptions(pluginOptions),
@@ -806,17 +1389,29 @@ export function setDefaultOptions(
 
   // default chart type
   chartOptions.editorChart.type = chartOptions.editorChart.type || 'column';
+  const chartType = chartOptions.editorChart.type;
+
+  applyScatterLegendDefaults(chartOptions, chartData);
+
+  normalizeSingleChartSeriesTheme(chartOptions);
+
   // default visibility of export menu
   chartOptions.exportMenu!.visible = !!chartOptions.exportMenu!.visible;
   if (typeof chartOptions.tooltip!.transition === 'undefined') {
     chartOptions.tooltip!.transition = false;
   }
-  if (typeof chartOptions.tooltip!.formatter !== 'function') {
+  if (chartType !== 'scatter' && typeof chartOptions.tooltip!.formatter !== 'function') {
     chartOptions.tooltip!.formatter = function formatter(value: unknown) {
       return formatTooltipNumber(value, this);
     };
   }
-  if (typeof chartOptions.tooltip!.template !== 'function') {
+  if (chartType === 'scatter') {
+    if (typeof chartOptions.tooltip!.formatter !== 'function') {
+      chartOptions.tooltip!.formatter = function formatter(value: unknown) {
+        return formatTooltipNumber(value, this);
+      };
+    }
+  } else if (typeof chartOptions.tooltip!.template !== 'function') {
     chartOptions.tooltip!.template = function template(model, defaultTemplate, theme) {
       return buildFullSeriesTooltip(this, model, defaultTemplate, theme);
     };
@@ -865,7 +1460,9 @@ export function setDefaultOptions(
     });
   });
 
+  resolveScatterDataLabelFormatter(chartOptions);
   assignSeriesStyleByIndex(chartOptions, chartData);
+  applySparseSeriesVisibilityFallback(chartOptions, chartData);
 
   return chartOptions;
 }
@@ -929,29 +1526,39 @@ function doRenderChart(
 
       const { data, options } = parsedInfo || {};
       const chartOptions = setDefaultOptions(options!, pluginOptions, chartContainer, data);
+      const adjustedData = applyLineNullGapMode(chartOptions, data);
       const chartType = chartOptions.editorChart.type!;
       const dark = effectiveDarkMode !== null ? effectiveDarkMode : isDarkMode(chartContainer);
 
       if (dark) {
-        (chartOptions as any).theme = DARK_CHART_THEME;
+        (chartOptions as any).theme = mergeChartOptions(
+          (DARK_CHART_THEME as unknown) as Record<string, unknown>,
+          ((chartOptions as any).theme || {}) as Record<string, unknown>
+        );
       }
 
       if (
-        !data ||
+        !adjustedData ||
         (CATEGORY_CHART_TYPES.indexOf(chartType) > -1 &&
-          data.categories.length !== data.series[0].data.length)
+          !isCoordinateSeriesData(adjustedData) &&
+          Array.isArray(adjustedData.categories) &&
+          adjustedData.categories.length !== adjustedData.series[0].data.length)
       ) {
         chartContainer.innerHTML = 'invalid chart data';
         delete chartMap[id];
       } else if (SUPPORTED_CHART_TYPES.indexOf(chartType) < 0) {
-        chartContainer.innerHTML = `invalid chart type. type: bar, column, line, area, pie`;
+        chartContainer.innerHTML = `invalid chart type. type: bar, column, line, area, pie, scatter`;
         delete chartMap[id];
       } else {
         const toastuiChart = chart[chartType];
 
         chartOptions.usageStatistics = usageStatistics;
         // @ts-ignore
-        chartMap[id] = toastuiChart({ el: chartContainer, data, options: chartOptions });
+        chartMap[id] = toastuiChart({
+          el: chartContainer,
+          data: adjustedData as any,
+          options: chartOptions,
+        });
       }
     });
   } catch (e) {

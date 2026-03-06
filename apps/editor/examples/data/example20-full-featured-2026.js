@@ -47,6 +47,39 @@ y.max: 40
 y.suffix: $
 \`\`\`
 
+## Scatter (marker color / callout demo)
+\`\`\`chart
+Item,X,Y
+G,5,5
+M,5,4.5
+A,4.5,5
+Y,4,4
+S,3.5,4
+O,3.5,3
+K,3,2.5
+V,3.5,3.6
+T,3.5,3.3
+
+type: scatter
+title: Position
+width: 700
+height: 420
+x.title: Scale A
+y.title: Scale B
+x.min: 0
+x.max: 5.5
+y.min: 0
+y.max: 5.5
+series.dataLabels.visible: true
+series.dataLabels.formatter: "label"
+theme.series.scatter.dataLabels.callout.lineWidth: 1.2
+theme.series.scatter.dataLabels.callout.lineColor: "blue"
+theme.series.colors: ["black"]
+theme.series.scatter.fillColor: "yellow"
+theme.series.scatter.borderWidth: 0.4
+theme.series.scatter.size: 9
+\`\`\`
+
 ## UML (official, preview)
 \`\`\`uml
 Alice -> Bob: Hello

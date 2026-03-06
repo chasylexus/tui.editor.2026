@@ -6,6 +6,9 @@ import {
   parseToChartData,
   detectDelimiter,
   setDefaultOptions,
+  applyLineNullGapMode,
+  resolveTooltipCategoryIndex,
+  getTooltipRawSeriesValue,
   ChartOptions,
 } from '@/index';
 
@@ -29,6 +32,7 @@ jest.mock('@techie_doubts/tui.chart.2026', () => ({
     areaChart: (args: { el: HTMLElement }) => chartRenderMock(args),
     lineChart: (args: { el: HTMLElement }) => chartRenderMock(args),
     pieChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+    scatterChart: (args: { el: HTMLElement }) => chartRenderMock(args),
   },
 }));
 
@@ -216,7 +220,7 @@ describe('chart render lifecycle', () => {
       {} as PluginOptions
     );
 
-    const rendered = pluginInfo.toHTMLRenderers?.chart?.({
+    const rendered = (pluginInfo.toHTMLRenderers as any)?.chart?.({
       literal: ['x,y', 'a,1', 'b,2', '', 'type: line'].join('\n'),
     } as any);
 
@@ -357,6 +361,61 @@ describe('parseToChartData()', () => {
         },
         {
           data: [2.345, 4.567],
+        },
+      ],
+    });
+  });
+
+  it('should keep sparse series when values are missing on alternating categories', () => {
+    expect(
+      parseToChartData(
+        `
+            ,Series Even,Series Odd
+            0,1
+            1,,2
+            2,3
+            3,,4
+            4,5
+            5,,6
+          `,
+        ','
+      )
+    ).toEqual({
+      categories: ['0', '1', '2', '3', '4', '5'],
+      series: [
+        {
+          name: 'Series Even',
+          data: [1, null, 3, null, 5, null],
+        },
+        {
+          name: 'Series Odd',
+          data: [null, 2, null, 4, null, 6],
+        },
+      ],
+    });
+  });
+
+  it('should parse labeled scatter rows into point coordinates', () => {
+    expect(
+      parseToChartData(
+        `
+            Платформа,X,Y,Комментарий
+            Google,5,5,global leader
+            Meta,5,4.5,social ecosystem
+            Amazon,4.5,5,commerce ecosystem
+          `,
+        ',',
+        'scatter'
+      )
+    ).toEqual({
+      series: [
+        {
+          name: 'Points',
+          data: [
+            { x: 5, y: 5, label: 'Google' },
+            { x: 5, y: 4.5, label: 'Meta' },
+            { x: 4.5, y: 5, label: 'Amazon' },
+          ],
         },
       ],
     });
@@ -583,6 +642,55 @@ describe('setDefaultOptions', () => {
     expect(formatted).toBe('1_234_567.80');
   });
 
+  it('should apply xAxis formatter to tooltip header category', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: {},
+        tooltip: {},
+        xAxis: {
+          thousands: '_',
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+    const tooltipTemplate = chartOptions.tooltip!.template as Function;
+    const tooltipMarkup = tooltipTemplate.call(
+      {
+        store: {
+          state: {
+            options: {
+              ...chartOptions,
+              editorCategoryLabels: ['1000000'],
+            },
+            series: {
+              line: {
+                data: [
+                  {
+                    name: 'A',
+                    rawData: [1],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        category: '1000000',
+        data: [{ seriesIndex: 0, index: 0, category: '1000000', value: 1, label: 'A' }],
+      },
+      { header: '', body: '' },
+      {}
+    );
+
+    expect((chartOptions as any).xAxis.__editorThousands).toEqual({
+      mode: 'custom',
+      separator: '_',
+    });
+    expect(tooltipMarkup).toContain('1_000_000');
+  });
+
   it('should not add thousands separator when y.thousands is not set', () => {
     const chartOptions = setDefaultOptions(
       {
@@ -633,6 +741,247 @@ describe('setDefaultOptions', () => {
     });
   });
 
+  it('should auto-enable showDot for sparse isolated points in line/area charts', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container,
+      {
+        categories: ['0', '1', '2', '3', '4', '5'],
+        series: [
+          { name: 'Even', data: [1, null, 3, null, 5, null] },
+          { name: 'Odd', data: [null, 2, null, 4, null, 6] },
+        ],
+      }
+    );
+
+    expect((chartOptions as any).series.showDot).toBe(true);
+  });
+
+  it('should not override explicit showDot option for sparse isolated points', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+        series: {
+          showDot: false,
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container,
+      {
+        categories: ['0', '1', '2', '3'],
+        series: [
+          { name: 'Even', data: [1, null, 3, null] },
+          { name: 'Odd', data: [null, 2, null, 4] },
+        ],
+      }
+    );
+
+    expect((chartOptions as any).series.showDot).toBe(false);
+  });
+
+  it('should connect null gaps by default for line chart', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+    const rawData = {
+      categories: ['0', '1', '2', '3'],
+      series: [
+        {
+          name: 'A',
+          data: [1, null, 3, null] as (number | null)[],
+        },
+      ],
+    };
+
+    const adjusted = applyLineNullGapMode(chartOptions, rawData as any)!;
+
+    expect(adjusted.series[0].data).toEqual([
+      [0, 1],
+      [2, 3],
+    ]);
+    expect(adjusted.categories).toBeUndefined();
+    expect((adjusted.series[0] as any).editorRawData).toEqual([1, null, 3, null]);
+    expect((chartOptions as any).series.eventDetectType).toBe('near');
+  });
+
+  it('should preserve numeric x categories when connecting null gaps', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+    const rawData = {
+      categories: ['43461', '455000', '600000'],
+      series: [
+        {
+          name: 'A',
+          data: [1672, null, 2222] as (number | null)[],
+        },
+      ],
+    };
+
+    const adjusted = applyLineNullGapMode(chartOptions, rawData as any)!;
+
+    expect(adjusted.series[0].data).toEqual([
+      [43461, 1672],
+      [600000, 2222],
+    ]);
+    expect(adjusted.categories).toBeUndefined();
+  });
+
+  it('should not override explicit series.eventDetectType', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+        series: {
+          eventDetectType: 'point',
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+    const rawData = {
+      categories: ['0', '1', '2', '3'],
+      series: [
+        {
+          name: 'A',
+          data: [1, null, 3, null] as (number | null)[],
+        },
+      ],
+    };
+
+    applyLineNullGapMode(chartOptions, rawData as any)!;
+
+    expect((chartOptions as any).series.eventDetectType).toBe('point');
+  });
+
+  it('should resolve tooltip category index by category label for connectNulls mode', () => {
+    const tooltipComponent = {
+      store: {
+        state: {
+          options: {
+            editorCategoryLabels: ['43461', '455000', '600000'],
+          },
+        },
+      },
+    };
+    const model = {
+      category: '455000',
+      data: [{ seriesIndex: 1, index: 0, category: '455000' }],
+    };
+
+    expect(resolveTooltipCategoryIndex(tooltipComponent, model)).toBe(1);
+  });
+
+  it('should resolve tooltip category index by category floor for numeric labels', () => {
+    const tooltipComponent = {
+      store: {
+        state: {
+          options: {
+            editorCategoryLabels: ['0', '2', '4', '6'],
+          },
+        },
+      },
+    };
+    const model = {
+      category: '5.5',
+      data: [{ seriesIndex: 0, index: 3, category: '5.5' }],
+    };
+
+    expect(resolveTooltipCategoryIndex(tooltipComponent, model)).toBe(2);
+  });
+
+  it('should use exact series value on resolved category index for connected null-gap series', () => {
+    const seriesItem = {
+      editorRawData: [1672, null, 2222, null],
+      data: [
+        [43461, 1672],
+        [600000, 2222],
+      ],
+    };
+
+    expect(getTooltipRawSeriesValue(seriesItem, 0)).toBe(1672);
+    expect(getTooltipRawSeriesValue(seriesItem, 1)).toBeNull();
+    expect(getTooltipRawSeriesValue(seriesItem, 2)).toBe(2222);
+  });
+
+  it('should fallback to tooltip model index when category labels are unavailable', () => {
+    const tooltipComponent = {
+      store: {
+        state: {
+          options: {},
+        },
+      },
+    };
+    const model = {
+      data: [{ seriesIndex: 0, index: 2 }],
+    };
+
+    expect(resolveTooltipCategoryIndex(tooltipComponent, model)).toBe(2);
+  });
+
+  it('should keep gaps when series.breakOnNull is true', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+        series: {
+          breakOnNull: true,
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+    const rawData = {
+      categories: ['0', '1', '2', '3'],
+      series: [
+        {
+          name: 'A',
+          data: [1, null, 3, null] as (number | null)[],
+        },
+      ],
+    };
+
+    const adjusted = applyLineNullGapMode(chartOptions, rawData as any)!;
+
+    expect(adjusted.series[0].data).toEqual([1, null, 3, null]);
+    expect((adjusted.series[0] as any).editorRawData).toBeUndefined();
+  });
+
+  it('should keep gaps when series.connectNulls is false', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'line' },
+        series: {
+          connectNulls: false,
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+    const rawData = {
+      categories: ['0', '1', '2', '3'],
+      series: [
+        {
+          name: 'A',
+          data: [1, null, 3, null] as (number | null)[],
+        },
+      ],
+    };
+
+    const adjusted = applyLineNullGapMode(chartOptions, rawData as any)!;
+
+    expect(adjusted.series[0].data).toEqual([1, null, 3, null]);
+  });
+
   it('should configure default tooltip formatter/template only when missing', () => {
     const customTemplate = jest.fn(() => '<div>custom</div>');
     const customFormatter = jest.fn(() => 'custom');
@@ -654,5 +1003,139 @@ describe('setDefaultOptions', () => {
     expect(typeof withDefaults.tooltip!.template).toBe('function');
     expect(withCustom.tooltip!.template).toBe(customTemplate);
     expect(withCustom.tooltip!.formatter).toBe(customFormatter);
+  });
+
+  it('should keep default scatter tooltip template and format coordinate values', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'scatter' },
+        xAxis: {
+          label: {
+            formatter: (value: string) => `x=${value}`,
+          },
+        },
+        yAxis: {
+          label: {
+            formatter: (value: string) => `y=${value}`,
+          },
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect(typeof chartOptions.tooltip!.formatter).toBe('function');
+    expect(chartOptions.tooltip!.template).toBeUndefined();
+    expect(
+      chartOptions.tooltip!.formatter!.call(
+        {
+          store: {
+            state: {
+              options: chartOptions,
+            },
+          },
+        },
+        { x: 5, y: 4.5 }
+      )
+    ).toBe('(x=5, y=4.5)');
+  });
+
+  it('should hide default singleton scatter legend (Points) when visibility is not explicitly set', () => {
+    const chartData = {
+      series: [
+        {
+          name: 'Points',
+          data: [
+            { x: 1, y: 2, label: 'A' },
+            { x: 2, y: 3, label: 'B' },
+          ],
+        },
+      ],
+    };
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'scatter' },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container,
+      chartData as any
+    );
+
+    expect(chartOptions.legend).toEqual({ visible: false });
+  });
+
+  it('should keep explicit scatter legend visibility setting', () => {
+    const chartData = {
+      series: [
+        {
+          name: 'Points',
+          data: [{ x: 1, y: 2, label: 'A' }],
+        },
+      ],
+    };
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'scatter' },
+        legend: { visible: true },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container,
+      chartData as any
+    );
+
+    expect(chartOptions.legend).toEqual({ visible: true });
+  });
+
+  it('should convert scatter label formatter keyword into formatter function', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'scatter' },
+        series: {
+          dataLabels: {
+            visible: true,
+            formatter: 'label',
+          },
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect(typeof (chartOptions.series as any).dataLabels.formatter).toBe('function');
+    expect((chartOptions.series as any).dataLabels.formatter(null, { label: 'Google' })).toBe(
+      'Google'
+    );
+  });
+
+  it('should normalize type-scoped series theme for single scatter chart', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: { type: 'scatter' },
+        theme: {
+          series: {
+            colors: ['#4A90D9'],
+            scatter: {
+              dataLabels: {
+                callout: {
+                  lineWidth: 4,
+                  lineColor: '#ff3355',
+                  useSeriesColor: false,
+                },
+              },
+            },
+          },
+        },
+      } as unknown as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect((chartOptions as any).theme.series.colors).toEqual(['#4A90D9']);
+    expect((chartOptions as any).theme.series.dataLabels.callout).toEqual({
+      lineWidth: 4,
+      lineColor: '#ff3355',
+      useSeriesColor: false,
+    });
+    expect((chartOptions as any).theme.series.scatter).toBeUndefined();
   });
 });
