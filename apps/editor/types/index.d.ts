@@ -1,4 +1,4 @@
-// Type definitions for TOAST UI Editor v3.3.6
+// Type definitions for TOAST UI Editor v3.3.14
 // TypeScript Version: 4.2.3
 import {
   EditorCore,
