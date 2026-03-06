@@ -176,6 +176,7 @@ function setDevelopConfig(config) {
   config.output.publicPath = '/dist/cdn';
 
   config.plugins.pop();
+  addCopyPluginForThemeCss(config);
   config.externals = [];
 
   config.devtool = 'inline-source-map';

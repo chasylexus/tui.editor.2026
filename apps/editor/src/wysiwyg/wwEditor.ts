@@ -19,7 +19,13 @@ import { CodeBlockView } from './nodeview/codeBlockView';
 
 import { changePastedHTML, changePastedSlice } from './clipboard/paste';
 import { pasteToTable } from './clipboard/pasteToTable';
-import { looksLikeMarkdownPaste } from './clipboard/markdownPaste';
+import {
+  convertHtmlTableToNormalizedMarkdownTable,
+  convertTabularPlainTextToMarkdownTable,
+  hasRichHtmlClipboard,
+  looksLikeMarkdownPaste,
+  normalizeMarkdownTableShape,
+} from './clipboard/markdownPaste';
 import { createSpecs } from './specCreator';
 
 import { Emitter } from '@t/event';
@@ -570,8 +576,49 @@ export default class WysiwygEditor extends EditorBase {
           }
 
           const plainText = clipboardData?.getData('text/plain') ?? '';
+          const htmlText = clipboardData?.getData('text/html') ?? '';
+          const normalizedHtmlTable = convertHtmlTableToNormalizedMarkdownTable(htmlText);
+          const normalizedMarkdownTable = normalizeMarkdownTableShape(plainText);
+          const tabularMarkdown = convertTabularPlainTextToMarkdownTable(plainText);
+          const richHtmlClipboard = hasRichHtmlClipboard(htmlText);
 
-          if (looksLikeMarkdownPaste(plainText)) {
+          if (normalizedHtmlTable) {
+            const handled = this.eventEmitter
+              .emit('pasteMarkdownInWysiwyg', normalizedHtmlTable)
+              .some(Boolean);
+
+            if (handled) {
+              ev.preventDefault();
+
+              return true;
+            }
+          }
+
+          if (normalizedMarkdownTable) {
+            const handled = this.eventEmitter
+              .emit('pasteMarkdownInWysiwyg', normalizedMarkdownTable)
+              .some(Boolean);
+
+            if (handled) {
+              ev.preventDefault();
+
+              return true;
+            }
+          }
+
+          if (tabularMarkdown && !richHtmlClipboard) {
+            const handled = this.eventEmitter
+              .emit('pasteMarkdownInWysiwyg', tabularMarkdown)
+              .some(Boolean);
+
+            if (handled) {
+              ev.preventDefault();
+
+              return true;
+            }
+          }
+
+          if (!richHtmlClipboard && looksLikeMarkdownPaste(plainText)) {
             const handled = this.eventEmitter
               .emit('pasteMarkdownInWysiwyg', plainText)
               .some(Boolean);

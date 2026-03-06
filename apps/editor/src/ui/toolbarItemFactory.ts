@@ -136,6 +136,15 @@ function createDefaultToolbarItemInfo(type: string) {
         text: 'U',
       };
       break;
+    case 'clearStyle':
+      info = {
+        name: 'clearStyle',
+        className: 'clear-style',
+        command: 'clearStyle',
+        tooltip: 'Clear inline styles',
+        text: 'Tx',
+      };
+      break;
     case 'hr':
       info = {
         name: 'hr',

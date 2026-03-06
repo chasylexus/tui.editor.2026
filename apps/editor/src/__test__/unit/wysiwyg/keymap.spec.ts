@@ -151,6 +151,32 @@ describe('keymap', () => {
 
         expect(wwe.getSelection()).toEqual([23, 23]);
       });
+
+      it('should not crash on malformed rows with missing cells', () => {
+        html = oneLineTrim`
+          <table>
+            <thead>
+              <tr>
+                <th><p>h1</p></th>
+                <th><p>h2</p></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><p>a1</p></td>
+              </tr>
+              <tr>
+                <td><p>b1</p></td>
+                <td><p>b2</p></td>
+              </tr>
+            </tbody>
+          </table>
+        `;
+        setContent(html);
+        wwe.setSelection(20, 20); // in a1 cell
+
+        expect(() => forceKeymapFn('table', 'moveToCell', ['right'])).not.toThrow();
+      });
     });
 
     describe('moveToCell keymap with left (shift + tab key)', () => {

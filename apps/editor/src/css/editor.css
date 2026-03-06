@@ -882,7 +882,8 @@
 
 .toastui-editor-toolbar-icons.superscript,
 .toastui-editor-toolbar-icons.subscript,
-.toastui-editor-toolbar-icons.underline {
+.toastui-editor-toolbar-icons.underline,
+.toastui-editor-toolbar-icons.clear-style {
   background: none;
   font-size: 12px;
   font-weight: bold;
@@ -893,6 +894,11 @@
 
 .toastui-editor-toolbar-icons.underline {
   text-decoration: underline;
+}
+
+.toastui-editor-toolbar-icons.clear-style {
+  font-size: 11px;
+  letter-spacing: -0.2px;
 }
 
 .toastui-editor-toolbar-icons.mark.active,
@@ -957,6 +963,20 @@
 
 .toastui-editor-toolbar-icons.anchor.active {
   color: #00a9ff;
+}
+
+.toastui-editor-dark .toastui-editor-toolbar-icons.anchor,
+.toastui-editor-dark .toastui-editor-toolbar-icons.clear-style {
+  color: #eee !important;
+}
+
+.toastui-editor-dark .toastui-editor-toolbar-icons.anchor::before {
+  color: inherit !important;
+}
+
+.toastui-editor-dark .toastui-editor-toolbar-icons.anchor.active,
+.toastui-editor-dark .toastui-editor-toolbar-icons.clear-style.active {
+  color: #00a9ff !important;
 }
 
 .toastui-editor-toolbar-icons.code {

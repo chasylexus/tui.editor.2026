@@ -9,5 +9,6 @@ export function getDefaultCommands(): Record<string, EditorCommand> {
     selectAll: () => selectAll,
     undo: () => undo,
     redo: () => redo,
+    clearStyle: () => () => false,
   };
 }

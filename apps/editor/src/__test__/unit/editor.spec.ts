@@ -854,6 +854,56 @@ describe('editor', () => {
       expect(editor.commandManager.exec).toHaveBeenCalledWith('bold', undefined);
     });
 
+    it('should clear inline style attrs in selected wysiwyg content', () => {
+      editor.setMarkdown('Alpha Beta');
+      editor.changeMode('wysiwyg');
+
+      // @ts-ignore
+      const wwView = editor.wwEditor.view;
+      let paragraphPos = -1;
+
+      wwView.state.doc.descendants((node: any, pos: number) => {
+        if (paragraphPos < 0 && node.type.name === 'paragraph') {
+          paragraphPos = pos;
+          return false;
+        }
+        return true;
+      });
+
+      expect(paragraphPos).toBeGreaterThanOrEqual(0);
+
+      const paragraph = wwView.state.doc.nodeAt(paragraphPos);
+
+      expect(paragraph).not.toBeNull();
+
+      const tr = wwView.state.tr;
+
+      tr.setNodeMarkup(paragraphPos, null, {
+        ...paragraph!.attrs,
+        htmlAttrs: {
+          ...(paragraph!.attrs.htmlAttrs || {}),
+          style: 'font-family:Papyrus;color:#f00;',
+        },
+      });
+      wwView.dispatch(tr);
+
+      expect(editor.getHTML()).toContain('style=');
+
+      editor.exec('selectAll');
+      editor.exec('clearStyle');
+
+      expect(editor.getHTML()).toContain('Alpha');
+      expect(editor.getHTML()).toContain('Beta');
+      expect(editor.getHTML()).not.toContain('style=');
+      expect(() => editor.getMarkdown()).not.toThrow();
+    });
+
+    it('should not throw clearStyle command in markdown mode', () => {
+      editor.setMarkdown('line');
+
+      expect(() => editor.exec('clearStyle')).not.toThrow();
+    });
+
     it('addCommand()', () => {
       const spy = jest.fn();
       // @ts-ignore
@@ -1646,6 +1696,31 @@ describe('editor', () => {
         `;
 
         expect(wwEditor.innerHTML).toContain(result);
+      });
+
+      it('should unwrap empty span html-inline mark after clearStyle', () => {
+        createEditor({
+          el: container,
+          initialValue: '<span style="font-family:Papyrus;">Brand Lift</span>',
+          customHTMLRenderer: {
+            htmlInline: {
+              // @ts-ignore
+              span(node: any, { entering }: any) {
+                return entering
+                  ? { type: 'openTag', tagName: 'span', attributes: node.attrs }
+                  : { type: 'closeTag', tagName: 'span' };
+              },
+            },
+          },
+        });
+
+        editor.changeMode('wysiwyg');
+        editor.exec('selectAll');
+        editor.exec('clearStyle');
+
+        expect(editor.getMarkdown()).toBe('Brand Lift');
+        expect(editor.getHTML()).toContain('Brand Lift');
+        expect(editor.getHTML()).not.toContain('<span');
       });
     });
 

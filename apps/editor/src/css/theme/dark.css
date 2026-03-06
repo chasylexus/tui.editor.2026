@@ -25,15 +25,27 @@
 
 .toastui-editor-dark .toastui-editor-toolbar-icons.superscript,
 .toastui-editor-dark .toastui-editor-toolbar-icons.subscript,
-.toastui-editor-dark .toastui-editor-toolbar-icons.underline {
+.toastui-editor-dark .toastui-editor-toolbar-icons.underline,
+.toastui-editor-dark .toastui-editor-toolbar-icons.clear-style {
   color: #eee;
+}
+
+.toastui-editor-dark .toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons.anchor,
+.toastui-editor-dark .toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons.clear-style {
+  color: #eee !important;
+}
+
+.toastui-editor-dark .toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons.anchor::before {
+  color: inherit !important;
 }
 
 .toastui-editor-dark .toastui-editor-toolbar-icons.mark.active,
 .toastui-editor-dark .toastui-editor-toolbar-icons.superscript.active,
 .toastui-editor-dark .toastui-editor-toolbar-icons.subscript.active,
-.toastui-editor-dark .toastui-editor-toolbar-icons.underline.active {
-  color: #00a9ff;
+.toastui-editor-dark .toastui-editor-toolbar-icons.underline.active,
+.toastui-editor-dark .toastui-editor-toolbar-icons.anchor.active,
+.toastui-editor-dark .toastui-editor-toolbar-icons.clear-style.active {
+  color: #00a9ff !important;
 }
 
 .toastui-editor-dark .toastui-editor-toolbar-icons:not(:disabled):hover {

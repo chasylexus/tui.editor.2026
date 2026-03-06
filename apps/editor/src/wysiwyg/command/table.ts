@@ -21,6 +21,74 @@ const cellOffsetFnMap: CellOffsetFnMap = {
   down: getDownCellOffset,
 };
 
+function getCellInfoOrNull(map: TableOffsetMap, rowIdx: number, colIdx: number) {
+  if (rowIdx < 0 || rowIdx >= map.totalRowCount || colIdx < 0 || colIdx >= map.totalColumnCount) {
+    return null;
+  }
+
+  const info = (map.getCellInfo(rowIdx, colIdx) as unknown) as
+    | { offset: number; nodeSize: number }
+    | undefined;
+
+  return info && typeof info.offset === 'number' && typeof info.nodeSize === 'number' ? info : null;
+}
+
+function findCellInRow(
+  map: TableOffsetMap,
+  rowIdx: number,
+  startColIdx: number,
+  direction: 1 | -1
+): { rowIdx: number; colIdx: number; offset: number; nodeSize: number } | null {
+  if (rowIdx < 0 || rowIdx >= map.totalRowCount) {
+    return null;
+  }
+
+  const colStart =
+    direction > 0 ? Math.max(0, startColIdx) : Math.min(map.totalColumnCount - 1, startColIdx);
+
+  for (
+    let colIdx = colStart;
+    direction > 0 ? colIdx < map.totalColumnCount : colIdx >= 0;
+    colIdx += direction
+  ) {
+    const info = getCellInfoOrNull(map, rowIdx, colIdx);
+
+    if (info) {
+      return { rowIdx, colIdx, ...info };
+    }
+  }
+
+  return null;
+}
+
+function findNearestCellInRow(
+  map: TableOffsetMap,
+  rowIdx: number,
+  colIdx: number
+): { rowIdx: number; colIdx: number; offset: number; nodeSize: number } | null {
+  const exact = getCellInfoOrNull(map, rowIdx, colIdx);
+
+  if (exact) {
+    return { rowIdx, colIdx, ...exact };
+  }
+
+  for (let distance = 1; distance < map.totalColumnCount; distance += 1) {
+    const left = getCellInfoOrNull(map, rowIdx, colIdx - distance);
+
+    if (left) {
+      return { rowIdx, colIdx: colIdx - distance, ...left };
+    }
+
+    const right = getCellInfoOrNull(map, rowIdx, colIdx + distance);
+
+    if (right) {
+      return { rowIdx, colIdx: colIdx + distance, ...right };
+    }
+  }
+
+  return null;
+}
+
 function isInFirstListItem(
   pos: ResolvedPos,
   doc: ProsemirrorNode,
@@ -183,9 +251,11 @@ export function getRightCellOffset([rowIdx, colIdx]: CellPosition, map: TableOff
       rowIdx += 1;
       nextColIdx = 0;
     }
-    const { offset } = map.getCellInfo(rowIdx, nextColIdx);
+    const cell = findCellInRow(map, rowIdx, nextColIdx, 1);
 
-    return offset + 2;
+    if (cell) {
+      return cell.offset + 2;
+    }
   }
 
   return null;
@@ -205,9 +275,11 @@ export function getLeftCellOffset([rowIdx, colIdx]: CellPosition, map: TableOffs
       colIdx = totalColumnCount - 1;
     }
 
-    const { offset, nodeSize } = map.getCellInfo(rowIdx, colIdx);
+    const cell = findCellInRow(map, rowIdx, colIdx, -1);
 
-    return offset + nodeSize - 2;
+    if (cell) {
+      return cell.offset + cell.nodeSize - 2;
+    }
   }
 
   return null;
@@ -215,9 +287,11 @@ export function getLeftCellOffset([rowIdx, colIdx]: CellPosition, map: TableOffs
 
 export function getUpCellOffset([rowIdx, colIdx]: CellPosition, map: TableOffsetMap) {
   if (rowIdx > 0) {
-    const { offset, nodeSize } = map.getCellInfo(rowIdx - 1, colIdx);
+    const cell = findNearestCellInRow(map, rowIdx - 1, colIdx);
 
-    return offset + nodeSize - 2;
+    if (cell) {
+      return cell.offset + cell.nodeSize - 2;
+    }
   }
 
   return null;
@@ -233,9 +307,11 @@ export function getDownCellOffset([rowIdx, colIdx]: CellPosition, map: TableOffs
     if (rowspanInfo?.count > 1) {
       nextRowIdx += rowspanInfo.count - 1;
     }
-    const { offset } = map.getCellInfo(nextRowIdx, colIdx);
+    const cell = findNearestCellInRow(map, nextRowIdx, colIdx);
 
-    return offset + 2;
+    if (cell) {
+      return cell.offset + 2;
+    }
   }
 
   return null;
@@ -268,7 +344,13 @@ export function canSelectTableNode(
     return false;
   }
   const { tableStartOffset, tableEndOffset } = map;
-  const { offset, nodeSize } = map.getCellInfo(rowIdx, colIdx);
+  const cell = getCellInfoOrNull(map, rowIdx, colIdx);
+
+  if (!cell) {
+    return false;
+  }
+
+  const { offset, nodeSize } = cell;
 
   const pos = direction === Direction.LEFT ? tableStartOffset : tableEndOffset;
   const curPos = direction === Direction.LEFT ? offset - 2 : offset + nodeSize + 3;
