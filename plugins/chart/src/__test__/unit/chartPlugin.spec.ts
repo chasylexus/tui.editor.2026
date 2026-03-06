@@ -33,6 +33,7 @@ jest.mock('@techie_doubts/tui.chart.2026', () => ({
     lineChart: (args: { el: HTMLElement }) => chartRenderMock(args),
     pieChart: (args: { el: HTMLElement }) => chartRenderMock(args),
     scatterChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+    radarChart: (args: { el: HTMLElement }) => chartRenderMock(args),
   },
 }));
 
@@ -416,6 +417,38 @@ describe('parseToChartData()', () => {
             { x: 5, y: 4.5, label: 'Meta' },
             { x: 4.5, y: 5, label: 'Amazon' },
           ],
+        },
+      ],
+    });
+  });
+
+  it('should parse radar matrix data (rows=features, columns=series)', () => {
+    expect(
+      parseToChartData(
+        `
+            ,Alpha,Beta,Gamma
+            Speed,4.2,3.5,4.8
+            Quality,4.7,3.9,4.3
+            Cost,2.1,3.8,2.9
+            Reliability,4.4,3.7,4.6
+          `,
+        ',',
+        'radar'
+      )
+    ).toEqual({
+      categories: ['Speed', 'Quality', 'Cost', 'Reliability'],
+      series: [
+        {
+          name: 'Alpha',
+          data: [4.2, 4.7, 2.1, 4.4],
+        },
+        {
+          name: 'Beta',
+          data: [3.5, 3.9, 3.8, 3.7],
+        },
+        {
+          name: 'Gamma',
+          data: [4.8, 4.3, 2.9, 4.6],
         },
       ],
     });

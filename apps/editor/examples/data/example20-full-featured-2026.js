@@ -80,6 +80,29 @@ theme.series.scatter.borderWidth: 0.4
 theme.series.scatter.size: 9
 \`\`\`
 
+## Radar (rows=features, columns=series)
+\`\`\`chart
+,Alpha,Beta,Gamma
+Speed,4.2,3.5,4.8
+Quality,4.7,3.9,4.3
+Cost,2.1,3.8,2.9
+Reliability,4.4,3.7,4.6
+UX,4.6,3.8,4.1
+
+type: radar
+title: Capability Profile
+width: 720
+height: 440
+series.showDot: true
+series.showArea: true
+plot.type: spiderweb
+verticalAxis.scale.max: 5
+theme.series.areaOpacity: 0.3
+theme.series.dot.radius: 3
+theme.series.dot.borderWidth: 1.2
+theme.series.colors: ["#2563eb", "#f97316", "#16a34a"]
+\`\`\`
+
 ## UML (official, preview)
 \`\`\`uml
 Alice -> Bob: Hello

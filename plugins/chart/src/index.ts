@@ -9,7 +9,7 @@
  * Jan,21,23
  * Feb,35,45
  *
- * type: area                   => editorChart.type  (bar | column | line | area | pie | scatter)
+ * type: area                   => editorChart.type  (bar | column | line | area | pie | scatter | radar)
  * url: http://url/to/data      => editorChart.url   (fetch CSV from URL)
  * width: 700                   => chart.width
  * height: 300                  => chart.height
@@ -41,6 +41,7 @@ import Chart, {
   PieChart,
   ColumnChart,
   ScatterChart,
+  RadarChart,
 } from '@techie_doubts/tui.chart.2026';
 import { PluginOptions } from '@t/index';
 import csv from './csv';
@@ -56,7 +57,7 @@ const reGroupByDelimiter = /([^:]+)?:?(.*)/;
 const DEFAULT_DELIMITER = /\s+/;
 const DELIMITERS = [',', '\t'];
 const MINIMUM_DELIM_CNT = 2;
-const SUPPORTED_CHART_TYPES = ['bar', 'column', 'line', 'area', 'pie', 'scatter'];
+const SUPPORTED_CHART_TYPES = ['bar', 'column', 'line', 'area', 'pie', 'scatter', 'radar'];
 const SERIES_THEME_TYPE_KEYS = [
   'line',
   'area',
@@ -92,6 +93,7 @@ const chart = {
   line: Chart.lineChart,
   pie: Chart.pieChart,
   scatter: Chart.scatterChart,
+  radar: Chart.radarChart,
 };
 const chartMap: Record<string, ChartInstance> = {};
 const chartRenderVersionMap: Record<string, number> = {};
@@ -154,7 +156,14 @@ function ensureChartStyles() {
 
 type ChartType = keyof typeof chart;
 export type ChartOptions = BaseOptions & { editorChart: { type?: ChartType; url?: string } };
-type ChartInstance = BarChart | ColumnChart | AreaChart | LineChart | PieChart | ScatterChart;
+type ChartInstance =
+  | BarChart
+  | ColumnChart
+  | AreaChart
+  | LineChart
+  | PieChart
+  | ScatterChart
+  | RadarChart;
 type ChartCoordinatePoint = [string | number, number];
 type ScatterPoint = { x: string | number; y: number; label?: string };
 type ChartData = {
@@ -1547,7 +1556,7 @@ function doRenderChart(
         chartContainer.innerHTML = 'invalid chart data';
         delete chartMap[id];
       } else if (SUPPORTED_CHART_TYPES.indexOf(chartType) < 0) {
-        chartContainer.innerHTML = `invalid chart type. type: bar, column, line, area, pie, scatter`;
+        chartContainer.innerHTML = `invalid chart type. type: bar, column, line, area, pie, scatter, radar`;
         delete chartMap[id];
       } else {
         const toastuiChart = chart[chartType];
