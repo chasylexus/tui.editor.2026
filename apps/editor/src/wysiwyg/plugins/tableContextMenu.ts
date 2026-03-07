@@ -155,7 +155,7 @@ export function tableContextMenu(eventEmitter: Emitter) {
           const inTableHead = tableCell.nodeName === 'TH';
 
           eventEmitter.emit('contextmenu', {
-            pos: { left: `${clientX - left + 10}px`, top: `${clientY - top + 30}px` },
+            pos: { left: clientX - left + 10, top: clientY - top + 30 },
             menuGroups: getContextMenuGroups(eventEmitter, inTableHead, restoreSelection),
             tableCell,
             cellSelection: cellSel,

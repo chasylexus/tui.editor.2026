@@ -26,12 +26,16 @@ export class ContextMenu extends Component<Props, State> {
 
   addEvent() {
     this.props.eventEmitter.listen('contextmenu', ({ pos, menuGroups }) => {
-      this.setState({ pos, menuGroups });
+      this.setState({ pos: this.normalizePos(pos), menuGroups });
     });
   }
 
   mounted() {
     document.addEventListener('click', this.handleClickDocument);
+  }
+
+  updated() {
+    this.adjustPositionToViewport();
   }
 
   beforeDestroy() {
@@ -43,6 +47,53 @@ export class ContextMenu extends Component<Props, State> {
       this.setState({ pos: null });
     }
   };
+
+  private normalizePos(pos: Pos) {
+    const { left, top } = pos;
+    const numericLeft = typeof left === 'number' ? left : Number.parseFloat(String(left)) || 0;
+    const numericTop = typeof top === 'number' ? top : Number.parseFloat(String(top)) || 0;
+
+    return {
+      left: numericLeft,
+      top: numericTop,
+    };
+  }
+
+  private adjustPositionToViewport() {
+    const menuEl = this.refs.el as HTMLElement | undefined;
+    const pos = this.state.pos;
+    if (!menuEl || !pos) {
+      return;
+    }
+
+    const rootEl = closest(menuEl, `.${cls('defaultUI')}`) as HTMLElement | null;
+    const rootRect = rootEl?.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const viewportLeft = viewport?.offsetLeft ?? 0;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const viewportHeight = viewport?.height ?? window.innerHeight;
+    const margin = 8;
+
+    const absLeft = (rootRect?.left ?? 0) + pos.left;
+    const absTop = (rootRect?.top ?? 0) + pos.top;
+    const menuRect = menuEl.getBoundingClientRect();
+
+    const minLeft = viewportLeft + margin;
+    const minTop = viewportTop + margin;
+    const maxLeft = Math.max(minLeft, viewportLeft + viewportWidth - menuRect.width - margin);
+    const maxTop = Math.max(minTop, viewportTop + viewportHeight - menuRect.height - margin);
+    const clampedLeft = Math.min(Math.max(minLeft, absLeft), maxLeft);
+    const clampedTop = Math.min(Math.max(minTop, absTop), maxTop);
+    const nextPos = {
+      left: clampedLeft - (rootRect?.left ?? 0),
+      top: clampedTop - (rootRect?.top ?? 0),
+    };
+
+    if (Math.abs(nextPos.left - pos.left) > 0.5 || Math.abs(nextPos.top - pos.top) > 0.5) {
+      this.setState({ pos: nextPos });
+    }
+  }
 
   private getMenuGroupElements() {
     const { pos, menuGroups } = this.state;
@@ -83,9 +134,19 @@ export class ContextMenu extends Component<Props, State> {
   }
 
   render() {
-    const style = { display: this.state.pos ? 'block' : 'none', ...this.state.pos };
+    const style = {
+      display: this.state.pos ? 'block' : 'none',
+      maxHeight: 'calc(100vh - 16px)',
+      overflowY: 'auto',
+      ...this.state.pos,
+    };
 
-    return html`<div class="${cls('context-menu')}" style=${style} aria-role="menu">
+    return html`<div
+      class="${cls('context-menu')}"
+      style=${style}
+      aria-role="menu"
+      ref=${(el: HTMLElement) => (this.refs.el = el)}
+    >
       ${this.getMenuGroupElements()}
     </div>`;
   }

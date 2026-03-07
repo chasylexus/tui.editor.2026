@@ -32,6 +32,8 @@ interface State {
 }
 
 const POPUP_INDENT = 4;
+const DEFAULT_DROPDOWN_HEIGHT = 46;
+const DEFAULT_TRIGGER_HEIGHT = 32;
 
 class DropdownToolbarButtonComp extends Component<Props, State> {
   constructor(props: Props) {
@@ -41,10 +43,18 @@ class DropdownToolbarButtonComp extends Component<Props, State> {
 
   private getBound() {
     const rect = this.props.getBound(this.refs.el);
+    const triggerHeight = this.refs.el?.offsetHeight || DEFAULT_TRIGGER_HEIGHT;
+    const dropdownHeight = this.refs.dropdownEl?.offsetHeight || DEFAULT_DROPDOWN_HEIGHT;
+    const triggerRect = this.refs.el.getBoundingClientRect();
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const spaceAbove = triggerRect.top;
+    const spaceBelow = viewportHeight - triggerRect.bottom;
+    const openUpward = spaceBelow < dropdownHeight + POPUP_INDENT && spaceAbove > spaceBelow;
+    const top = openUpward
+      ? rect.top - triggerHeight - dropdownHeight - POPUP_INDENT
+      : rect.top + POPUP_INDENT;
 
-    rect.top += POPUP_INDENT;
-
-    return { ...rect, left: null, right: 10 };
+    return { ...rect, left: null, right: 10, top: Math.max(POPUP_INDENT, top) };
   }
 
   private handleClickDocument = ({ target }: MouseEvent) => {
