@@ -2,6 +2,7 @@ import { source } from 'common-tags';
 
 import Editor from '@techie_doubts/tui.editor.2026';
 import katexPlugin from '@/index';
+import { fixInlineMathBackslashes } from '@/utils/inlineMath';
 
 describe('katexPlugin inline math', () => {
   let container: HTMLElement;
@@ -154,6 +155,145 @@ describe('katexPlugin inline math', () => {
     const editingSpan = wwRoot.querySelector('.toastui-inline-latex-editing') as HTMLElement | null;
 
     expect(editingSpan).not.toBeNull();
+  });
+
+  it('should preserve inline latex commands when editing adjacent plain text in a list item', () => {
+    editor.setMarkdown(
+      [
+        "* The Euler's identity: $e^{i\\pi} + 1 = 0$",
+        '* The solution of $f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is',
+      ].join('\n')
+    );
+    editor.changeMode('wysiwyg');
+
+    const wwEditor = (editor as any).wwEditor;
+    const { doc } = wwEditor.view.state;
+    let insertPos: number | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText) {
+        return true;
+      }
+
+      const text = node.text || '';
+      const index = text.indexOf("The Euler's identity:");
+
+      if (index >= 0) {
+        insertPos = pos + index + "The Euler's identity:".length;
+        return false;
+      }
+
+      return true;
+    });
+
+    expect(insertPos).not.toBeNull();
+    editor.setSelection(insertPos!, insertPos!);
+    editor.insertText('1');
+    editor.changeMode('markdown');
+
+    const markdown = editor.getMarkdown();
+
+    expect(markdown).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(markdown).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
+    expect(markdown).not.toContain('\\\\pi');
+    expect(markdown).not.toContain('\\\\neq');
+    expect(markdown).not.toContain('\\\\in');
+  });
+
+  it('should preserve inline latex commands when editing plain text around multiple inline formulas', () => {
+    editor.setMarkdown(
+      [
+        "* The Euler's identity: $e^{i\\pi} + 1 = 0$",
+        '* The solution of $f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is',
+      ].join('\n')
+    );
+    editor.changeMode('wysiwyg');
+
+    const wwEditor = (editor as any).wwEditor;
+    const { doc } = wwEditor.view.state;
+    let insertPos: number | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText) {
+        return true;
+      }
+
+      const text = node.text || '';
+      const index = text.indexOf(' where ');
+
+      if (index >= 0) {
+        insertPos = pos + index + ' where'.length;
+        return false;
+      }
+
+      return true;
+    });
+
+    expect(insertPos).not.toBeNull();
+    editor.setSelection(insertPos!, insertPos!);
+    editor.insertText('1');
+    editor.changeMode('markdown');
+
+    const markdown = editor.getMarkdown();
+
+    expect(markdown).toContain('$f(x)=ax^2+bx+c$ where1 $a \\neq 0$ and $a, b, c \\in R$ is');
+    expect(markdown).not.toContain('\\\\neq');
+    expect(markdown).not.toContain('\\\\in');
+  });
+
+  it('should collapse over-escaped inline latex commands from safari markdown conversion', () => {
+    const markdown = [
+      "* The Euler's identity: $e^{i\\\\pi} + 1 = 0$",
+      '* The solution of $f(x)=ax^2+bx+c$ where $a \\\\neq 0$ and $a, b, c \\\\in R$ is',
+    ].join('\n');
+
+    const fixed = fixInlineMathBackslashes(markdown);
+
+    expect(fixed).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(fixed).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
+    expect(fixed).not.toContain('\\\\pi');
+    expect(fixed).not.toContain('\\\\neq');
+    expect(fixed).not.toContain('\\\\in');
+  });
+
+  it('should collapse repeated safari-style escaping runs before inline latex commands', () => {
+    const markdown = [
+      "* The Euler's identity: $e^{i\\\\\\\\pi} + 1 = 0$",
+      '* The solution of $f(x)=ax^2+bx+c$ where $a \\\\\\\\neq 0$ and $a, b, c \\\\\\\\in R$ is',
+      'Inline newline test: $a \\\\ b$ should render b under a.',
+    ].join('\n');
+
+    const fixed = fixInlineMathBackslashes(markdown);
+
+    expect(fixed).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(fixed).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
+    expect(fixed).toContain('$a \\\\ b$');
+    expect(fixed).not.toContain('\\\\pi');
+    expect(fixed).not.toContain('\\\\\\\\pi');
+    expect(fixed).not.toContain('\\\\neq');
+    expect(fixed).not.toContain('\\\\\\\\neq');
+    expect(fixed).not.toContain('\\\\in');
+    expect(fixed).not.toContain('\\\\\\\\in');
+  });
+
+  it('should keep block latex delimiters from shifting inline-latex normalization state', () => {
+    const markdown = [
+      '$$',
+      '',
+      '### Math',
+      '',
+      "* The Euler's identity: $e^{i\\\\pi} + 1 = 0$",
+      '* The solution of $f(x)=ax^2+bx+c$ where $a \\\\neq 0$ and $a, b, c \\\\in R$ is',
+    ].join('\n');
+
+    const fixed = fixInlineMathBackslashes(markdown);
+
+    expect(fixed).toContain('$$');
+    expect(fixed).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(fixed).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
+    expect(fixed).not.toContain('\\\\pi');
+    expect(fixed).not.toContain('\\\\neq');
+    expect(fixed).not.toContain('\\\\in');
   });
 
 });

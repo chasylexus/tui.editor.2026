@@ -1518,6 +1518,55 @@ function destroyChart() {
   });
 }
 
+function recoverChartRenderWhenVisible({
+  id,
+  text,
+  usageStatistics,
+  pluginOptions,
+  chartContainer,
+  expectedRenderVersion,
+  attempt = 0,
+}: {
+  id: string;
+  text: string;
+  usageStatistics: boolean;
+  pluginOptions: PluginOptions;
+  chartContainer: HTMLElement;
+  expectedRenderVersion: number;
+  attempt?: number;
+}) {
+  if (attempt >= 16) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    if (chartRenderVersionMap[id] !== expectedRenderVersion) {
+      return;
+    }
+
+    if (!chartContainer.isConnected || chartContainer.getAttribute('data-chart-id') !== id) {
+      return;
+    }
+
+    const { isFallback } = getRenderableContainerWidth(chartContainer);
+
+    if (isFallback) {
+      recoverChartRenderWhenVisible({
+        id,
+        text,
+        usageStatistics,
+        pluginOptions,
+        chartContainer,
+        expectedRenderVersion,
+        attempt: attempt + 1,
+      });
+      return;
+    }
+
+    doRenderChart(id, text, usageStatistics, pluginOptions, chartContainer);
+  });
+}
+
 function clearChartById(id: string, chartContainer?: HTMLElement) {
   const existed = chartMap[id];
 
@@ -1591,6 +1640,19 @@ function doRenderChart(
           data: adjustedData as any,
           options: chartOptions,
         });
+
+        const { isFallback } = getRenderableContainerWidth(chartContainer);
+
+        if (isFallback) {
+          recoverChartRenderWhenVisible({
+            id,
+            text,
+            usageStatistics,
+            pluginOptions,
+            chartContainer,
+            expectedRenderVersion: renderVersion,
+          });
+        }
       }
     });
   } catch (e) {
@@ -1704,6 +1766,10 @@ export default function chartPlugin(context: PluginContext, options: PluginOptio
   let scheduled = false;
   let pendingThemeOverride: boolean | null = null;
   let rootObserver: MutationObserver | null = null;
+  let rootResizeObserver: ResizeObserver | null = null;
+  let resizeFallbackHandler: (() => void) | null = null;
+  let observedRoot: HTMLElement | null = null;
+  let observedRootWidth = 0;
 
   const scheduleReRender = ({
     themeOverride,
@@ -1765,6 +1831,58 @@ export default function chartPlugin(context: PluginContext, options: PluginOptio
     rootObserver.observe(root, { attributes: true, attributeFilter: ['class'] });
   };
 
+  const bindResizeObserver = () => {
+    const root = getEditorRoot(instance);
+
+    if (!root) {
+      return;
+    }
+
+    if (observedRoot === root && (rootResizeObserver || resizeFallbackHandler)) {
+      return;
+    }
+
+    if (rootResizeObserver) {
+      rootResizeObserver.disconnect();
+      rootResizeObserver = null;
+    }
+
+    if (resizeFallbackHandler) {
+      window.removeEventListener('resize', resizeFallbackHandler);
+      resizeFallbackHandler = null;
+    }
+
+    observedRoot = root;
+    observedRootWidth = Math.round(root.getBoundingClientRect().width);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      rootResizeObserver = new ResizeObserver((entries) => {
+        const nextWidth = Math.round(
+          entries[0]?.contentRect?.width || observedRoot?.getBoundingClientRect().width || 0
+        );
+
+        if (Math.abs(nextWidth - observedRootWidth) >= 1) {
+          observedRootWidth = nextWidth;
+          scheduleReRender({ deferFrames: 2 });
+        }
+      });
+      rootResizeObserver.observe(root);
+
+      return;
+    }
+
+    resizeFallbackHandler = () => {
+      const nextWidth = Math.round(observedRoot?.getBoundingClientRect().width || 0);
+
+      if (Math.abs(nextWidth - observedRootWidth) >= 1) {
+        observedRootWidth = nextWidth;
+        scheduleReRender({ deferFrames: 2 });
+      }
+    };
+
+    window.addEventListener('resize', resizeFallbackHandler);
+  };
+
   context.eventEmitter.listen('changeTheme', (theme: unknown) => {
     if (theme === 'dark' || theme === 'light') {
       scheduleReRender({ themeOverride: theme === 'dark' });
@@ -1775,19 +1893,41 @@ export default function chartPlugin(context: PluginContext, options: PluginOptio
   });
   context.eventEmitter.listen('changeMode', () => {
     bindThemeObserver();
+    bindResizeObserver();
     scheduleReRender({ deferFrames: 2 });
   });
   context.eventEmitter.listen('load', () => {
     bindThemeObserver();
+    bindResizeObserver();
     scheduleReRender({ deferFrames: 2 });
   });
   context.eventEmitter.listen('loadUI', () => {
     bindThemeObserver();
+    bindResizeObserver();
     scheduleReRender({ deferFrames: 2 });
+  });
+  context.eventEmitter.listen('destroy', () => {
+    if (rootObserver) {
+      rootObserver.disconnect();
+      rootObserver = null;
+    }
+
+    if (rootResizeObserver) {
+      rootResizeObserver.disconnect();
+      rootResizeObserver = null;
+    }
+
+    if (resizeFallbackHandler) {
+      window.removeEventListener('resize', resizeFallbackHandler);
+      resizeFallbackHandler = null;
+    }
+
+    observedRoot = null;
   });
 
   requestAnimationFrame(() => {
     bindThemeObserver();
+    bindResizeObserver();
   });
 
   return {

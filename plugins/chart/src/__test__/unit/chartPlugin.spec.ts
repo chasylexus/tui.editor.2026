@@ -195,13 +195,51 @@ describe('chart render lifecycle', () => {
     }
   }
 
+  class TestResizeObserver {
+    static instances: TestResizeObserver[] = [];
+
+    callback: ResizeObserverCallback;
+
+    observe = jest.fn();
+
+    disconnect = jest.fn();
+
+    unobserve = jest.fn();
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+      TestResizeObserver.instances.push(this);
+    }
+  }
+
+  const originalResizeObserver = global.ResizeObserver;
+
+  function createRect(width: number): DOMRect {
+    return {
+      width,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: width,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect;
+  }
+
   beforeEach(() => {
     chartRenderMock.mockClear();
     document.body.innerHTML = '';
+    TestResizeObserver.instances = [];
+    global.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver;
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
+    global.ResizeObserver = originalResizeObserver;
   });
 
   async function waitFrames(frameCount: number) {
@@ -243,6 +281,129 @@ describe('chart render lifecycle', () => {
 
     expect(chartRenderMock).toHaveBeenCalled();
     expect(chartContainer.querySelectorAll('.__chart-render')).toHaveLength(1);
+  });
+
+  it('should rerender charts when editor root width changes', async () => {
+    const eventEmitter = new TestEmitter();
+    const root = document.createElement('div');
+    const chartHost = document.createElement('div');
+    let width = 320;
+
+    root.className = 'toastui-editor-defaultUI';
+    root.appendChild(chartHost);
+    document.body.appendChild(root);
+
+    const rootRectSpy = jest.spyOn(root, 'getBoundingClientRect').mockImplementation(() => createRect(width));
+    const hostRectSpy = jest
+      .spyOn(chartHost, 'getBoundingClientRect')
+      .mockImplementation(() => createRect(width));
+
+    const pluginInfo = chartPlugin(
+      {
+        usageStatistics: false,
+        eventEmitter: eventEmitter as any,
+        instance: {
+          getEditorElements: () => ({
+            mdPreview: chartHost,
+            wwEditor: chartHost,
+          }),
+        },
+      } as any,
+      {} as PluginOptions
+    );
+
+    const rendered = (pluginInfo.toHTMLRenderers as any)?.chart?.({
+      literal: ['x,y', 'a,1', 'b,2', '', 'type: line'].join('\n'),
+    } as any);
+
+    const openTag = rendered![0] as any;
+    const chartContainer = document.createElement('div');
+    const attributes = openTag.attributes || {};
+
+    Object.keys(attributes).forEach((key) => {
+      chartContainer.setAttribute(key, attributes[key]);
+    });
+    chartHost.appendChild(chartContainer);
+
+    eventEmitter.emit('load');
+
+    await waitFrames(12);
+
+    const renderCountAfterLoad = chartRenderMock.mock.calls.length;
+
+    expect(renderCountAfterLoad).toBeGreaterThanOrEqual(1);
+    expect(TestResizeObserver.instances).toHaveLength(1);
+
+    width = 260;
+    TestResizeObserver.instances[0].callback(
+      [{ contentRect: { width } } as ResizeObserverEntry],
+      TestResizeObserver.instances[0] as unknown as ResizeObserver
+    );
+
+    await waitFrames(12);
+
+    expect(chartRenderMock.mock.calls.length).toBe(renderCountAfterLoad + 1);
+
+    rootRectSpy.mockRestore();
+    hostRectSpy.mockRestore();
+  });
+
+  it('should rerender charts after fallback width becomes measurable', async () => {
+    const eventEmitter = new TestEmitter();
+    const host = document.createElement('div');
+    let width = 0;
+
+    document.body.appendChild(host);
+
+    const hostRectSpy = jest.spyOn(host, 'getBoundingClientRect').mockImplementation(() => createRect(width));
+
+    const pluginInfo = chartPlugin(
+      {
+        usageStatistics: false,
+        eventEmitter: eventEmitter as any,
+        instance: {
+          getEditorElements: () => ({
+            mdPreview: host,
+            wwEditor: host,
+          }),
+        },
+      } as any,
+      {} as PluginOptions
+    );
+
+    const rendered = (pluginInfo.toHTMLRenderers as any)?.chart?.({
+      literal: ['x,y', 'a,1', 'b,2', '', 'type: radar'].join('\n'),
+    } as any);
+
+    const openTag = rendered![0] as any;
+    const chartContainer = document.createElement('div');
+    const attributes = openTag.attributes || {};
+
+    Object.keys(attributes).forEach((key) => {
+      chartContainer.setAttribute(key, attributes[key]);
+    });
+
+    const chartRectSpy = jest
+      .spyOn(chartContainer, 'getBoundingClientRect')
+      .mockImplementation(() => createRect(width));
+
+    host.appendChild(chartContainer);
+
+    eventEmitter.emit('load');
+
+    await waitFrames(4);
+
+    const renderCountAfterFallbackLoad = chartRenderMock.mock.calls.length;
+
+    expect(renderCountAfterFallbackLoad).toBeGreaterThanOrEqual(1);
+
+    width = 280;
+    await waitFrames(20);
+
+    expect(chartRenderMock.mock.calls.length).toBe(renderCountAfterFallbackLoad + 1);
+
+    chartRectSpy.mockRestore();
+    hostRectSpy.mockRestore();
   });
 });
 

@@ -162,6 +162,7 @@ export function fixInlineMathBackslashes(markdown: string) {
 
   let out = '';
   let inInlineMath = false;
+  let inDoubleMath = false;
   let inFence = false;
   let fenceChar = '';
   let fenceLen = 0;
@@ -217,8 +218,29 @@ export function fixInlineMathBackslashes(markdown: string) {
     }
 
     if (!inFence && inlineCodeLen === 0) {
+      if (ch === '$' && !isEscapedAt(markdown, i) && next === '$') {
+        const lineEnd = markdown.indexOf('\n', i);
+        const afterPair = lineEnd === -1 ? markdown.slice(i + 2) : markdown.slice(i + 2, lineEnd);
+        const isStandaloneDoubleMathDelimiter = lineStart && afterPair.trim().length === 0;
+
+        if (inDoubleMath || !isStandaloneDoubleMathDelimiter) {
+          inDoubleMath = !inDoubleMath;
+        }
+
+        out += '$$';
+        i += 1;
+        lineStart = false;
+        continue;
+      }
+
+      if (inDoubleMath) {
+        out += ch;
+        lineStart = ch === '\n';
+        continue;
+      }
+
       if (!inInlineMath) {
-        if (ch === '$' && prev !== '\\' && next !== '$') {
+        if (ch === '$' && prev !== '\\' && prev !== '$' && next !== '$') {
           inInlineMath = true;
           out += '$';
           lineStart = false;
@@ -239,8 +261,16 @@ export function fixInlineMathBackslashes(markdown: string) {
             runLen += 1;
           }
 
+          const afterRun = markdown[i + runLen];
+
+          if (runLen >= 2 && /[A-Za-z]/.test(afterRun || '')) {
+            out += '\\';
+            i += runLen - 1;
+            lineStart = false;
+            continue;
+          }
+
           if (runLen >= 3) {
-            const afterRun = markdown[i + runLen];
             const isLinebreakLike =
               runLen % 2 === 1 &&
               (typeof afterRun === 'undefined' || isInlineMathWhitespace(afterRun));
@@ -252,13 +282,6 @@ export function fixInlineMathBackslashes(markdown: string) {
               continue;
             }
           }
-        }
-
-        if (ch === '\\' && next === '\\' && /[A-Za-z]/.test(markdown[i + 2]) && prev !== '\\') {
-          out += '\\';
-          i += 1;
-          lineStart = false;
-          continue;
         }
       }
     }
