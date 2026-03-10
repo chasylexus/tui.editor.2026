@@ -620,6 +620,38 @@ describe('setDefaultOptions', () => {
     rectSpy.mockRestore();
   });
 
+  it('should downscale explicit chart size proportionally on narrow containers', () => {
+    const rectSpy = jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+      width: 320,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect);
+
+    const chartOptions = setDefaultOptions(
+      {
+        chart: {
+          width: 700,
+          height: 420,
+        },
+      } as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect(chartOptions.chart!.width).toBe(320);
+    expect(chartOptions.chart!.height).toBeCloseTo(192);
+
+    rectSpy.mockRestore();
+  });
+
   it('should deep-merge plugin chartOptions and codeblock options', () => {
     const chartOptions = setDefaultOptions(
       {

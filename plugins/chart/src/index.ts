@@ -147,6 +147,7 @@ function ensureChartStyles() {
 .toastui-chart-block svg,
 .toastui-chart-block canvas {
   max-width: 100%;
+  height: auto;
 }
   `.trim();
 
@@ -486,7 +487,10 @@ function getRenderableContainerWidth(chartContainer: HTMLElement) {
   const ownWidth = chartContainer.getBoundingClientRect().width;
 
   if (ownWidth > 0) {
-    return ownWidth;
+    return {
+      width: ownWidth,
+      isFallback: false,
+    };
   }
 
   let parent = chartContainer.parentElement;
@@ -495,12 +499,18 @@ function getRenderableContainerWidth(chartContainer: HTMLElement) {
     const parentWidth = parent.getBoundingClientRect().width;
 
     if (parentWidth > 0) {
-      return parentWidth;
+      return {
+        width: parentWidth,
+        isFallback: false,
+      };
     }
     parent = parent.parentElement;
   }
 
-  return FALLBACK_CONTAINER_WIDTH;
+  return {
+    width: FALLBACK_CONTAINER_WIDTH,
+    isFallback: true,
+  };
 }
 
 function getChartDimension(
@@ -511,15 +521,28 @@ function getChartDimension(
   const dimensionOptions = Object.assign({ ...DEFAULT_DIMENSION_OPTIONS }, pluginOptions);
   const { maxWidth, minWidth, maxHeight, minHeight } = dimensionOptions;
   // if no width or height specified, set width and height to container width
-  const containerWidth = getRenderableContainerWidth(chartContainer);
+  const { width: containerWidth, isFallback } = getRenderableContainerWidth(chartContainer);
   let { width = dimensionOptions.width, height = dimensionOptions.height } = chartOptions.chart!;
 
   width = getAdjustedDimension(width, containerWidth);
   height = getAdjustedDimension(height, containerWidth);
 
+  let adjustedWidth = clamp(width, minWidth, maxWidth);
+  let adjustedHeight = clamp(height, minHeight, maxHeight);
+
+  // Keep chart aspect ratio when explicit width is larger than the renderable
+  // container width (common on mobile). Without this, some chart types can be
+  // visually squeezed by CSS max-width while keeping a fixed height.
+  if (!isFallback && containerWidth > 0 && adjustedWidth > containerWidth) {
+    const scale = containerWidth / adjustedWidth;
+
+    adjustedWidth = containerWidth;
+    adjustedHeight *= scale;
+  }
+
   return {
-    width: clamp(width, minWidth, maxWidth),
-    height: clamp(height, minHeight, maxHeight),
+    width: clamp(adjustedWidth, minWidth, maxWidth),
+    height: clamp(adjustedHeight, minHeight, maxHeight),
   };
 }
 
