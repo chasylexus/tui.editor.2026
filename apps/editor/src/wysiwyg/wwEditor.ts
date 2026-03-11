@@ -656,12 +656,8 @@ export default class WysiwygEditor extends EditorBase {
               selection.from <= 1 &&
               selection.to >= Math.max(this.view.state.doc.content.size - 1, 1));
 
-          if (!hasFullDocSelection) {
-            return false;
-          }
-
           const [copyPayload] = this.eventEmitter.emit('query', 'getWysiwygCopyPayload', {
-            selectionType: 'all',
+            selectionType: hasFullDocSelection ? 'all' : 'fragment',
           });
 
           if (!copyPayload?.html) {

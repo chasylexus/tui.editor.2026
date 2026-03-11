@@ -1,4 +1,4 @@
-import { DOMParser, Node as ProsemirrorNode } from 'prosemirror-model';
+import { DOMParser, DOMSerializer, Node as ProsemirrorNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { Emitter, Handler } from '@t/event';
@@ -2186,6 +2186,45 @@ class ToastUIEditorCore {
     return richHtml;
   }
 
+  private renderWysiwygSelectionToHtml() {
+    const editorRoot = this.wwEditor.view.dom;
+    const domSelection = editorRoot.ownerDocument.getSelection();
+
+    if (domSelection && !domSelection.isCollapsed && domSelection.rangeCount > 0) {
+      const wrapper = document.createElement('div');
+
+      for (let index = 0; index < domSelection.rangeCount; index += 1) {
+        const range = domSelection.getRangeAt(index);
+        const { commonAncestorContainer } = range;
+        const parentNode =
+          commonAncestorContainer.nodeType === Node.TEXT_NODE
+            ? commonAncestorContainer.parentNode
+            : commonAncestorContainer;
+
+        if (!parentNode || !editorRoot.contains(parentNode)) {
+          continue;
+        }
+
+        wrapper.appendChild(range.cloneContents());
+      }
+
+      const richHtml = removeProseMirrorHackNodes(wrapper.innerHTML);
+
+      if (richHtml.trim()) {
+        return richHtml;
+      }
+    }
+
+    const { state } = this.wwEditor.view;
+    const slice = state.selection.content();
+    const serializer = DOMSerializer.fromSchema(state.schema);
+    const fallbackWrapper = document.createElement('div');
+
+    fallbackWrapper.appendChild(serializer.serializeFragment(slice.content));
+
+    return fallbackWrapper.innerHTML;
+  }
+
   private renderFootnotePreviewIfNeeded() {
     const sourceMarkdown = this.mdEditor.getMarkdown();
     const hasRenderedLineMap = Boolean(this.preview.getSourceToRenderedLineMap());
@@ -3163,14 +3202,20 @@ class ToastUIEditorCore {
   }
 
   getWysiwygCopyPayload(payload?: { selectionType?: string }) {
-    if (payload?.selectionType !== 'all') {
+    let html = '';
+
+    if (payload?.selectionType === 'all') {
+      const markdown = this.getMarkdown();
+
+      html = this.renderMarkdownToPreviewHtml(markdown);
+    } else if (payload?.selectionType === 'fragment') {
+      html = this.renderWysiwygSelectionToHtml();
+    } else {
       return null;
     }
 
-    const markdown = this.getMarkdown();
-
     return {
-      html: this.inlineStylesForClipboard(this.renderMarkdownToPreviewHtml(markdown)),
+      html: this.inlineStylesForClipboard(html),
       text: this.wwEditor.getSelectedText(),
     };
   }

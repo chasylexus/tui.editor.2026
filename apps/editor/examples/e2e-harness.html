@@ -105,6 +105,45 @@
           return target;
         }
 
+        function findTextRange(needle, occurrence, length) {
+          const ww = editor.wwEditor;
+          const doc = ww.view.state.doc;
+          let matchCount = 0;
+          let found = null;
+
+          doc.descendants((node, pos) => {
+            if (!node.isText) {
+              return true;
+            }
+
+            const text = node.text || '';
+            let searchFrom = 0;
+
+            while (searchFrom <= text.length) {
+              const idx = text.indexOf(needle, searchFrom);
+
+              if (idx < 0) {
+                break;
+              }
+
+              if (matchCount === occurrence) {
+                const from = pos + idx;
+                const to = from + (length || needle.length);
+
+                found = { from, to };
+                return false;
+              }
+
+              matchCount += 1;
+              searchFrom = idx + Math.max(needle.length, 1);
+            }
+
+            return true;
+          });
+
+          return found;
+        }
+
         function getInlineLatexState() {
           const ww = editor.wwEditor;
           const view = ww.view;
@@ -202,6 +241,84 @@
 
             await waitFrames(2);
             return target;
+          },
+          async selectText(needle, occurrence = 0, length) {
+            const range = findTextRange(needle, occurrence, length);
+
+            if (!range) {
+              return null;
+            }
+
+            editor.setSelection(range.from, range.to);
+            editor.wwEditor.view.focus();
+            await waitFrames(2);
+
+            return range;
+          },
+          async copySelection() {
+            const wwRoot = editor
+              .getEditorElements()
+              .wwEditor.querySelector('.toastui-editor-contents.ProseMirror');
+
+            if (!wwRoot) {
+              return { defaultPrevented: false, data: {} };
+            }
+
+            wwRoot.focus();
+
+            const event = new Event('copy', { bubbles: true, cancelable: true });
+            const store = {};
+            const clipboardData = {
+              setData(type, value) {
+                store[type] = value;
+              },
+              getData(type) {
+                return store[type] || '';
+              },
+            };
+
+            Object.defineProperty(event, 'clipboardData', {
+              value: clipboardData,
+            });
+
+            wwRoot.dispatchEvent(event);
+            await waitFrames(2);
+
+            return {
+              defaultPrevented: event.defaultPrevented,
+              data: store,
+            };
+          },
+          async pasteClipboard(data) {
+            const wwRoot = editor
+              .getEditorElements()
+              .wwEditor.querySelector('.toastui-editor-contents.ProseMirror');
+
+            if (!wwRoot) {
+              return { defaultPrevented: false, markdown: editor.getMarkdown() };
+            }
+
+            wwRoot.focus();
+
+            const event = new Event('paste', { bubbles: true, cancelable: true });
+            const clipboardData = {
+              getData(type) {
+                return data[type] || '';
+              },
+              items: Object.keys(data).map((type) => ({ kind: 'string', type })),
+            };
+
+            Object.defineProperty(event, 'clipboardData', {
+              value: clipboardData,
+            });
+
+            wwRoot.dispatchEvent(event);
+            await waitFrames(4);
+
+            return {
+              defaultPrevented: event.defaultPrevented,
+              markdown: editor.getMarkdown(),
+            };
           },
           async waitForIdle(frames) {
             await waitFrames(frames || 8);

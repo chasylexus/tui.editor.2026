@@ -32,6 +32,7 @@ const C_PLUS = 43;
 const C_CARET = 94;
 const C_LOWER_X = 120;
 const C_UPPER_X = 88;
+const ASCII_TRIM_RE = /^[ \t\r\n\f\v]+|[ \t\r\n\f\v]+$/g;
 
 // Some regexps used in inline parser:
 const ESCAPED_CHAR = `\\\\${ESCAPABLE}`;
@@ -1509,7 +1510,7 @@ export class InlineParser {
   // Parse string content in block into inline children,
   // using refmap to resolve references.
   parse(block: BlockNode) {
-    this.subject = block.stringContent!.trim();
+    this.subject = block.stringContent!.replace(ASCII_TRIM_RE, '');
     this.pos = 0;
     this.delimiters = null;
     this.brackets = null;

@@ -1,6 +1,6 @@
 import '@/i18n/en-us';
 import { oneLineTrim, stripIndents, source } from 'common-tags';
-import { AllSelection } from 'prosemirror-state';
+import { AllSelection, TextSelection } from 'prosemirror-state';
 import { Emitter } from '@t/event';
 import { EditorOptions } from '@t/editor';
 import type { OpenTagToken } from '@techie_doubts/toastmark';
@@ -65,6 +65,48 @@ describe('editor', () => {
     target.dispatchEvent(event);
 
     return { event, clipboardData };
+  }
+
+  function findTextRangeInWysiwygDoc(
+    needle: string,
+    occurrence = 0,
+    length = needle.length
+  ): { from: number; to: number } | null {
+    const ww = (editor as any).wwEditor;
+    const { doc } = ww.view.state;
+    let matchCount = 0;
+    let found: { from: number; to: number } | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText) {
+        return true;
+      }
+
+      const text = node.text || '';
+      let searchFrom = 0;
+
+      while (searchFrom <= text.length) {
+        const idx = text.indexOf(needle, searchFrom);
+
+        if (idx < 0) {
+          break;
+        }
+
+        if (matchCount === occurrence) {
+          const from = pos + idx;
+
+          found = { from, to: from + length };
+          return false;
+        }
+
+        matchCount += 1;
+        searchFrom = idx + Math.max(needle.length, 1);
+      }
+
+      return true;
+    });
+
+    return found;
   }
 
   describe('instance API', () => {
@@ -555,6 +597,77 @@ describe('editor', () => {
       expect(htmlCall[1]).not.toContain('height: 32px;');
       expect(htmlCall[1]).not.toContain('ProseMirror');
       expect(plainCall[1]).toContain('Paragraph before');
+    });
+
+    it('should copy partial wysiwyg selection as normalized rich html', () => {
+      editor.setMarkdown(stripIndents`
+        Paragraph before
+
+        | A | B |
+        | --- | --- |
+        | 1 | 2 |
+      `);
+      editor.changeMode('wysiwyg');
+
+      const ww = (editor as any).wwEditor;
+      const { state } = ww.view;
+
+      ww.view.dispatch(
+        state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 2))
+      );
+
+      const { clipboardData } = dispatchCopy(ww.view.dom);
+      const htmlCall = (clipboardData.setData as jest.Mock).mock.calls.find(
+        ([type]: [string, string]) => type === 'text/html'
+      );
+
+      expect(htmlCall).toBeTruthy();
+      expect(htmlCall[1]).toContain('<table');
+      expect(htmlCall[1]).toContain('width: auto;');
+      expect(htmlCall[1]).toContain('height: auto;');
+      expect(htmlCall[1]).not.toContain('width: 960px;');
+      expect(htmlCall[1]).not.toContain('ProseMirror');
+    });
+
+    it('should copy a selected table-cell NBSP as inline html instead of a table fragment', () => {
+      editor.setMarkdown(`| A | B |\n| --- | --- |\n| \u00A0 | x |`);
+      editor.changeMode('wysiwyg');
+
+      const ww = (editor as any).wwEditor;
+      const range = findTextRangeInWysiwygDoc('\u00A0');
+
+      expect(range).not.toBeNull();
+
+      if (!range) {
+        throw new Error('NBSP range not found');
+      }
+
+      editor.setSelection(range.from, range.to);
+      ww.view.focus();
+
+      const { clipboardData } = dispatchCopy(ww.view.dom);
+      const htmlCall = (clipboardData.setData as jest.Mock).mock.calls.find(
+        ([type]: [string, string]) => type === 'text/html'
+      );
+      const plainCall = (clipboardData.setData as jest.Mock).mock.calls.find(
+        ([type]: [string, string]) => type === 'text/plain'
+      );
+
+      expect(htmlCall).toBeTruthy();
+      expect(plainCall).toBeTruthy();
+      expect(htmlCall[1]).toContain('&nbsp;');
+      expect(htmlCall[1]).not.toContain('<table');
+      expect(plainCall[1]).toBe('\u00A0');
+    });
+
+    it('should preserve a NBSP-only table cell through markdown to wysiwyg roundtrip', () => {
+      editor.setMarkdown(`| A | B |\n| --- | --- |\n| \u00A0 | x |`);
+      editor.changeMode('wysiwyg');
+
+      const html = wwEditor.querySelector('table')?.innerHTML || '';
+
+      expect(html).toContain('&nbsp;');
+      expect(editor.getMarkdown()).toContain(`| \u00A0 | x |`);
     });
 
     it('should keep a blank line before heading after a wysiwyg edit near the second list item end', () => {

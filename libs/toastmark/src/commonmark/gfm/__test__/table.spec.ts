@@ -227,6 +227,23 @@ describe('table', () => {
     const html = renderer.render(root);
     expect(html).toBe(`${output}\n`);
   });
+
+  it('preserves a NBSP-only table cell as text instead of treating it as empty', () => {
+    const nbsp = '\u00A0';
+    const root = reader.parse(`| a | b |\n| - | - |\n| ${nbsp} | c |`);
+    const result = convertToArrayTree(root, ['type', 'literal'] as (keyof BlockNode)[]);
+    const table = (result as any).children[0];
+    const bodyRow = table.children[1].children[0];
+
+    expect(bodyRow.children[0].children).toEqual([
+      {
+        type: 'text',
+        literal: nbsp,
+      },
+    ]);
+
+    expect(renderer.render(root)).toContain(`<td>${nbsp}</td>`);
+  });
 });
 
 describe('GFM Exmaple', () => {

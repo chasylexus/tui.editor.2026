@@ -125,3 +125,42 @@ test('pastes standalone NBSP in wysiwyg from plain text clipboard', async ({ pag
   expect(result.defaultPrevented).toBe(true);
   expect(result.markdown).toBe('\u00A0');
 });
+
+test('copies a selected NBSP from a table cell without turning it into a table fragment', async ({
+  page,
+}) => {
+  await renderNarrowWysiwyg(page, `| A | B |\n| --- | --- |\n| ${nbsp} | x |`);
+  const range = await page.evaluate(() => window.__HARNESS__.selectText('\u00A0', 0, 1));
+
+  expect(range).not.toBeNull();
+
+  const copied = await page.evaluate(() => window.__HARNESS__.copySelection());
+
+  expect(copied.defaultPrevented).toBe(true);
+  expect(copied.data['text/plain']).toBe('\u00A0');
+  expect(copied.data['text/html']).toContain('&nbsp;');
+  expect(copied.data['text/html']).not.toContain('<table');
+});
+
+test('pasting a copied NBSP over a selected table-cell NBSP keeps the table shape intact', async ({
+  page,
+}) => {
+  await renderNarrowWysiwyg(page, `| A | B |\n| --- | --- |\n| ${nbsp} | x |`);
+
+  const initialSelection = await page.evaluate(() => window.__HARNESS__.selectText('\u00A0', 0, 1));
+
+  expect(initialSelection).not.toBeNull();
+
+  const copied = await page.evaluate(() => window.__HARNESS__.copySelection());
+
+  expect(copied.defaultPrevented).toBe(true);
+
+  await page.evaluate(() => window.__HARNESS__.selectText('\u00A0', 0, 1));
+  const pasted = await page.evaluate(
+    (data) => window.__HARNESS__.pasteClipboard(data),
+    copied.data
+  );
+
+  expect(pasted.defaultPrevented).toBe(true);
+  expect(pasted.markdown.trimEnd()).toBe(`| A | B |\n| --- | --- |\n| ${nbsp} | x |`);
+});
