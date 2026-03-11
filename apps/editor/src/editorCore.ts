@@ -31,7 +31,7 @@ import { getPluginInfo } from './helper/plugin';
 import { WwToDOMAdaptor } from './wysiwyg/adaptor/wwToDOMAdaptor';
 import { ScrollSync } from './markdown/scroll/scrollSync';
 import { addDefaultImageBlobHook } from './helper/image';
-import { setWidgetRules } from './widget/rules';
+import { setWidgetRules, transformMarkdownWithWidgetSyntax } from './widget/rules';
 import { cls, css, removeProseMirrorHackNodes, replaceBRWithEmptyBlock } from './utils/dom';
 import { sanitizeHTML } from './sanitizer/htmlSanitizer';
 import { createHTMLSchemaMap } from './wysiwyg/nodes/html';
@@ -1992,7 +1992,7 @@ class ToastUIEditorCore {
   }
 
   private toRenderableMarkdown(markdown: string) {
-    return transformMarkdownFootnotes(markdown).markdown;
+    return transformMarkdownFootnotes(transformMarkdownWithWidgetSyntax(markdown)).markdown;
   }
 
   private renderFullPreview(

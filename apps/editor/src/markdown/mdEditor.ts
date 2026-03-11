@@ -6,7 +6,7 @@ import { MdPos, ToastMark } from '@techie_doubts/toastmark';
 
 import { MdContext } from '@t/spec';
 import { Emitter } from '@t/event';
-import { WidgetStyle } from '@t/editor';
+import { EditorPos, WidgetStyle } from '@t/editor';
 import EditorBase from '@/base';
 import SpecManager from '@/spec/specManager';
 import { cls, toggleClass } from '@/utils/dom';
@@ -185,7 +185,7 @@ export default class MdEditor extends EditorBase {
         (ev as ClipboardEvent).clipboardData || (window as WindowWithClipboard).clipboardData;
       const items = clipboardData && clipboardData.items;
 
-      this.handleImagePaste(items || null, ev);
+      this.handleImagePaste(items, ev);
 
       this.stabilizeWindowScroll(scrollX, scrollY);
     });
@@ -290,7 +290,7 @@ export default class MdEditor extends EditorBase {
           const clipboardData = ev.clipboardData || (window as WindowWithClipboard).clipboardData;
           const items = clipboardData && clipboardData.items;
 
-          if (this.handleImagePaste(items || null, ev)) {
+          if (this.handleImagePaste(items, ev)) {
             this.stabilizeWindowScroll(scrollX, scrollY);
             return true;
           }
@@ -308,7 +308,9 @@ export default class MdEditor extends EditorBase {
           // letting the default ProseMirror parser normalize line breaks.
           if (shouldUseRawPlainTextPaste) {
             ev.preventDefault();
-            this.replaceSelection(plainText as string, null, null, false);
+            const [selectionStart, selectionEnd] = this.getSelection();
+
+            this.replaceSelection(plainText as string, selectionStart, selectionEnd, false);
             this.stabilizeWindowScroll(scrollX, scrollY);
             return true;
           }
@@ -419,7 +421,7 @@ export default class MdEditor extends EditorBase {
     this.view.dispatch(scrollIntoView ? nextTr.scrollIntoView() : nextTr);
   }
 
-  replaceSelection(text: string, start?: MdPos | null, end?: MdPos | null, scrollIntoView = true) {
+  replaceSelection(text: string, start?: EditorPos, end?: EditorPos, scrollIntoView = true) {
     let newTr;
     const { tr, schema, doc } = this.view.state;
     const lineTexts = text.split(reLineEnding);
@@ -430,7 +432,7 @@ export default class MdEditor extends EditorBase {
 
     this.focusElementWithoutPageScroll(this.view.dom as HTMLElement);
 
-    if (start && end) {
+    if (Array.isArray(start) && Array.isArray(end)) {
       const [from, to] = getMdToEditorPos(doc, start, end);
 
       newTr = tr.replaceRange(from, to, slice);

@@ -142,8 +142,11 @@ function flattenMergedRows(
 
       if (!sourceCell) {
         let hasFutureActiveCols = false;
+        const activeColumns = Array.from(activeRowspans.keys());
 
-        for (const activeColumn of activeRowspans.keys()) {
+        for (let index = 0; index < activeColumns.length; index += 1) {
+          const activeColumn = activeColumns[index];
+
           if (activeColumn > colIndex) {
             hasFutureActiveCols = true;
             break;

@@ -53,6 +53,48 @@ function mergeNodes(nodes: ProsemirrorNode[], text: string, schema: Schema, rule
   return nodes.concat(createNodesWithWidget(text, schema, ruleIndex));
 }
 
+function wrapTextWithWidgetSyntax(text: string, ruleIndex = 0): string {
+  const { rule } = widgetRules[ruleIndex] || {};
+  const nextRuleIndex = ruleIndex + 1;
+
+  text = unwrapWidgetSyntax(text);
+
+  if (rule && rule.test(text)) {
+    let result = '';
+    let index;
+
+    while ((index = text.search(rule)) !== -1) {
+      const prev = text.substring(0, index);
+
+      if (prev) {
+        result += wrapTextWithWidgetSyntax(prev, nextRuleIndex);
+      }
+
+      text = text.substring(index);
+
+      const [literal] = text.match(rule)!;
+      const info = `widget${ruleIndex}`;
+
+      result += createWidgetContent(info, literal);
+      text = text.substring(literal.length);
+    }
+
+    if (text) {
+      result += wrapTextWithWidgetSyntax(text, nextRuleIndex);
+    }
+
+    return result;
+  }
+
+  if (text) {
+    return ruleIndex < widgetRules.length - 1
+      ? wrapTextWithWidgetSyntax(text, nextRuleIndex)
+      : text;
+  }
+
+  return '';
+}
+
 /**
  * create nodes with plain text and replace text matched to the widget rules with the widget node
  * For example, in case the text and widget rules as below
@@ -112,6 +154,13 @@ export function createNodesWithWidget(text: string, schema: Schema, ruleIndex = 
   }
 
   return nodes;
+}
+
+export function transformMarkdownWithWidgetSyntax(markdown: string) {
+  return markdown
+    .split(/\r\n|\n|\r/)
+    .map((lineText) => wrapTextWithWidgetSyntax(lineText))
+    .join('\n');
 }
 
 export function getWidgetContent(widgetNode: CustomInlineMdNode) {
