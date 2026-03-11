@@ -749,11 +749,11 @@
 }
 
 .toastui-editor-context-menu .add-row-up::before {
-  background-position: 3px -104px;
+  background-position: -19px -104px;
 }
 
 .toastui-editor-context-menu .add-row-down::before {
-  background-position: -19px -104px;
+  background-position: 3px -104px;
 }
 
 .toastui-editor-context-menu .remove-row::before {
@@ -761,11 +761,11 @@
 }
 
 .toastui-editor-context-menu .add-column-left::before {
-  background-position: -63px -104px;
+  background-position: -85px -104px;
 }
 
 .toastui-editor-context-menu .add-column-right::before {
-  background-position: -85px -104px;
+  background-position: -63px -104px;
 }
 
 .toastui-editor-context-menu .remove-column::before {

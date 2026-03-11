@@ -124,7 +124,9 @@ describe('Viewer', () => {
     expect(html).toContain('class="toastui-media toastui-media-drawio"');
     expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-popups"');
     expect(html).toContain('src="https://viewer.diagrams.net/');
-    expect(html).toContain('style="display:block;width:100%;background:transparent;max-width:720px;aspect-ratio:720 / 480;height:auto"');
+    expect(html).toContain(
+      'style="display:block;width:100%;background:transparent;max-width:720px;aspect-ratio:720 / 480;height:auto"'
+    );
     expect(html).toContain('#Uhttps%3A%2F%2Fexample.com%2Farchitecture.drawio');
     expect(html).toContain('width="720"');
     expect(html).toContain('height="480"');

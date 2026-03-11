@@ -31,7 +31,7 @@ Editor.setLanguage(['en', 'en-US'], {
   'Insert image': 'Insert media',
   Heading: 'Heading',
   'Image URL': 'Image URL',
-  'Select image file': 'Select image file',
+  'Select image file': 'Select media file',
   'Choose a file': 'Choose a file',
   'No file': 'No file',
   Description: 'Description',

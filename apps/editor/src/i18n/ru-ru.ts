@@ -32,7 +32,7 @@ Editor.setLanguage(['ru', 'ru-RU'], {
   'Insert image': 'Вставить изображение',
   Heading: 'Заголовок',
   'Image URL': 'URL изображения',
-  'Select image file': 'Выбрать файл изображения',
+  'Select image file': 'Выбрать медиафайл',
   'Choose a file': 'Выбрать',
   'No file': 'Нет файла',
   Description: 'Описание',

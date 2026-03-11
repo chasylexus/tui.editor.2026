@@ -4,9 +4,18 @@ import os from 'os';
 import path from 'path';
 
 const drawioMarkdown = '![architecture](https://example.com/architecture.drawio =720x480)';
-const localDrawioMarkdown = '![architecture](~/.tui.editor.2026/media/sample-drawio.drawio =720x480)';
-const encodedSpaceSamplePath = path.join(os.homedir(), '.tui.editor.2026', 'media', 'sample drawio.drawio');
-const encodedSpaceMarkdown = `![architecture](${encodedSpaceSamplePath.replace(/ /g, '%20')} =720x480)`;
+const localDrawioMarkdown =
+  '![architecture](~/.tui.editor.2026/media/sample-drawio.drawio =720x480)';
+const encodedSpaceSamplePath = path.join(
+  os.homedir(),
+  '.tui.editor.2026',
+  'media',
+  'sample drawio.drawio'
+);
+const encodedSpaceMarkdown = `![architecture](${encodedSpaceSamplePath.replace(
+  / /g,
+  '%20'
+)} =720x480)`;
 
 async function openHarness(page) {
   await page.goto('/examples/e2e-harness.html');
@@ -33,7 +42,10 @@ test('renders draw.io references as viewer iframes in markdown preview', async (
   await expect(iframe).toHaveAttribute('width', '720');
   await expect(iframe).toHaveAttribute('height', '480');
   await expect(iframe).toHaveAttribute('src', /viewer\.diagrams\.net/);
-  await expect(iframe).toHaveAttribute('src', /#Uhttps%3A%2F%2Fexample\.com%2Farchitecture\.drawio/);
+  await expect(iframe).toHaveAttribute(
+    'src',
+    /#Uhttps%3A%2F%2Fexample\.com%2Farchitecture\.drawio/
+  );
 });
 
 test('renders draw.io references as viewer iframes in wysiwyg', async ({ page }) => {
@@ -46,7 +58,10 @@ test('renders draw.io references as viewer iframes in wysiwyg', async ({ page })
   await expect(iframe).toHaveAttribute('width', '720');
   await expect(iframe).toHaveAttribute('height', '480');
   await expect(iframe).toHaveAttribute('src', /viewer\.diagrams\.net/);
-  await expect(iframe).toHaveAttribute('src', /#Uhttps%3A%2F%2Fexample\.com%2Farchitecture\.drawio/);
+  await expect(iframe).toHaveAttribute(
+    'src',
+    /#Uhttps%3A%2F%2Fexample\.com%2Farchitecture\.drawio/
+  );
 });
 
 test('renders same-origin draw.io references through the local viewer page in markdown preview', async ({
@@ -97,10 +112,9 @@ test('fits same-origin draw.io content to the iframe without internal scroll ove
   const frame = await iframeHandle.contentFrame();
 
   await expect
-    .poll(async () => {
-      return frame.evaluate(() => {
-        const body = document.body;
-        const html = document.documentElement;
+    .poll(() =>
+      frame.evaluate(() => {
+        const { body, documentElement: html } = document;
 
         return {
           bodyOverflowX: body.scrollWidth - body.clientWidth,
@@ -108,8 +122,8 @@ test('fits same-origin draw.io content to the iframe without internal scroll ove
           htmlOverflowX: html.scrollWidth - html.clientWidth,
           htmlOverflowY: html.scrollHeight - html.clientHeight,
         };
-      });
-    })
+      })
+    )
     .toEqual({
       bodyOverflowX: 0,
       bodyOverflowY: 0,
@@ -133,14 +147,17 @@ test('shrinks draw.io iframe height proportionally on narrow containers', async 
         return false;
       }
 
-      const ratio = box.width / box.height;
+      const { width, height } = box;
+      const ratio = width / height;
 
-      return box.width < 520 && box.height < 340 && ratio > 1.45 && ratio < 1.65;
+      return width < 520 && height < 340 && ratio > 1.45 && ratio < 1.65;
     })
     .toBe(true);
 });
 
-test('renders percent-encoded local filesystem paths with spaces for draw.io media', async ({ page }) => {
+test('renders percent-encoded local filesystem paths with spaces for draw.io media', async ({
+  page,
+}) => {
   await page.evaluate((markdown) => window.__HARNESS__.setMarkdown(markdown), encodedSpaceMarkdown);
   await page.evaluate(() => window.__HARNESS__.changeMode('markdown'));
 
@@ -150,8 +167,6 @@ test('renders percent-encoded local filesystem paths with spaces for draw.io med
   const frame = await iframeHandle.contentFrame();
 
   await expect
-    .poll(async () => {
-      return frame.evaluate(() => document.body.textContent || '');
-    })
+    .poll(() => frame.evaluate(() => document.body.textContent || ''))
     .not.toContain('File not found');
 });
