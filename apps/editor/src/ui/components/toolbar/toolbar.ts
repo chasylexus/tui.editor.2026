@@ -20,6 +20,7 @@ import {
   removeNode,
 } from '@/utils/dom';
 import { last } from '@/utils/common';
+import { isMobileLikeDevice } from '@/helper/mobileToolbar';
 import {
   createToolbarItemInfo,
   toggleScrollSync,
@@ -93,6 +94,8 @@ export class Toolbar extends Component<Props, State> {
   private resizeObserver!: ResizeObserver;
 
   private handleResize!: () => void;
+
+  private readonly mobileLayout = isMobileLikeDevice();
 
   constructor(props: Props) {
     super(props);
@@ -249,6 +252,21 @@ export class Toolbar extends Component<Props, State> {
   }
 
   private classifyToolbarItems() {
+    if (this.mobileLayout) {
+      const items = this.initialItems.reduce<ToolbarGroupInfo[]>((acc, initialGroup) => {
+        const group = initialGroup.filter((item) => !item.hidden);
+
+        if (group.length) {
+          setGroupState(group);
+          acc.push(group);
+        }
+
+        return acc;
+      }, []);
+
+      return { items, dropdownItems: [] };
+    }
+
     let totalWidth = 0;
     const { clientWidth } = this.refs.el;
     const divider = this.refs.el.querySelector<HTMLElement>(`.${cls('toolbar-divider')}`);
@@ -301,7 +319,10 @@ export class Toolbar extends Component<Props, State> {
     // classify toolbar and dropdown toolbar after DOM has been rendered
     this.setState(this.classifyToolbarItems());
     this.appendTooltipToRoot();
-    this.resizeObserver.observe(this.refs.el);
+
+    if (!this.mobileLayout) {
+      this.resizeObserver.observe(this.refs.el);
+    }
   }
 
   updated(prevProps: Props) {
@@ -326,7 +347,11 @@ export class Toolbar extends Component<Props, State> {
 
   beforeDestroy() {
     window.removeEventListener('resize', this.handleResize);
-    this.resizeObserver.disconnect();
+
+    if (!this.mobileLayout) {
+      this.resizeObserver.disconnect();
+    }
+
     removeNode(this.tooltipRef.current!);
   }
 

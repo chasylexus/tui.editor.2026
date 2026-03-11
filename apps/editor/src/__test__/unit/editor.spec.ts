@@ -1933,6 +1933,39 @@ describe('editor', () => {
         expect(editor.getHTML()).toContain('Brand Lift');
         expect(editor.getHTML()).not.toContain('<span');
       });
+
+      it('should unwrap presentational class-only span marks after clearStyle', () => {
+        createEditor({
+          el: container,
+          initialValue: oneLineTrim`
+            <p>
+              Если хотите, я могу ещё<span class="Apple-converted-space">&nbsp;</span><strong><span class="s2">сильно усилить весь этот блок</span></strong>, добавив один стратегический приём
+            </p>
+          `,
+          customHTMLRenderer: {
+            htmlInline: {
+              // @ts-ignore
+              span(node: any, { entering }: any) {
+                return entering
+                  ? { type: 'openTag', tagName: 'span', attributes: node.attrs }
+                  : { type: 'closeTag', tagName: 'span' };
+              },
+            },
+          },
+        });
+
+        editor.changeMode('wysiwyg');
+        editor.exec('selectAll');
+        editor.exec('clearStyle');
+
+        expect(editor.getMarkdown()).toContain('Если хотите, я могу ещё');
+        expect(editor.getMarkdown()).toContain('<strong>сильно усилить весь этот блок</strong>');
+        expect(editor.getMarkdown()).not.toContain('Apple-converted-space');
+        expect(editor.getMarkdown()).not.toContain('class="s2"');
+        expect(editor.getHTML()).not.toContain('Apple-converted-space');
+        expect(editor.getHTML()).not.toContain('class="s2"');
+        expect(editor.getHTML()).not.toContain('data-raw-html="span"');
+      });
     });
 
     describe('hooks option', () => {

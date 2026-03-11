@@ -1,4 +1,10 @@
-import { getMobileToolbarViewportOffset, isMobileLikeDevice } from '@/helper/mobileToolbar';
+import {
+  clampMobileTextZoom,
+  getMobileToolbarViewportOffset,
+  getTouchDistance,
+  isEditorContentTouchTarget,
+  isMobileLikeDevice,
+} from '@/helper/mobileToolbar';
 
 describe('mobileToolbar helper', () => {
   it('treats coarse pointer devices as mobile-like', () => {
@@ -61,5 +67,38 @@ describe('mobileToolbar helper', () => {
         },
       })
     ).toBe(0);
+  });
+
+  it('clamps mobile text zoom to the supported range', () => {
+    expect(clampMobileTextZoom(0.2)).toBe(0.8);
+    expect(clampMobileTextZoom(1.3)).toBe(1.3);
+    expect(clampMobileTextZoom(3)).toBe(2.4);
+  });
+
+  it('computes the distance between two touch points', () => {
+    expect(getTouchDistance({ clientX: 10, clientY: 10 }, { clientX: 13, clientY: 14 })).toBe(5);
+  });
+
+  it('treats touches inside the editor main area as content touches, excluding the toolbar', () => {
+    document.body.innerHTML = `
+      <div class="toastui-editor-defaultUI">
+        <div class="toastui-editor-toolbar">
+          <button class="toolbar-button">B</button>
+        </div>
+        <div class="toastui-editor-main">
+          <div class="toastui-editor-ww-container">
+            <div class="toastui-editor-contents ProseMirror">
+              <p><span class="content-node">Text</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const toolbarButton = document.querySelector('.toolbar-button');
+    const contentNode = document.querySelector('.content-node');
+
+    expect(isEditorContentTouchTarget(toolbarButton)).toBe(false);
+    expect(isEditorContentTouchTarget(contentNode)).toBe(true);
   });
 });

@@ -4,34 +4,43 @@ import { Node as ProsemirrorNode, Mark as ProsemirrorMark } from 'prosemirror-mo
 
 import { EditorCommand } from '@t/spec';
 
-function removeInlineStyleFromAttrs(attrs: Record<string, any>) {
+function isPresentationalSpanMark(mark: ProsemirrorMark) {
+  return mark.type.name === 'span' && !!mark.attrs?.htmlInline;
+}
+
+function removePresentationalInlineAttrsFromAttrs(
+  attrs: Record<string, any>,
+  options: { stripClass?: boolean } = {}
+) {
   const htmlAttrs = attrs?.htmlAttrs;
 
-  if (
-    !htmlAttrs ||
-    typeof htmlAttrs !== 'object' ||
-    !Object.prototype.hasOwnProperty.call(htmlAttrs, 'style')
-  ) {
+  if (!htmlAttrs || typeof htmlAttrs !== 'object') {
     return null;
   }
 
-  const restHtmlAttrs = { ...htmlAttrs };
+  const stripClass = !!options.stripClass;
+  let changed = false;
+  const normalizedHtmlAttrs = Object.keys(htmlAttrs).reduce<Record<string, string>>((acc, key) => {
+    const value = htmlAttrs[key];
 
-  delete restHtmlAttrs.style;
-  const normalizedHtmlAttrs = Object.keys(restHtmlAttrs).reduce<Record<string, string>>(
-    (acc, key) => {
-      const value = restHtmlAttrs[key];
-
-      if (value === null || typeof value === 'undefined') {
-        return acc;
-      }
-
-      acc[key] = String(value);
-
+    if (key === 'style' || (stripClass && (key === 'class' || key === 'data-raw-html'))) {
+      changed = true;
       return acc;
-    },
-    {}
-  );
+    }
+
+    if (value === null || typeof value === 'undefined') {
+      changed = true;
+      return acc;
+    }
+
+    acc[key] = String(value);
+
+    return acc;
+  }, {});
+
+  if (!changed) {
+    return null;
+  }
 
   return {
     ...attrs,
@@ -41,17 +50,17 @@ function removeInlineStyleFromAttrs(attrs: Record<string, any>) {
 
 function shouldUnwrapSpanMark(
   mark: ProsemirrorMark,
-  attrsWithoutStyle: Record<string, any> | null
+  attrsWithoutPresentationalAttrs: Record<string, any> | null
 ) {
-  if (!attrsWithoutStyle) {
+  if (!attrsWithoutPresentationalAttrs) {
     return false;
   }
 
-  if (mark.type.name !== 'span' || !mark.attrs?.htmlInline) {
+  if (!isPresentationalSpanMark(mark)) {
     return false;
   }
 
-  const { htmlAttrs } = attrsWithoutStyle;
+  const { htmlAttrs } = attrsWithoutPresentationalAttrs;
 
   return !htmlAttrs || !Object.keys(htmlAttrs).length;
 }
@@ -108,16 +117,21 @@ function clearStyle(): EditorCommand {
         }
 
         node.marks.forEach((mark: ProsemirrorMark) => {
-          const attrsWithoutStyle = removeInlineStyleFromAttrs(mark.attrs);
+          const attrsWithoutPresentationalAttrs = removePresentationalInlineAttrsFromAttrs(
+            mark.attrs,
+            {
+              stripClass: isPresentationalSpanMark(mark),
+            }
+          );
 
-          if (!attrsWithoutStyle) {
+          if (!attrsWithoutPresentationalAttrs) {
             return;
           }
 
           tr = tr.removeMark(markFrom, markTo, mark);
 
-          if (!shouldUnwrapSpanMark(mark, attrsWithoutStyle)) {
-            tr = tr.addMark(markFrom, markTo, mark.type.create(attrsWithoutStyle));
+          if (!shouldUnwrapSpanMark(mark, attrsWithoutPresentationalAttrs)) {
+            tr = tr.addMark(markFrom, markTo, mark.type.create(attrsWithoutPresentationalAttrs));
           }
 
           changed = true;
@@ -126,13 +140,15 @@ function clearStyle(): EditorCommand {
         return;
       }
 
-      const attrsWithoutStyle = removeInlineStyleFromAttrs(node.attrs);
+      const attrsWithoutPresentationalAttrs = removePresentationalInlineAttrsFromAttrs(node.attrs, {
+        stripClass: node.type.name === 'span' && !!node.attrs?.htmlInline,
+      });
 
-      if (!attrsWithoutStyle) {
+      if (!attrsWithoutPresentationalAttrs) {
         return;
       }
 
-      tr.setNodeMarkup(pos, null, attrsWithoutStyle, Array.from(node.marks));
+      tr.setNodeMarkup(pos, null, attrsWithoutPresentationalAttrs, Array.from(node.marks));
       changed = true;
     });
 

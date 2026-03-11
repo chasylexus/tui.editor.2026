@@ -5,7 +5,14 @@ import Viewer from './viewer';
 import html from './ui/vdom/template';
 import { Layout } from './ui/components/layout';
 import { render } from './ui/vdom/renderer';
-import { getMobileToolbarViewportOffset, isMobileLikeDevice } from './helper/mobileToolbar';
+import {
+  clampMobileTextZoom,
+  getMobileToolbarViewportOffset,
+  getTouchDistance,
+  isEditorContentTouchTarget,
+  isMobileLikeDevice,
+  MOBILE_TEXT_ZOOM_DEFAULT,
+} from './helper/mobileToolbar';
 
 /**
  * ToastUI Editor
@@ -20,7 +27,12 @@ class ToastUIEditor extends EditorCore {
 
   private mobileViewportSyncFrame: number | null = null;
 
-  private mobileToolbarResizeObserver: ResizeObserver | null = null;
+  private currentMobileTextZoom = MOBILE_TEXT_ZOOM_DEFAULT;
+
+  private pinchZoomSession: {
+    startDistance: number;
+    startZoom: number;
+  } | null = null;
 
   constructor(options: EditorOptions) {
     super(options);
@@ -114,16 +126,20 @@ class ToastUIEditor extends EditorCore {
     document.addEventListener('focusout', this.handleMobileToolbarLayoutChange);
     window.visualViewport?.addEventListener('resize', this.handleMobileToolbarViewportSync);
     window.visualViewport?.addEventListener('scroll', this.handleMobileToolbarViewportSync);
-    if (typeof ResizeObserver !== 'undefined') {
-      const rootEl = this.getEditorRootEl();
+    const rootEl = this.getEditorRootEl();
 
-      if (rootEl) {
-        this.mobileToolbarResizeObserver = new ResizeObserver(() => {
-          this.scheduleMobileToolbarViewportSync();
-        });
-        this.mobileToolbarResizeObserver.observe(rootEl);
-      }
-    }
+    rootEl?.addEventListener('touchstart', this.handleMobilePinchZoomStart, {
+      capture: true,
+      passive: false,
+    });
+    rootEl?.addEventListener('touchmove', this.handleMobilePinchZoomMove, {
+      capture: true,
+      passive: false,
+    });
+    rootEl?.addEventListener('touchend', this.finishMobilePinchZoom, true);
+    rootEl?.addEventListener('touchcancel', this.finishMobilePinchZoom, true);
+    rootEl?.addEventListener('gesturestart', this.handleMobileChromeGesture, true);
+    rootEl?.addEventListener('gesturechange', this.handleMobileChromeGesture, true);
   }
 
   private destroyMobileToolbarLayout() {
@@ -138,8 +154,15 @@ class ToastUIEditor extends EditorCore {
     document.removeEventListener('focusout', this.handleMobileToolbarLayoutChange);
     window.visualViewport?.removeEventListener('resize', this.handleMobileToolbarViewportSync);
     window.visualViewport?.removeEventListener('scroll', this.handleMobileToolbarViewportSync);
-    this.mobileToolbarResizeObserver?.disconnect();
-    this.mobileToolbarResizeObserver = null;
+    const rootEl = this.getEditorRootEl();
+
+    rootEl?.removeEventListener('touchstart', this.handleMobilePinchZoomStart, true);
+    rootEl?.removeEventListener('touchmove', this.handleMobilePinchZoomMove, true);
+    rootEl?.removeEventListener('touchend', this.finishMobilePinchZoom, true);
+    rootEl?.removeEventListener('touchcancel', this.finishMobilePinchZoom, true);
+    rootEl?.removeEventListener('gesturestart', this.handleMobileChromeGesture, true);
+    rootEl?.removeEventListener('gesturechange', this.handleMobileChromeGesture, true);
+    this.pinchZoomSession = null;
     this.clearMobileToolbarTimers();
   }
 
@@ -160,6 +183,16 @@ class ToastUIEditor extends EditorCore {
 
   private getToolbarEl() {
     return this.getEditorRootEl()?.querySelector('.toastui-editor-toolbar') as HTMLElement | null;
+  }
+
+  private applyMobileTextZoom() {
+    const rootEl = this.getEditorRootEl();
+
+    if (!rootEl) {
+      return;
+    }
+
+    rootEl.style.setProperty('--toastui-editor-text-zoom', this.currentMobileTextZoom.toFixed(3));
   }
 
   private handleMobileToolbarViewportSync = () => {
@@ -208,9 +241,14 @@ class ToastUIEditor extends EditorCore {
       rootEl.style.removeProperty('--mobile-toolbar-height');
       rootEl.style.removeProperty('--mobile-toolbar-left');
       rootEl.style.removeProperty('--mobile-toolbar-width');
+      rootEl.style.removeProperty('--toastui-editor-text-zoom');
+      this.currentMobileTextZoom = MOBILE_TEXT_ZOOM_DEFAULT;
+      this.pinchZoomSession = null;
 
       return;
     }
+
+    this.applyMobileTextZoom();
 
     const toolbarEl = this.getToolbarEl();
     const viewportOffset = getMobileToolbarViewportOffset();
@@ -236,6 +274,68 @@ class ToastUIEditor extends EditorCore {
       `${Math.max(0, Math.round(rootRect.width))}px`
     );
   }
+
+  private handleMobilePinchZoomStart = (event: TouchEvent) => {
+    if (!isMobileLikeDevice() || event.touches.length !== 2) {
+      return;
+    }
+    if (!isEditorContentTouchTarget(event.target)) {
+      event.preventDefault();
+      return;
+    }
+
+    const startDistance = getTouchDistance(event.touches[0], event.touches[1]);
+
+    if (!Number.isFinite(startDistance) || startDistance <= 0) {
+      return;
+    }
+
+    this.pinchZoomSession = {
+      startDistance,
+      startZoom: this.currentMobileTextZoom,
+    };
+    event.preventDefault();
+  };
+
+  private handleMobilePinchZoomMove = (event: TouchEvent) => {
+    if (!isMobileLikeDevice() || event.touches.length !== 2) {
+      return;
+    }
+    if (!isEditorContentTouchTarget(event.target)) {
+      event.preventDefault();
+      return;
+    }
+    if (!this.pinchZoomSession) {
+      return;
+    }
+
+    const nextDistance = getTouchDistance(event.touches[0], event.touches[1]);
+
+    if (!Number.isFinite(nextDistance) || nextDistance <= 0) {
+      return;
+    }
+
+    const scale = nextDistance / this.pinchZoomSession.startDistance;
+
+    this.currentMobileTextZoom = clampMobileTextZoom(this.pinchZoomSession.startZoom * scale);
+    this.applyMobileTextZoom();
+    event.preventDefault();
+  };
+
+  private finishMobilePinchZoom = () => {
+    this.pinchZoomSession = null;
+  };
+
+  private handleMobileChromeGesture = (event: Event) => {
+    if (!isMobileLikeDevice()) {
+      return;
+    }
+    if (isEditorContentTouchTarget(event.target)) {
+      return;
+    }
+
+    event.preventDefault();
+  };
 }
 
 export default ToastUIEditor;

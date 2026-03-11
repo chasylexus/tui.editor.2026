@@ -85,3 +85,29 @@ test('keeps the mobile toolbar horizontally scrollable when the toolbar content 
 
   expect(scrolled).toBeGreaterThan(0);
 });
+
+test('scales only editor text when the mobile text zoom changes', async ({ page }) => {
+  const before = await page.evaluate(() => window.__HARNESS__.getMobileToolbarMetrics());
+
+  expect(before.isMobile).toBe(true);
+  expect(before.contents).not.toBeNull();
+  expect(before.toolbarButton).not.toBeNull();
+
+  await page.evaluate(() => window.__HARNESS__.setMobileTextZoom(1.6));
+
+  const after = await page.evaluate(() => window.__HARNESS__.getMobileToolbarMetrics());
+
+  expect(parseFloat(after.contents.fontSize)).toBeGreaterThan(parseFloat(before.contents.fontSize));
+  expect(after.toolbarButton.width).toBe(before.toolbarButton.width);
+  expect(after.toolbarButton.height).toBe(before.toolbarButton.height);
+});
+
+test('keeps mobile content paddings compact', async ({ page }) => {
+  const metrics = await page.evaluate(() => window.__HARNESS__.getMobileToolbarMetrics());
+
+  expect(metrics.isMobile).toBe(true);
+  expect(metrics.contents).not.toBeNull();
+  expect(parseFloat(metrics.contents.paddingLeft)).toBeLessThanOrEqual(6);
+  expect(parseFloat(metrics.contents.paddingRight)).toBeLessThanOrEqual(6);
+  expect(parseFloat(metrics.contents.paddingTop)).toBeLessThanOrEqual(8);
+});

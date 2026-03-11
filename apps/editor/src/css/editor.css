@@ -423,6 +423,8 @@
   min-height: 0;
   width: 100%;
   overscroll-behavior: none;
+  --toastui-editor-text-zoom: 1;
+  --toastui-editor-base-font-size: 14px;
 }
 
 .toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-main {
@@ -455,12 +457,20 @@
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  touch-action: pan-x;
 }
 
 .toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-defaultUI-toolbar {
   width: max-content;
   min-width: 100%;
   flex-wrap: nowrap;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-mode-switch,
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-md-tab-container {
+  touch-action: manipulation;
 }
 
 .toastui-editor-defaultUI.toastui-editor-mobile-device
@@ -470,6 +480,36 @@
   .toastui-editor-defaultUI-toolbar
   .toastui-editor-toolbar-item-wrapper {
   flex: 0 0 auto;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-md-container .toastui-editor-md-preview {
+  padding: 0 6px;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device
+  .toastui-editor-md-container
+  .toastui-editor-md-preview
+  .toastui-editor-contents {
+  padding-top: 4px;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-ww-container .toastui-editor-contents {
+  padding: 8px 6px 0;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .ProseMirror {
+  padding: 8px 6px 0;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-md-textarea {
+  padding: 8px 6px;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-main .toastui-editor-md-textarea,
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-main .toastui-editor-md-preview,
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-main .toastui-editor-contents,
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-main .ProseMirror {
+  font-size: calc(var(--toastui-editor-base-font-size) * var(--toastui-editor-text-zoom, 1));
 }
 
 /* toolbar popup */

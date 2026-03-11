@@ -231,10 +231,13 @@
           const contents = root?.querySelector(
             '.toastui-editor-ww-container .toastui-editor-contents.ProseMirror'
           );
+          const toolbarButton = toolbarInner?.querySelector('button');
           const rootBox = root?.getBoundingClientRect();
           const toolbarBox = toolbar?.getBoundingClientRect();
           const mainStyle = main ? getComputedStyle(main) : null;
           const toolbarStyle = toolbar ? getComputedStyle(toolbar) : null;
+          const contentStyle = contents ? getComputedStyle(contents) : null;
+          const toolbarButtonStyle = toolbarButton ? getComputedStyle(toolbarButton) : null;
 
           return {
             isMobile: Boolean(root?.classList.contains('toastui-editor-mobile-device')),
@@ -266,6 +269,16 @@
               ? {
                   scrollHeight: contents.scrollHeight,
                   clientHeight: contents.clientHeight,
+                  fontSize: contentStyle?.fontSize || null,
+                  paddingLeft: contentStyle?.paddingLeft || null,
+                  paddingRight: contentStyle?.paddingRight || null,
+                  paddingTop: contentStyle?.paddingTop || null,
+                }
+              : null,
+            toolbarButton: toolbarButton && toolbarButtonStyle
+              ? {
+                  width: toolbarButtonStyle.width,
+                  height: toolbarButtonStyle.height,
                 }
               : null,
           };
@@ -299,6 +312,14 @@
             host.style.width = width + 'px';
             window.dispatchEvent(new Event('resize'));
             await waitFrames(8);
+          },
+          async setMobileTextZoom(scale) {
+            const root = getRootEl();
+
+            if (root instanceof HTMLElement) {
+              root.style.setProperty('--toastui-editor-text-zoom', String(scale));
+            }
+            await waitFrames(4);
           },
           async focusByText(needle, offset) {
             const target = focusByText(needle, offset);

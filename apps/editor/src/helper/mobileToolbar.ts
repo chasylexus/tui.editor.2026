@@ -19,6 +19,12 @@ interface MobileViewportMetricsSource {
   visualViewport?: VisualViewportLike | null;
 }
 
+export const MOBILE_TEXT_ZOOM_MIN = 0.8;
+
+export const MOBILE_TEXT_ZOOM_MAX = 2.4;
+
+export const MOBILE_TEXT_ZOOM_DEFAULT = 1;
+
 export function isMobileLikeDevice(source?: MobileDeviceDetectionSource) {
   const matchMediaFn =
     source?.matchMedia ??
@@ -64,4 +70,31 @@ export function getMobileToolbarViewportOffset(source?: MobileViewportMetricsSou
   const currentVisibleBottom = Math.max(0, viewportHeight + Math.max(0, viewportOffsetTop));
 
   return Math.max(0, Math.round(layoutViewportHeight - currentVisibleBottom));
+}
+
+export function clampMobileTextZoom(value: number) {
+  return Math.min(Math.max(value, MOBILE_TEXT_ZOOM_MIN), MOBILE_TEXT_ZOOM_MAX);
+}
+
+interface PointLike {
+  clientX: number;
+  clientY: number;
+}
+
+export function getTouchDistance(touchA: PointLike, touchB: PointLike) {
+  const deltaX = Number(touchA.clientX) - Number(touchB.clientX);
+  const deltaY = Number(touchA.clientY) - Number(touchB.clientY);
+
+  return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+}
+
+export function isEditorContentTouchTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  if (target.closest('.toastui-editor-toolbar')) {
+    return false;
+  }
+
+  return Boolean(target.closest('.toastui-editor-main'));
 }
