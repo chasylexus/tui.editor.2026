@@ -9,12 +9,15 @@ import {
   isVideoFileReference,
   parseVideoEmbedUrl,
   parseInlineRecorderSource,
+  isDrawioReference,
+  createDrawioViewerUrl,
+  createDrawioResponsiveStyle,
 } from '@/utils/media';
 
 import { Emitter } from '@t/event';
 
 type GetPos = (() => number) | boolean;
-type MediaType = 'image' | 'audio' | 'video' | 'embed';
+type MediaType = 'image' | 'audio' | 'video' | 'embed' | 'drawio';
 
 const IMAGE_LINK_CLASS_NAME = 'image-link';
 
@@ -194,6 +197,35 @@ export class ImageView implements NodeView {
     return video;
   }
 
+  private createDrawioElement(node: ProsemirrorNode) {
+    const iframe = document.createElement('iframe');
+    const { imageUrl, altText, imageWidth, imageHeight } = node.attrs;
+    const resolvedDrawioUrl = this.resolveMediaPath(imageUrl, 'drawio');
+
+    iframe.className = 'toastui-media toastui-media-drawio';
+    iframe.title = altText || 'draw.io';
+    iframe.setAttribute('loading', 'lazy');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+    iframe.src = createDrawioViewerUrl(resolvedDrawioUrl, altText || 'draw.io');
+    iframe.setAttribute(
+      'style',
+      createDrawioResponsiveStyle(
+        typeof imageWidth === 'number' ? imageWidth : null,
+        typeof imageHeight === 'number' ? imageHeight : null
+      )
+    );
+
+    if (typeof imageWidth === 'number' && imageWidth > 0) {
+      iframe.width = String(imageWidth);
+    }
+
+    if (typeof imageHeight === 'number' && imageHeight > 0) {
+      iframe.height = String(imageHeight);
+    }
+
+    return iframe;
+  }
+
   private createMediaElement(node: ProsemirrorNode) {
     const { imageUrl } = node.attrs;
     const inlineRecorder = parseInlineRecorderSource(imageUrl);
@@ -212,6 +244,10 @@ export class ImageView implements NodeView {
 
     if (isVideoFileReference(imageUrl)) {
       return this.createVideoElement(node);
+    }
+
+    if (isDrawioReference(imageUrl)) {
+      return this.createDrawioElement(node);
     }
 
     return this.createImageElement(node);

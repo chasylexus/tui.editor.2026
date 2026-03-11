@@ -43,7 +43,7 @@ export interface EventMap {
 }
 
 type HookCallback = (url: string, text?: string) => void;
-type MediaType = 'image' | 'audio' | 'video' | 'embed';
+type MediaType = 'image' | 'audio' | 'video' | 'embed' | 'drawio';
 
 export type HookMap = {
   addImageBlobHook?: (blob: Blob | File, callback: HookCallback) => void;

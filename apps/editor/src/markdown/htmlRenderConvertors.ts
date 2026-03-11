@@ -28,11 +28,14 @@ import {
   isAudioReference,
   isVideoFileReference,
   parseInlineRecorderSource,
+  isDrawioReference,
+  createDrawioViewerUrl,
+  createDrawioResponsiveStyle,
 } from '@/utils/media';
 import { registerTagWhitelistIfPossible } from '@/sanitizer/htmlSanitizer';
 
 type TokenAttrs = Record<string, any>;
-type MediaType = 'image' | 'audio' | 'video' | 'embed';
+type MediaType = 'image' | 'audio' | 'video' | 'embed' | 'drawio';
 type ResolveMediaPath = (path: string, mediaType: MediaType) => string;
 
 const reCloseTag = /^\s*<\s*\//;
@@ -282,6 +285,36 @@ const baseConvertors: HTMLConvertorMap = {
       ];
     }
 
+    if (isDrawioReference(destination)) {
+      registerTagWhitelistIfPossible('iframe');
+      const resolvedDrawio = destination;
+      const iframeAttributes: TokenAttrs = {
+        src: createDrawioViewerUrl(resolvedDrawio, altText || 'draw.io'),
+        title: altText || 'draw.io',
+        loading: 'lazy',
+        sandbox: 'allow-scripts allow-same-origin allow-popups',
+        style: createDrawioResponsiveStyle(size && size.width, size && size.height),
+      };
+
+      if (size && size.width !== null) {
+        iframeAttributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        iframeAttributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'iframe',
+          classNames: ['toastui-media', 'toastui-media-drawio'],
+          attributes: iframeAttributes,
+        },
+        { type: 'closeTag', tagName: 'iframe' },
+      ];
+    }
+
     const result = origin!() as OpenTagToken | null;
 
     if (result && result.type === 'openTag') {
@@ -499,6 +532,36 @@ export function getHTMLRenderConvertors(
           attributes,
         },
         { type: 'closeTag', tagName: 'video' },
+      ];
+    }
+
+    if (isDrawioReference(destination)) {
+      registerTagWhitelistIfPossible('iframe');
+      const resolvedDrawio = resolvePath(destination, 'drawio');
+      const iframeAttributes: TokenAttrs = {
+        src: createDrawioViewerUrl(resolvedDrawio, altText || 'draw.io'),
+        title: altText || 'draw.io',
+        loading: 'lazy',
+        sandbox: 'allow-scripts allow-same-origin allow-popups',
+        style: createDrawioResponsiveStyle(size && size.width, size && size.height),
+      };
+
+      if (size && size.width !== null) {
+        iframeAttributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        iframeAttributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'iframe',
+          classNames: ['toastui-media', 'toastui-media-drawio'],
+          attributes: iframeAttributes,
+        },
+        { type: 'closeTag', tagName: 'iframe' },
       ];
     }
 

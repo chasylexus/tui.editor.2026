@@ -202,7 +202,7 @@ export class ImagePopupBody extends Component<Props, State> {
         <input
           id="toastuiMediaRefInput"
           type="text"
-          placeholder="./audio.m4a or https://www.youtube.com/watch?v=..."
+          placeholder="./diagram.drawio or ./audio.m4a or https://www.youtube.com/watch?v=..."
           ref=${(el: HTMLInputElement) => (this.refs.url = el)}
         />
         <div style="position: relative; margin-top: 8px;">
@@ -224,7 +224,7 @@ export class ImagePopupBody extends Component<Props, State> {
           <input
             id="toastuiImageFileInput"
             type="file"
-            accept="image/*,audio/*,video/*"
+            accept="image/*,audio/*,video/*,.drawio,.dio,.drawio.xml"
             onChange=${this.changeFile}
             ref=${(el: HTMLInputElement) => (this.refs.file = el)}
           />

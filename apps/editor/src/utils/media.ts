@@ -1,7 +1,46 @@
 const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'flac', 'opus', 'weba'];
 const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'webm', 'ogv', 'mov', 'mkv'];
+const DRAWIO_EXTENSIONS = ['drawio', 'dio', 'drawio.xml'];
 
 export const INLINE_RECORDER_SCHEME = 'record://audio';
+export const DRAWIO_VIEWER_ORIGIN = 'https://viewer.diagrams.net';
+export const DRAWIO_LOCAL_VIEWER_PATH = '/dist/cdn/td-drawio-viewer.html';
+
+function absolutizeUrl(rawValue: string) {
+  const value = String(rawValue || '').trim();
+
+  if (!value) {
+    return value;
+  }
+
+  try {
+    return new URL(value).toString();
+  } catch (_error) {
+    if (typeof window !== 'undefined' && window.location) {
+      try {
+        return new URL(value, window.location.href).toString();
+      } catch (_innerError) {
+        return value;
+      }
+    }
+
+    return value;
+  }
+}
+
+function isSameOriginUrl(rawValue: string) {
+  if (typeof window === 'undefined' || !window.location) {
+    return false;
+  }
+
+  try {
+    const url = new URL(rawValue, window.location.href);
+
+    return url.origin === window.location.origin;
+  } catch (_error) {
+    return false;
+  }
+}
 
 interface ParsedEmbedVideo {
   provider: 'youtube' | 'vimeo' | 'rutube' | 'dailymotion';
@@ -205,6 +244,60 @@ export function isVideoFileReference(rawValue: string) {
   }
 
   return hasExtension(value, VIDEO_EXTENSIONS);
+}
+
+export function isDrawioReference(rawValue: string) {
+  const value = String(rawValue || '').trim();
+
+  if (!value) {
+    return false;
+  }
+
+  return hasExtension(value, DRAWIO_EXTENSIONS);
+}
+
+export function createDrawioViewerUrl(drawioUrl: string, title: string) {
+  const normalizedUrl = absolutizeUrl(drawioUrl);
+
+  if (isSameOriginUrl(normalizedUrl) && typeof window !== 'undefined' && window.location) {
+    const viewerUrl = new URL(DRAWIO_LOCAL_VIEWER_PATH, window.location.href);
+
+    viewerUrl.searchParams.set('src', normalizedUrl);
+    viewerUrl.searchParams.set('title', String(title || 'draw.io'));
+
+    return viewerUrl.toString();
+  }
+
+  const params = new URLSearchParams({
+    highlight: '#4f8cff',
+    edit: '_blank',
+    layers: '1',
+    nav: '1',
+    dark: 'auto',
+    title: String(title || 'draw.io'),
+  });
+
+  return `${DRAWIO_VIEWER_ORIGIN}/?${params.toString()}#U${encodeURIComponent(normalizedUrl)}`;
+}
+
+export function createDrawioResponsiveStyle(
+  width: number | null | undefined,
+  height: number | null | undefined
+) {
+  const styleParts = ['display:block', 'width:100%', 'background:transparent'];
+
+  if (typeof width === 'number' && width > 0) {
+    styleParts.push(`max-width:${width}px`);
+  }
+
+  if (typeof width === 'number' && width > 0 && typeof height === 'number' && height > 0) {
+    styleParts.push(`aspect-ratio:${width} / ${height}`);
+    styleParts.push('height:auto');
+  } else if (typeof height === 'number' && height > 0) {
+    styleParts.push(`height:${height}px`);
+  }
+
+  return styleParts.join(';');
 }
 
 export function createInlineRecorderSource(recorderId: string) {

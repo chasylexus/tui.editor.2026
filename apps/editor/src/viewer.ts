@@ -127,8 +127,10 @@ class ToastUIEditorViewer {
     this.preview = new MarkdownPreview(this.eventEmitter, {
       ...rendererOptions,
       isViewer: true,
-      resolveMediaPath: (path: string, mediaType: 'image' | 'audio' | 'video' | 'embed') =>
-        this.eventEmitter.emitReduce('resolveMediaPath', path, mediaType),
+      resolveMediaPath: (
+        path: string,
+        mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio'
+      ) => this.eventEmitter.emitReduce('resolveMediaPath', path, mediaType),
     });
 
     this.preview.previewContent!.addEventListener('mousedown', this.toggleTask.bind(this));

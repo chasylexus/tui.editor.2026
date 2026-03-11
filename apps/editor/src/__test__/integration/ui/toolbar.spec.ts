@@ -482,6 +482,25 @@ describe('Default toolbar', () => {
       expect(editor.getMarkdown()).toBe('![image](myImageUrl =200x200)');
     });
 
+    it('should add draw.io document path with width and height through media popup', () => {
+      const urlText = getByText(imagePopup, 'URL or path to file')
+        .nextElementSibling as HTMLInputElement;
+      const descriptionText = getByText(imagePopup, 'Description')
+        .nextElementSibling as HTMLInputElement;
+      const widthText = getByText(imagePopup, 'Width').nextElementSibling as HTMLInputElement;
+      const heightText = getByText(imagePopup, 'Height').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(imagePopup, 'OK');
+
+      urlText.value = './architecture.drawio';
+      descriptionText.value = 'architecture';
+      widthText.value = '800';
+      heightText.value = '500';
+
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('![architecture](./architecture.drawio =800x500)');
+    });
+
     it('should add wrong class when url/path is not filled out', () => {
       const urlText = getByText(imagePopup, 'URL or path to file')
         .nextElementSibling as HTMLInputElement;

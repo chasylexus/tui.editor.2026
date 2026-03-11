@@ -39,7 +39,10 @@ interface Options {
   isViewer: boolean;
   highlight?: boolean;
   sanitizer: Sanitizer;
-  resolveMediaPath?: (path: string, mediaType: 'image' | 'audio' | 'video' | 'embed') => string;
+  resolveMediaPath?: (
+    path: string,
+    mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio'
+  ) => string;
 }
 
 /**

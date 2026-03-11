@@ -1974,6 +1974,8 @@ describe('editor', () => {
             ![image](~/Downloads/demo.png)
 
             ![audio](~/Downloads/demo.m4a)
+
+            ![drawio](~/Downloads/demo.drawio =700x500)
           `,
           hooks: {
             resolveMediaPath: (mediaSource: string, mediaType: string) =>
@@ -1987,6 +1989,15 @@ describe('editor', () => {
 
         expect(html).toContain('src="/__local_media?path=~%2FDownloads%2Fdemo.png&amp;type=image"');
         expect(html).toContain('src="/__local_media?path=~%2FDownloads%2Fdemo.m4a&amp;type=audio"');
+        expect(html).toContain('class="toastui-media toastui-media-drawio"');
+        expect(html).toContain(
+          'style="display:block;width:100%;background:transparent;max-width:700px;aspect-ratio:700 / 500;height:auto"'
+        );
+        expect(html).toContain(
+          'src="http://localhost/dist/cdn/td-drawio-viewer.html?src=http%3A%2F%2Flocalhost%2F__local_media%3Fpath%3D%7E%252FDownloads%252Fdemo.drawio%26type%3Ddrawio&amp;title=drawio"'
+        );
+        expect(html).toContain('width="700"');
+        expect(html).toContain('height="500"');
       });
     });
   });

@@ -790,8 +790,10 @@ class ToastUIEditorCore {
       frontMatter,
       sanitizer: customHTMLSanitizer || sanitizeHTML,
     };
-    const resolveMediaPath = (path: string, mediaType: 'image' | 'audio' | 'video' | 'embed') =>
-      this.eventEmitter.emitReduce('resolveMediaPath', path, mediaType);
+    const resolveMediaPath = (
+      path: string,
+      mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio'
+    ) => this.eventEmitter.emitReduce('resolveMediaPath', path, mediaType);
 
     this.previewSanitizer = rendererOptions.sanitizer;
     const wwToDOMAdaptor = new WwToDOMAdaptor(

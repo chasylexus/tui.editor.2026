@@ -22,6 +22,20 @@ let minify;
 let analyze;
 let failOnLintError;
 
+function decodeFilesystemPath(value) {
+  const rawValue = String(value || '').trim();
+
+  if (!rawValue) {
+    return rawValue;
+  }
+
+  try {
+    return decodeURIComponent(rawValue);
+  } catch (_error) {
+    return rawValue;
+  }
+}
+
 function registerDevMediaRoutes(app) {
   if (!app || typeof app.get !== 'function' || typeof app.post !== 'function') {
     return;
@@ -87,7 +101,7 @@ function registerDevMediaRoutes(app) {
     }
 
     const homeDir = os.homedir();
-    const normalizedInput = rawPath.replace(/\\\\/g, '/');
+    const normalizedInput = decodeFilesystemPath(rawPath).replace(/\\\\/g, '/');
     const expanded =
       normalizedInput.startsWith('~/') || normalizedInput === '~'
         ? path.join(homeDir, normalizedInput.slice(2))
@@ -113,6 +127,8 @@ function registerDevMediaRoutes(app) {
       return;
     }
 
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.sendFile(absolutePath);
   });
 }
@@ -136,10 +152,16 @@ function addFileManagerPlugin(config) {
 function addCopyPluginForThemeCss(config) {
   const options = minify
     ? {
-        patterns: [{ from: './src/css/theme/*.css', to: './theme/td-editor-[name].min.css' }],
+        patterns: [
+          { from: './src/css/theme/*.css', to: './theme/td-editor-[name].min.css' },
+          { from: './src/html/td-drawio-viewer.html', to: './td-drawio-viewer.html' },
+        ],
       }
     : {
-        patterns: [{ from: './src/css/theme/*.css', to: './theme/td-editor-[name].css' }],
+        patterns: [
+          { from: './src/css/theme/*.css', to: './theme/td-editor-[name].css' },
+          { from: './src/html/td-drawio-viewer.html', to: './td-drawio-viewer.html' },
+        ],
       };
 
   config.plugins.push(new CopyPlugin(options));

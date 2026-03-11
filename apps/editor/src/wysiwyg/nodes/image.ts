@@ -8,6 +8,9 @@ import {
   isVideoFileReference,
   parseVideoEmbedUrl,
   parseInlineRecorderSource,
+  isDrawioReference,
+  createDrawioViewerUrl,
+  createDrawioResponsiveStyle,
 } from '@/utils/media';
 
 import { EditorCommand } from '@t/spec';
@@ -158,6 +161,22 @@ export class Image extends NodeSchema {
               preload: 'metadata',
               playsinline: '',
               src: imageUrl,
+              ...(attrs.imageWidth && { width: attrs.imageWidth }),
+              ...(attrs.imageHeight && { height: attrs.imageHeight }),
+            },
+          ];
+        }
+
+        if (isDrawioReference(imageUrl)) {
+          return [
+            'iframe',
+            {
+              class: 'toastui-media toastui-media-drawio',
+              src: createDrawioViewerUrl(imageUrl, altText || 'draw.io'),
+              title: altText || 'draw.io',
+              loading: 'lazy',
+              sandbox: 'allow-scripts allow-same-origin allow-popups',
+              style: createDrawioResponsiveStyle(attrs.imageWidth, attrs.imageHeight),
               ...(attrs.imageWidth && { width: attrs.imageWidth }),
               ...(attrs.imageHeight && { height: attrs.imageHeight }),
             },

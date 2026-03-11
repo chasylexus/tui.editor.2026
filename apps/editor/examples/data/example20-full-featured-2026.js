@@ -10,6 +10,8 @@ When the editor is opened via \`http://127.0.0.1:8080\`, browsers do not allow d
 
 ![audio](~/Downloads/test_audio.m4a)
 
+![drawio](~/.tui.editor.2026/media/sample-drawio.drawio =800x520)
+
 ![youtube](https://www.youtube.com/watch?v=aqz-KE-bpKQ)
 
 ![youtube-sized](https://www.youtube.com/watch?v=aqz-KE-bpKQ =640x360)

@@ -24,6 +24,8 @@ export function sanitizeHTML<T extends string | HTMLElement | DocumentFragment =
       'referrerpolicy',
       'allow',
       'allowfullscreen',
+      'sandbox',
+      'srcdoc',
       'frameborder',
       'loading',
       'playsinline',

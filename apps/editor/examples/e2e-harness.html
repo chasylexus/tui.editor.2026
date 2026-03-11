@@ -53,6 +53,21 @@
           initialEditType: 'wysiwyg',
           initialValue: '',
           usageStatistics: false,
+          hooks: {
+            resolveMediaPath(mediaPath) {
+              const raw = String(mediaPath || '').trim();
+
+              if (!raw || /^(https?:|data:|blob:)/i.test(raw)) {
+                return raw;
+              }
+
+              if (raw.startsWith('~/') || raw.startsWith('/')) {
+                return `/__local_media?path=${encodeURIComponent(raw)}`;
+              }
+
+              return raw;
+            },
+          },
           plugins: [[chart, chartOptions], katex],
         });
 

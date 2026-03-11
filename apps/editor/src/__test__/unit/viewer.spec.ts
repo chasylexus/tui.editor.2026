@@ -1,5 +1,6 @@
 import { oneLineTrim } from 'common-tags';
 import Viewer from '@/viewer';
+import { createDrawioViewerUrl } from '@/utils/media';
 import { createHTMLrenderer, removeDataAttr } from './markdown/util';
 
 describe('Viewer', () => {
@@ -112,6 +113,33 @@ describe('Viewer', () => {
     expect(html).toContain('src="https://example.com/test.mp4"');
     expect(html).toContain('width="640"');
     expect(html).toContain('height="360"');
+  });
+
+  it('should render markdown image with draw.io file url as embedded viewer iframe', () => {
+    viewer.setMarkdown('![diagram](https://example.com/architecture.drawio =720x480)');
+
+    const html = getViewerHTML();
+
+    expect(html).toContain('<iframe');
+    expect(html).toContain('class="toastui-media toastui-media-drawio"');
+    expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-popups"');
+    expect(html).toContain('src="https://viewer.diagrams.net/');
+    expect(html).toContain('style="display:block;width:100%;background:transparent;max-width:720px;aspect-ratio:720 / 480;height:auto"');
+    expect(html).toContain('#Uhttps%3A%2F%2Fexample.com%2Farchitecture.drawio');
+    expect(html).toContain('width="720"');
+    expect(html).toContain('height="480"');
+  });
+
+  it('should generate same-origin draw.io viewer url through the local viewer page', () => {
+    const viewerUrl = createDrawioViewerUrl(
+      'http://localhost/__local_media?path=~%2FDownloads%2Fdemo.drawio',
+      'diagram'
+    );
+
+    expect(viewerUrl).toContain('http://localhost/dist/cdn/td-drawio-viewer.html?');
+    expect(viewerUrl).toContain(
+      'src=http%3A%2F%2Flocalhost%2F__local_media%3Fpath%3D%7E%252FDownloads%252Fdemo.drawio'
+    );
   });
 
   it('should render inline recorder placeholder controls for record://audio sources', () => {
