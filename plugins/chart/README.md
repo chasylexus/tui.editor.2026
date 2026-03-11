@@ -204,10 +204,10 @@ import Editor from '@techie_doubts/tui.editor.2026';
 import chart from '@techie_doubts/editor-plugin-chart';
 
 const chartOptions = {
-  minWidth: 100,
-  maxWidth: 600,
-  minHeight: 100,
-  maxHeight: 300
+  minWidth: 0,
+  maxWidth: Infinity,
+  minHeight: 0,
+  maxHeight: Infinity
 };
 
 const editor = new Editor({

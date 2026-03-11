@@ -40,10 +40,10 @@
         const chart = Editor.plugin.chart;
         const katex = Editor.plugin.katex;
         const chartOptions = {
-          minWidth: 100,
-          maxWidth: 600,
-          minHeight: 100,
-          maxHeight: 300,
+          minWidth: 0,
+          maxWidth: Infinity,
+          minHeight: 0,
+          maxHeight: Infinity,
         };
         const host = document.getElementById('host');
         const editor = new Editor({

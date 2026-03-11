@@ -54,6 +54,42 @@ plot.type: spiderweb
 verticalAxis.scale.max: 5
 \`\`\``;
 
+const tinyRadarChartMarkdown = `\`\`\`chart
+,Alpha,Beta,Gamma
+Speed,4.2,3.5,4.8
+Quality,4.7,3.9,4.3
+Cost,2.1,3.8,2.9
+Reliability,4.4,3.7,4.6
+UX,4.6,3.8,4.1
+
+type: radar
+title: Capability Profile
+width: 72
+height: 44
+series.showDot: true
+series.showArea: true
+plot.type: spiderweb
+verticalAxis.scale.max: 5
+\`\`\``;
+
+const largeRadarChartMarkdown = `\`\`\`chart
+,Alpha,Beta,Gamma
+Speed,4.2,3.5,4.8
+Quality,4.7,3.9,4.3
+Cost,2.1,3.8,2.9
+Reliability,4.4,3.7,4.6
+UX,4.6,3.8,4.1
+
+type: radar
+title: Capability Profile
+width: 960
+height: 640
+series.showDot: true
+series.showArea: true
+plot.type: spiderweb
+verticalAxis.scale.max: 5
+\`\`\``;
+
 async function openHarness(page) {
   await page.goto('/examples/e2e-harness.html');
   await page.waitForFunction(() => window.__HARNESS__ && window.__HARNESS__.isReady());
@@ -64,6 +100,20 @@ async function renderChart(page, markdown: string) {
   await page.evaluate(() => window.__HARNESS__.changeMode('wysiwyg'));
   await page.evaluate(() => window.__HARNESS__.setTheme('dark'));
   await page.evaluate(() => window.__HARNESS__.setHostWidth(320));
+  await page.waitForFunction(() => {
+    const box = window.__HARNESS__.getChartBox();
+
+    return !!box && box.chart.width > 0 && box.chart.height > 0;
+  });
+
+  return page.evaluate(() => window.__HARNESS__.getChartBox());
+}
+
+async function renderChartAtWidth(page, markdown: string, hostWidth: number) {
+  await page.evaluate((value) => window.__HARNESS__.setMarkdown(value), markdown);
+  await page.evaluate(() => window.__HARNESS__.changeMode('wysiwyg'));
+  await page.evaluate(() => window.__HARNESS__.setTheme('dark'));
+  await page.evaluate((width) => window.__HARNESS__.setHostWidth(width), hostWidth);
   await page.waitForFunction(() => {
     const box = window.__HARNESS__.getChartBox();
 
@@ -103,4 +153,30 @@ test('keeps radar chart proportion on a narrow dark viewport', async ({ page }) 
   expect(box.chart.width).toBeLessThanOrEqual(322);
   expect(box.chart.height).toBeLessThan(310);
   expect(box.ratio).toBeGreaterThan(1.0);
+});
+
+test('accepts a tiny radar chart size and keeps the editor responsive', async ({ page }) => {
+  const box = await renderChart(page, tinyRadarChartMarkdown);
+
+  expect(box).not.toBeNull();
+  expect(box.chart.width).toBeLessThanOrEqual(80);
+  expect(box.chart.height).toBeLessThanOrEqual(60);
+
+  await page.evaluate(() => window.__HARNESS__.changeMode('markdown'));
+  await page.evaluate(() => window.__HARNESS__.setMarkdown(`${window.__HARNESS__.getMarkdown()}\n<!-- ok -->`));
+  await page.evaluate(() => window.__HARNESS__.changeMode('wysiwyg'));
+
+  const updatedMarkdown = await page.evaluate(() => window.__HARNESS__.getMarkdown());
+
+  expect(updatedMarkdown).toContain('width: 72');
+  expect(updatedMarkdown).toContain('height: 44');
+  expect(updatedMarkdown).toContain('<!-- ok -->');
+});
+
+test('allows a radar chart to grow when the markdown width and height increase', async ({ page }) => {
+  const box = await renderChartAtWidth(page, largeRadarChartMarkdown, 1200);
+
+  expect(box).not.toBeNull();
+  expect(box.chart.width).toBeGreaterThan(700);
+  expect(box.chart.height).toBeGreaterThan(450);
 });
