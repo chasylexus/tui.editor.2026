@@ -10,6 +10,7 @@ import { emitImageBlobHook, pasteImageOnly } from '@/helper/image';
 
 import { tableSelection } from './plugins/selection/tableSelection';
 import { tableContextMenu } from './plugins/tableContextMenu';
+import { nonBreakingSpace } from './plugins/nonBreakingSpace';
 import { task } from './plugins/task';
 import { toolbarStateHighlight } from './plugins/toolbarState';
 
@@ -326,6 +327,7 @@ export default class WysiwygEditor extends EditorBase {
     return [
       tableSelection(),
       tableContextMenu(this.eventEmitter),
+      nonBreakingSpace(),
       task(),
       toolbarStateHighlight(this.eventEmitter),
       ...this.createPluginProps(),

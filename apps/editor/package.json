@@ -68,6 +68,8 @@
     "test:types": "tsc",
     "test": "jest --watch",
     "test:ci": "jest",
+    "test:e2e": "playwright test --config ./playwright.config.js",
+    "test:e2e:headed": "playwright test --config ./playwright.config.js --headed",
     "serve": "webpack serve",
     "serve:ie": "webpack serve",
     "build:i18n": "cross-env webpack --config scripts/webpack.config.i18n.js && webpack --config scripts/webpack.config.i18n.js --env minify",
@@ -80,6 +82,7 @@
     "doc": "npm run ts2js && tuidoc"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@techie_doubts/tui.release-notes.2026": "^2.0.1",
     "@types/dompurify": "2.3.3",
     "cross-env": "^6.0.3"

@@ -77,6 +77,10 @@ table.ProseMirror-selectednode {
   color: #222;
 }
 
+.toastui-editor-contents .toastui-editor-nbsp-run {
+  white-space: nowrap;
+}
+
 .toastui-editor-contents > h1:first-of-type,
 .toastui-editor-contents > div > div:first-of-type h1 {
   margin-top: 14px;

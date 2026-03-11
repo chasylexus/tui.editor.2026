@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editor E2E Harness</title>
+    <link rel="stylesheet" href="/dist/cdn/td-editor.css" />
+    <link rel="stylesheet" href="/dist/cdn/theme/td-editor-dark.css" />
+    <link rel="stylesheet" href="/node_modules/katex/dist/katex.min.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #f5f7fb;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      #host {
+        width: 960px;
+        margin: 24px auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="host">
+      <div id="editor"></div>
+    </div>
+
+    <script src="/dist/cdn/td-editor-all.js"></script>
+    <script src="/node_modules/@techie_doubts/tui.chart.2026/dist/td-chart.js"></script>
+    <script src="/plugins/chart/dist/cdn/td-editor-plugin-chart.js"></script>
+    <script src="/plugins/katex/dist/cdn/td-editor-plugin-katex.js"></script>
+    <script>
+      (function initHarness() {
+        const Editor = toastui.Editor;
+        const chart = Editor.plugin.chart;
+        const katex = Editor.plugin.katex;
+        const chartOptions = {
+          minWidth: 100,
+          maxWidth: 600,
+          minHeight: 100,
+          maxHeight: 300,
+        };
+        const host = document.getElementById('host');
+        const editor = new Editor({
+          el: document.getElementById('editor'),
+          previewStyle: 'vertical',
+          height: '720px',
+          initialEditType: 'wysiwyg',
+          initialValue: '',
+          usageStatistics: false,
+          plugins: [[chart, chartOptions], katex],
+        });
+
+        function waitFrames(count) {
+          return new Promise((resolve) => {
+            const step = () => {
+              if (count <= 0) {
+                resolve();
+                return;
+              }
+
+              count -= 1;
+              requestAnimationFrame(step);
+            };
+
+            requestAnimationFrame(step);
+          });
+        }
+
+        function getRootEl() {
+          return document.querySelector('.toastui-editor-defaultUI, .td-editor-defaultUI');
+        }
+
+        function focusByText(needle, offset) {
+          const ww = editor.wwEditor;
+          const doc = ww.view.state.doc;
+          let target = null;
+
+          doc.descendants((node, pos) => {
+            if (!node.isText) {
+              return true;
+            }
+
+            const text = node.text || '';
+            const idx = text.indexOf(needle);
+
+            if (idx >= 0) {
+              target = pos + idx + offset;
+              return false;
+            }
+
+            return true;
+          });
+
+          if (typeof target === 'number') {
+            editor.setSelection(target, target);
+            ww.view.focus();
+          }
+
+          return target;
+        }
+
+        function getInlineLatexState() {
+          const ww = editor.wwEditor;
+          const view = ww.view;
+          const plugin = view.state.plugins.find((item) => item.key === 'inlineLatexWysiwyg$');
+          const state = plugin ? plugin.getState(view.state) : null;
+          const root = editor.getEditorElements().wwEditor;
+          const editing = root.querySelector('.toastui-inline-latex-editing');
+          const preview = root.querySelector('.toastui-inline-latex-live-preview');
+
+          return {
+            state: state
+              ? {
+                  editRange: state.editRange,
+                  stableContent: state.stableContent,
+                  lineBreakPositions: state.lineBreakPositions,
+                }
+              : null,
+            breakCount: root.querySelectorAll('.toastui-inline-latex-editing-break').length,
+            selection: {
+              from: view.state.selection.from,
+              to: view.state.selection.to,
+            },
+            editingText: editing ? editing.textContent : null,
+            previewTop:
+              editing && preview
+                ? preview.getBoundingClientRect().top - editing.getBoundingClientRect().top
+                : null,
+          };
+        }
+
+        function getChartBox() {
+          const container = document.querySelector('[data-chart-id]');
+          const chartNode = container && (container.querySelector('svg') || container.querySelector('canvas'));
+
+          if (!container || !chartNode) {
+            return null;
+          }
+
+          const computedStyle = getComputedStyle(chartNode);
+          const styleWidth = parseFloat(computedStyle.width) || 0;
+          const styleHeight = parseFloat(computedStyle.height) || 0;
+          const attrWidth =
+            typeof chartNode.width === 'number' ? chartNode.width : Number(chartNode.getAttribute('width') || 0);
+          const attrHeight =
+            typeof chartNode.height === 'number'
+              ? chartNode.height
+              : Number(chartNode.getAttribute('height') || 0);
+          const width = styleWidth || attrWidth;
+          const height = styleHeight || attrHeight;
+
+          return {
+            tagName: chartNode.tagName.toLowerCase(),
+            container: {
+              width: host.clientWidth,
+              height: host.clientHeight,
+            },
+            chart: {
+              width,
+              height,
+            },
+            ratio: height ? width / height : 0,
+          };
+        }
+
+        window.__HARNESS__ = {
+          async setMarkdown(markdown) {
+            editor.setMarkdown(markdown);
+            await waitFrames(6);
+          },
+          async changeMode(mode) {
+            editor.changeMode(mode);
+            await waitFrames(6);
+          },
+          async setTheme(theme) {
+            const root = getRootEl();
+            const useDark = theme === 'dark';
+
+            if (root) {
+              root.classList.toggle('toastui-editor-dark', useDark);
+              root.classList.toggle('td-editor-dark', useDark);
+            }
+
+            if (typeof editor.setTheme === 'function') {
+              editor.setTheme(useDark ? 'dark' : 'light');
+            }
+
+            await waitFrames(6);
+          },
+          async setHostWidth(width) {
+            host.style.width = width + 'px';
+            await waitFrames(8);
+          },
+          async focusByText(needle, offset) {
+            const target = focusByText(needle, offset);
+
+            await waitFrames(2);
+            return target;
+          },
+          async waitForIdle(frames) {
+            await waitFrames(frames || 8);
+          },
+          getMarkdown() {
+            return editor.getMarkdown();
+          },
+          getInlineLatexState,
+          getChartBox,
+          isReady() {
+            return true;
+          },
+        };
+      })();
+    </script>
+  </body>
+</html>
