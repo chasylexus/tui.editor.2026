@@ -91,7 +91,7 @@ verticalAxis.scale.max: 5
 \`\`\``;
 
 async function openHarness(page) {
-  await page.goto('/examples/e2e-harness.html');
+  await page.goto('/e2e/fixtures/e2e-harness.html');
   await page.waitForFunction(() => window.__HARNESS__ && window.__HARNESS__.isReady());
 }
 
@@ -163,7 +163,9 @@ test('accepts a tiny radar chart size and keeps the editor responsive', async ({
   expect(box.chart.height).toBeLessThanOrEqual(60);
 
   await page.evaluate(() => window.__HARNESS__.changeMode('markdown'));
-  await page.evaluate(() => window.__HARNESS__.setMarkdown(`${window.__HARNESS__.getMarkdown()}\n<!-- ok -->`));
+  await page.evaluate(() =>
+    window.__HARNESS__.setMarkdown(`${window.__HARNESS__.getMarkdown()}\n<!-- ok -->`)
+  );
   await page.evaluate(() => window.__HARNESS__.changeMode('wysiwyg'));
 
   const updatedMarkdown = await page.evaluate(() => window.__HARNESS__.getMarkdown());
@@ -173,7 +175,9 @@ test('accepts a tiny radar chart size and keeps the editor responsive', async ({
   expect(updatedMarkdown).toContain('<!-- ok -->');
 });
 
-test('allows a radar chart to grow when the markdown width and height increase', async ({ page }) => {
+test('allows a radar chart to grow when the markdown width and height increase', async ({
+  page,
+}) => {
   const box = await renderChartAtWidth(page, largeRadarChartMarkdown, 1200);
 
   expect(box).not.toBeNull();

@@ -18,7 +18,7 @@ const encodedSpaceMarkdown = `![architecture](${encodedSpaceSamplePath.replace(
 )} =720x480)`;
 
 async function openHarness(page) {
-  await page.goto('/examples/e2e-harness.html');
+  await page.goto('/e2e/fixtures/e2e-harness.html');
   await page.waitForFunction(() => window.__HARNESS__ && window.__HARNESS__.isReady());
 }
 
