@@ -14,6 +14,11 @@
   border-bottom-color: #303238;
 }
 
+.toastui-editor-dark.toastui-editor-mobile-device .toastui-editor-toolbar {
+  background-color: #232428;
+  border-top-color: #303238;
+}
+
 .toastui-editor-dark .toastui-editor-toolbar-icons {
   background-position-y: -49px;
   border-color: #232428;

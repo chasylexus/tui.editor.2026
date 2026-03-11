@@ -417,6 +417,61 @@
   line-height: 32px;
 }
 
+.toastui-editor-defaultUI.toastui-editor-mobile-device {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  overscroll-behavior: none;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-main {
+  order: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+  padding-bottom: calc(
+    var(--mobile-toolbar-height, 45px) +
+    var(--mobile-toolbar-viewport-offset, 0px) +
+    env(safe-area-inset-bottom, 0px)
+  );
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-toolbar {
+  order: 2;
+  flex: 0 0 auto;
+  position: fixed;
+  left: var(--mobile-toolbar-left, 0px);
+  bottom: calc(
+    var(--mobile-toolbar-viewport-offset, 0px) +
+    env(safe-area-inset-bottom, 0px)
+  );
+  width: var(--mobile-toolbar-width, 100%);
+  border-top: 1px solid #ebedf2;
+  border-bottom: 0;
+  background: #f7f9fc;
+  z-index: 250;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-defaultUI-toolbar {
+  width: max-content;
+  min-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device
+  .toastui-editor-defaultUI-toolbar
+  .toastui-editor-toolbar-group,
+.toastui-editor-defaultUI.toastui-editor-mobile-device
+  .toastui-editor-defaultUI-toolbar
+  .toastui-editor-toolbar-item-wrapper {
+  flex: 0 0 auto;
+}
+
 /* toolbar popup */
 .toastui-editor-popup {
   width: 400px;

@@ -223,6 +223,54 @@
           };
         }
 
+        function getMobileToolbarMetrics() {
+          const root = getRootEl();
+          const toolbar = root?.querySelector('.toastui-editor-toolbar');
+          const toolbarInner = root?.querySelector('.toastui-editor-defaultUI-toolbar');
+          const main = root?.querySelector('.toastui-editor-main');
+          const contents = root?.querySelector(
+            '.toastui-editor-ww-container .toastui-editor-contents.ProseMirror'
+          );
+          const rootBox = root?.getBoundingClientRect();
+          const toolbarBox = toolbar?.getBoundingClientRect();
+          const mainStyle = main ? getComputedStyle(main) : null;
+          const toolbarStyle = toolbar ? getComputedStyle(toolbar) : null;
+
+          return {
+            isMobile: Boolean(root?.classList.contains('toastui-editor-mobile-device')),
+            root: rootBox
+              ? {
+                  left: rootBox.left,
+                  width: rootBox.width,
+                }
+              : null,
+            toolbar: toolbar && toolbarInner && toolbarBox && toolbarStyle
+              ? {
+                  position: toolbarStyle.position,
+                  bottom: toolbarStyle.bottom,
+                  width: toolbarBox.width,
+                  height: toolbarBox.height,
+                  left: toolbarBox.left,
+                  scrollWidth: toolbar.scrollWidth,
+                  clientWidth: toolbar.clientWidth,
+                  innerScrollWidth: toolbarInner.scrollWidth,
+                  innerClientWidth: toolbarInner.clientWidth,
+                }
+              : null,
+            main: main && mainStyle
+              ? {
+                  paddingBottom: mainStyle.paddingBottom,
+                }
+              : null,
+            contents: contents
+              ? {
+                  scrollHeight: contents.scrollHeight,
+                  clientHeight: contents.clientHeight,
+                }
+              : null,
+          };
+        }
+
         window.__HARNESS__ = {
           async setMarkdown(markdown) {
             editor.setMarkdown(markdown);
@@ -249,6 +297,7 @@
           },
           async setHostWidth(width) {
             host.style.width = width + 'px';
+            window.dispatchEvent(new Event('resize'));
             await waitFrames(8);
           },
           async focusByText(needle, offset) {
@@ -374,6 +423,7 @@
           },
           getInlineLatexState,
           getChartBox,
+          getMobileToolbarMetrics,
           isReady() {
             return true;
           },
