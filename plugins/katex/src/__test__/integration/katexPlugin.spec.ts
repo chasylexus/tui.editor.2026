@@ -3,6 +3,7 @@ import { source } from 'common-tags';
 import Editor from '@techie_doubts/tui.editor.2026';
 import katexPlugin from '@/index';
 import { fixInlineMathBackslashes } from '@/utils/inlineMath';
+import { repairCollapsedInlineLatexLineBreaks } from '@/wysiwyg/inlineLatexWysiwygPlugin';
 
 describe('katexPlugin inline math', () => {
   let container: HTMLElement;
@@ -294,6 +295,146 @@ describe('katexPlugin inline math', () => {
     expect(fixed).not.toContain('\\\\pi');
     expect(fixed).not.toContain('\\\\neq');
     expect(fixed).not.toContain('\\\\in');
+  });
+
+  it('should keep multiline inline latex line breaks and render preview below raw code while editing', () => {
+    const multiline = source`
+      * The *Gamma function*: $\\Gamma(n) = \\begin{cases}
+        \\displaystyle (n-1)!\\quad\\forall n\\in\\mathbb N\\\\
+        \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+        \\end{cases}$
+    `;
+
+    editor.setMarkdown(multiline);
+    editor.changeMode('wysiwyg');
+
+    const wwRoot = editor.getEditorElements().wwEditor!;
+    const wwEditor = (editor as any).wwEditor;
+    const { doc } = wwEditor.view.state;
+    let posInMiddleLine: number | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText) {
+        return true;
+      }
+
+      const text = node.text || '';
+      const idx = text.indexOf('t^{n-1}');
+
+      if (idx >= 0) {
+        posInMiddleLine = pos + idx + 't^{n-1'.length;
+        return false;
+      }
+
+      return true;
+    });
+
+    expect(posInMiddleLine).not.toBeNull();
+    editor.setSelection(posInMiddleLine!, posInMiddleLine!);
+
+    let livePreview = wwRoot.querySelector('.toastui-inline-latex-live-preview') as HTMLElement | null;
+
+    expect(wwRoot.querySelectorAll('.toastui-inline-latex-editing-break').length).toBe(3);
+    expect(livePreview).not.toBeNull();
+
+    editor.insertText('1');
+
+    livePreview = wwRoot.querySelector('.toastui-inline-latex-live-preview') as HTMLElement | null;
+
+    expect(wwRoot.querySelectorAll('.toastui-inline-latex-editing-break').length).toBe(3);
+    expect(livePreview).not.toBeNull();
+    expect(livePreview?.classList.contains('toastui-inline-latex-tooltip')).toBe(false);
+
+    const markdown = editor.getMarkdown();
+
+    expect(markdown).toContain('t^{n-11}');
+    expect((markdown.match(/\n/g) || []).length).toBeGreaterThanOrEqual(3);
+    expect(markdown).toContain('\\mathbb N\\\\');
+    expect(markdown).toContain('\n    \\displaystyle \\int_0^\\infty');
+    expect(markdown).toContain('\n    \\end{cases}$');
+  });
+
+  it('should repair browser-collapsed line breaks inside multiline inline latex', () => {
+    const previousContent = source`
+      \\Gamma(n) = \\begin{cases}
+      \\displaystyle (n-1)!\\quad\\forall n\\in\\mathbb N\\\\
+      \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+      \\end{cases}
+    `;
+    const collapsedContent = source`
+      \\Gamma(n) = \\begin{cases}
+      \\displaystyle (n-11)!\\quad\\forall n\\in\\mathbb N\\\\ \\displaystyle \\int_0^\\infty t^{n-11}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+ \\end{cases}
+    `;
+
+    const repaired = repairCollapsedInlineLatexLineBreaks(previousContent, collapsedContent);
+
+    expect(repaired).toContain('\\mathbb N\\\\\n\\displaystyle');
+    expect(repaired).toContain('\\mathbb R^*_+\n\\end{cases}');
+    expect(repaired).toContain('t^{n-11}');
+  });
+
+  it('should repair collapsed line break when the first displaystyle line is edited', () => {
+    const previousContent = source`
+      \\Gamma(n) = \\begin{cases}
+      \\displaystyle (n-1)!\\quad\\forall n\\in\\mathbb N\\\\
+      \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+      \\end{cases}
+    `;
+    const collapsedContent = source`
+      \\Gamma(n) = \\begin{cases}
+      \\displaystyle (n-11)!\\quad\\forall n\\in\\mathbb N\\\\ \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+      \\end{cases}
+    `;
+
+    const repaired = repairCollapsedInlineLatexLineBreaks(previousContent, collapsedContent);
+
+    expect(repaired).toContain('\\mathbb N\\\\\n\\displaystyle');
+    expect(repaired).toContain('(n-11)!');
+    expect(repaired).toContain('\\mathbb R^*_+\n\\end{cases}');
+  });
+
+  it('should keep multiline inline latex stable across repeated edits in the first displaystyle line', () => {
+    const multiline = source`
+      * The *Gamma function*: $\\Gamma(n) = \\begin{cases}
+        \\displaystyle (n-1)!\\quad\\forall n\\in\\mathbb N\\\\
+        \\displaystyle \\int_0^\\infty t^{n-1}e^{-t}dt\\quad\\forall n\\in\\mathbb R^*_+
+        \\end{cases}$
+    `;
+
+    editor.setMarkdown(multiline);
+    editor.changeMode('wysiwyg');
+
+    const wwEditor = (editor as any).wwEditor;
+    const { doc } = wwEditor.view.state;
+    let posInFirstDisplayStyleLine: number | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText) {
+        return true;
+      }
+
+      const text = node.text || '';
+      const idx = text.indexOf('(n-1)!');
+
+      if (idx >= 0) {
+        posInFirstDisplayStyleLine = pos + idx + '(n-1'.length;
+        return false;
+      }
+
+      return true;
+    });
+
+    expect(posInFirstDisplayStyleLine).not.toBeNull();
+    editor.setSelection(posInFirstDisplayStyleLine!, posInFirstDisplayStyleLine!);
+    editor.insertText('1');
+    editor.insertText('1');
+
+    const markdown = editor.getMarkdown();
+
+    expect(markdown).toContain('(n-111)!');
+    expect(markdown).toContain('\\mathbb N\\\\\n');
+    expect(markdown).toContain('\n    \\displaystyle \\int_0^\\infty');
+    expect(markdown).toContain('\n    \\end{cases}$');
   });
 
 });

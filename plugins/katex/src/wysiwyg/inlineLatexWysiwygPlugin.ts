@@ -12,8 +12,134 @@ interface InlineMathRange {
 
 interface InlineLatexPluginState {
   editRange: InlineMathRange | null;
+  stableContent: string | null;
   lineBreakPositions: number[];
   decorations: PluginContext['pmView']['DecorationSet'];
+}
+
+interface RepairedInlineLatexContent {
+  content: string;
+  insertedOffsets: number[];
+}
+
+function countLineBreaks(content: string) {
+  return (content.match(/\n/g) || []).length;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getFlexibleLineMatcher(line: string) {
+  const sample = line.trimStart().slice(0, 32);
+
+  if (!sample) {
+    return null;
+  }
+
+  let pattern = '';
+  let previousWasSpace = false;
+  let previousWasDigit = false;
+
+  for (const char of sample) {
+    if (/\s/.test(char)) {
+      if (!previousWasSpace) {
+        pattern += '\\s+';
+        previousWasSpace = true;
+      }
+      previousWasDigit = false;
+      continue;
+    }
+
+    if (/\d/.test(char)) {
+      if (!previousWasDigit) {
+        pattern += '\\d+';
+        previousWasDigit = true;
+      }
+      previousWasSpace = false;
+      continue;
+    }
+
+    pattern += escapeRegExp(char);
+    previousWasSpace = false;
+    previousWasDigit = false;
+  }
+
+  return new RegExp(pattern);
+}
+
+function findLineMarkerIndex(content: string, line: string) {
+  const exactMarker = line.trimStart().slice(0, 32);
+
+  if (exactMarker) {
+    const exactIndex = content.indexOf(exactMarker);
+
+    if (exactIndex >= 0) {
+      return exactIndex;
+    }
+  }
+
+  const matcher = getFlexibleLineMatcher(line);
+  const match = matcher?.exec(content);
+
+  return match?.index ?? -1;
+}
+
+function repairCollapsedInlineLatexLineBreaksDetailed(
+  previousContent: string,
+  nextContent: string
+): RepairedInlineLatexContent {
+  const previousBreakCount = countLineBreaks(previousContent);
+  const nextBreakCount = countLineBreaks(nextContent);
+
+  if (!previousBreakCount || nextBreakCount >= previousBreakCount) {
+    return { content: nextContent, insertedOffsets: [] };
+  }
+
+  const previousLines = previousContent.split('\n');
+  let repairedContent = nextContent;
+  const insertedOffsets: number[] = [];
+
+  previousLines.forEach((line, index) => {
+    if (index === 0) {
+      return;
+    }
+
+    const markerIndex = findLineMarkerIndex(repairedContent, line);
+
+    if (markerIndex < 0) {
+      return;
+    }
+
+    if (repairedContent[markerIndex - 1] !== '\n') {
+      const replaceFrom =
+        repairedContent[markerIndex - 1] === ' ' || repairedContent[markerIndex - 1] === '\u00a0'
+          ? markerIndex - 1
+          : markerIndex;
+      const replacedSpace = replaceFrom !== markerIndex;
+
+      repairedContent = `${repairedContent.slice(0, replaceFrom)}\n${repairedContent.slice(
+        markerIndex
+      )}`;
+
+      if (!replacedSpace) {
+        insertedOffsets.push(replaceFrom);
+      }
+    }
+  });
+
+  return { content: repairedContent, insertedOffsets };
+}
+
+function mapCollapsedOffsetToRepairedOffset(offset: number, insertedOffsets: number[]) {
+  return (
+    offset +
+    insertedOffsets.reduce((sum, insertedOffset) => sum + (insertedOffset <= offset ? 1 : 0), 0)
+  );
+}
+
+export function repairCollapsedInlineLatexLineBreaks(previousContent: string, nextContent: string) {
+  return repairCollapsedInlineLatexLineBreaksDetailed(previousContent, nextContent).content;
 }
 
 function getLineBreakPositions(range: InlineMathRange | null) {
@@ -33,23 +159,32 @@ function getLineBreakPositions(range: InlineMathRange | null) {
   return positions;
 }
 
-function getInlineFontStyle() {
-  const editorEl =
-    document.querySelector('.toastui-editor-contents') ||
-    document.querySelector('.toastui-editor-ww-container');
-  const style = editorEl ? getComputedStyle(editorEl) : getComputedStyle(document.body);
-
-  return style.font || `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+function getInlineMathContentBreakPositions(range: InlineMathRange) {
+  return getLineBreakPositions(range).filter(
+    (pos, index, values) =>
+      pos > range.from && pos < range.to && (index === 0 || values[index - 1] !== pos)
+  );
 }
 
-function measureInlineTextWidth(text: string) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+function getEditingBreakPositions(
+  range: InlineMathRange,
+  editingLineBreakPositions: number[]
+): number[] {
+  const contentBreakPositions = getInlineMathContentBreakPositions(range);
+  const stableBreakPositions = editingLineBreakPositions
+    .filter(
+      (pos, index, values) =>
+        pos > range.from && pos < range.to && (index === 0 || values[index - 1] !== pos)
+    )
+    .sort((a, b) => a - b);
 
-  if (!ctx) return text.length * 8;
+  if (!stableBreakPositions.length) {
+    return contentBreakPositions;
+  }
 
-  ctx.font = getInlineFontStyle();
-  return ctx.measureText(text).width;
+  return contentBreakPositions.length >= stableBreakPositions.length
+    ? contentBreakPositions
+    : stableBreakPositions;
 }
 
 function collectInlineMathRanges(doc: EditorState['doc']): InlineMathRange[] {
@@ -135,7 +270,7 @@ interface InlineDecorationBuildContext {
 function buildInlineLatexDecorations(
   doc: EditorState['doc'],
   editingRange: InlineMathRange | null,
-  _editingLineBreakPositions: number[],
+  editingLineBreakPositions: number[],
   context: InlineDecorationBuildContext
 ): PluginContext['pmView']['DecorationSet'] {
   const decorations: any[] = [];
@@ -162,25 +297,19 @@ function buildInlineLatexDecorations(
         })
       );
 
-      // Render line breaks explicitly in edit mode to avoid browser-dependent
-      // collapsing of newline chars inside inline contenteditable spans.
-      for (let idx = 0; idx < content.length; idx += 1) {
-        if (content[idx] !== '\n') {
-          continue;
-        }
-
-        const breakPos = from + 1 + idx;
-
+      for (const breakPos of getEditingBreakPositions(
+        { from, to, content },
+        editingLineBreakPositions
+      )) {
         decorations.push(
           DecorationAny.widget(
             breakPos,
             () => {
-              const br = document.createElement('span');
+              const br = document.createElement('br');
 
               br.className = 'toastui-inline-latex-editing-break';
               br.setAttribute('contenteditable', 'false');
               br.setAttribute('aria-hidden', 'true');
-              br.textContent = '\u200b';
               return br;
             },
             { side: -1 }
@@ -190,37 +319,19 @@ function buildInlineLatexDecorations(
 
       decorations.push(
         DecorationAny.widget(
-          from,
+          to,
           () => {
-            const wrapper = document.createElement('span');
-            const tooltip = document.createElement('span');
+            const preview = document.createElement('span');
 
-            wrapper.className = 'toastui-inline-latex-tooltip-anchor';
-            wrapper.setAttribute('contenteditable', 'false');
-            wrapper.setAttribute('spellcheck', 'false');
-            wrapper.setAttribute('aria-hidden', 'true');
-            wrapper.style.position = 'relative';
-            wrapper.style.display = 'inline-block';
-            wrapper.style.pointerEvents = 'none';
-            wrapper.style.userSelect = 'none';
+            preview.className = 'toastui-inline-latex-live-preview';
+            preview.setAttribute('contenteditable', 'false');
+            preview.setAttribute('spellcheck', 'false');
+            preview.setAttribute('aria-hidden', 'true');
+            preview.innerHTML = html;
 
-            tooltip.className = 'toastui-inline-latex-tooltip';
-            tooltip.style.position = 'absolute';
-            tooltip.style.left = `${Math.max(0, measureInlineTextWidth(`$${raw}$`) / 2)}px`;
-            tooltip.style.top = 'calc(100% + 6px)';
-            tooltip.style.transform = 'translateX(-50%)';
-            tooltip.style.zIndex = '50';
-            tooltip.style.background = '#fff';
-            tooltip.style.border = '1px solid rgba(0, 0, 0, 0.15)';
-            tooltip.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.18)';
-            tooltip.style.borderRadius = '8px';
-            tooltip.style.padding = '6px 8px';
-            tooltip.style.whiteSpace = 'nowrap';
-            tooltip.innerHTML = html;
-            wrapper.appendChild(tooltip);
-            return wrapper;
+            return preview;
           },
-          { side: -1 }
+          { side: 1 }
         )
       );
     } else {
@@ -281,6 +392,7 @@ export function createInlineLatexWysiwygPlugin(
             init: (_, state) => {
               return {
                 editRange: null as InlineMathRange | null,
+                stableContent: null as string | null,
                 lineBreakPositions: [] as number[],
                 decorations: buildInlineLatexDecorations(state.doc, null, [], {
                   Decoration,
@@ -290,11 +402,12 @@ export function createInlineLatexWysiwygPlugin(
               };
             },
             apply: (tr, value: InlineLatexPluginState) => {
-              let { editRange, lineBreakPositions } = value;
+              let { editRange, stableContent, lineBreakPositions } = value;
               const meta = tr.getMeta(pluginKey);
 
               if (meta?.type === 'setEditRange') {
                 editRange = meta.range;
+                stableContent = editRange?.content || null;
                 lineBreakPositions = getLineBreakPositions(editRange);
               }
 
@@ -330,9 +443,26 @@ export function createInlineLatexWysiwygPlugin(
                 }
 
                 if (!editRange) {
+                  stableContent = null;
                   lineBreakPositions = [];
-                } else if (!value.editRange || value.editRange.from !== editRange.from) {
-                  lineBreakPositions = getLineBreakPositions(editRange);
+                } else {
+                  const isNewEditSession =
+                    !value.editRange ||
+                    value.editRange.from !== editRange.from ||
+                    value.editRange.mdBlockId !== editRange.mdBlockId;
+
+                  if (isNewEditSession) {
+                    stableContent = editRange.content;
+                    lineBreakPositions = getLineBreakPositions(editRange);
+                  } else {
+                    const stableBreakCount = countLineBreaks(stableContent || '');
+                    const currentBreakCount = countLineBreaks(editRange.content);
+
+                    if (!stableContent || currentBreakCount >= stableBreakCount) {
+                      stableContent = editRange.content;
+                      lineBreakPositions = getLineBreakPositions(editRange);
+                    }
+                  }
                 }
               }
 
@@ -351,7 +481,7 @@ export function createInlineLatexWysiwygPlugin(
                     })
                   : value.decorations;
 
-              return { editRange, lineBreakPositions, decorations };
+              return { editRange, stableContent, lineBreakPositions, decorations };
             },
           },
           appendTransaction(transactions, oldState, newState) {
@@ -372,52 +502,61 @@ export function createInlineLatexWysiwygPlugin(
             const pluginState = pluginKey.getState(newState) as InlineLatexPluginState | undefined;
 
             if (
-              !pluginState?.editRange ||
               !oldPluginState?.editRange ||
+              !oldPluginState.stableContent ||
               !oldPluginState.lineBreakPositions.length
             ) {
               return null;
             }
 
-            const { doc, tr } = newState;
-            let changed = false;
-            const mappedBreaks = oldPluginState.lineBreakPositions.map((position) => {
-              let mappedPosition = position;
+            const previousEditRange = oldPluginState.editRange;
+            const fallbackRange = collectInlineMathRanges(newState.doc).find(
+              (range) =>
+                range.mdBlockId !== null &&
+                previousEditRange?.mdBlockId !== null &&
+                range.mdBlockId === previousEditRange.mdBlockId
+            );
+            const nextRange = pluginState?.editRange || fallbackRange;
 
-              transactions.forEach((tx) => {
-                mappedPosition = tx.mapping.map(mappedPosition, -1);
-              });
-
-              return mappedPosition;
-            });
-            const targetPositions = mappedBreaks
-              .filter((pos) => pos > pluginState.editRange!.from && pos < pluginState.editRange!.to)
-              .sort((a, b) => b - a);
-
-            targetPositions.forEach((pos) => {
-              if (pos <= 0 || pos > doc.content.size) {
-                return;
-              }
-
-              const ch = doc.textBetween(pos, pos + 1, '', '');
-              const prev = pos > 0 ? doc.textBetween(pos - 1, pos, '', '') : '';
-              const next = doc.textBetween(pos + 1, pos + 2, '', '');
-
-              if (ch === '\n' || prev === '\n' || next === '\n') {
-                return;
-              }
-
-              if (ch === ' ' || ch === '\u00a0' || ch === '') {
-                tr.insertText('\n', pos, ch ? pos + 1 : pos);
-                changed = true;
-              } else {
-                tr.insertText(`\n${ch}`, pos, pos + 1);
-                changed = true;
-              }
-            });
-
-            if (!changed) {
+            if (!nextRange) {
               return null;
+            }
+
+            const {
+              content: repairedContent,
+              insertedOffsets,
+            } = repairCollapsedInlineLatexLineBreaksDetailed(
+              oldPluginState.stableContent,
+              nextRange.content
+            );
+
+            if (repairedContent === nextRange.content) {
+              return null;
+            }
+
+            const currentSelection = newState.selection;
+            const selectionInsideRange =
+              currentSelection.empty &&
+              currentSelection.from >= nextRange.from + 1 &&
+              currentSelection.from <= nextRange.to - 1;
+            const tr = newState.tr.insertText(
+              repairedContent,
+              nextRange.from + 1,
+              nextRange.to - 1
+            );
+
+            if (selectionInsideRange) {
+              const collapsedOffset = currentSelection.from - (nextRange.from + 1);
+              const repairedOffset = mapCollapsedOffsetToRepairedOffset(
+                collapsedOffset,
+                insertedOffsets
+              );
+              const selectionPos = Math.min(
+                nextRange.from + 1 + repairedOffset,
+                nextRange.from + repairedContent.length + 1
+              );
+
+              tr.setSelection(TextSelection.create(tr.doc, selectionPos));
             }
 
             tr.setMeta(pluginKey, { type: 'normalizeInlineMathSoftbreaks' });

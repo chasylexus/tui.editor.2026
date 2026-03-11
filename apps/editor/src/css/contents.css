@@ -918,3 +918,25 @@ table.ProseMirror-selectednode {
   line-height: 0;
   font-size: 0;
 }
+
+.toastui-inline-latex-live-preview {
+  display: block;
+  width: max-content;
+  max-width: min(100%, 42rem);
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+  vertical-align: top;
+}
+
+.toastui-editor-dark .toastui-inline-latex-live-preview {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: #1f2430;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
