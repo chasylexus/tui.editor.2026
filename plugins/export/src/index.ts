@@ -576,7 +576,7 @@ function markSelfAnchors(root: HTMLElement) {
   });
 }
 
-function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
+export function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
   const styles = collectInlineStyles();
   const darkClass = isDark ? ' toastui-editor-dark' : '';
   const bgStyle = isDark ? 'background:#121212;' : '';
@@ -584,12 +584,39 @@ function buildStandaloneHtml(bodyHtml: string, isDark: boolean) {
 html,
 body {
   height: auto !important;
-  min-height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
   overflow: auto !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
 }
 
 body {
   position: static !important;
+}
+
+.toastui-editor-contents,
+.toastui-editor-contents.toastui-editor-contents {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+  overflow-x: visible !important;
+}
+
+.toastui-editor-md-preview,
+.toastui-editor-ww-container,
+.toastui-editor-main,
+.toastui-editor-md-container,
+.toastui-editor-ww-code-block,
+.ProseMirror {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+  overflow-x: visible !important;
 }
 
 #app,
@@ -599,6 +626,48 @@ body {
   height: auto !important;
   min-height: 0 !important;
   overflow: visible !important;
+}
+
+.toastui-export-youtube-fallback {
+  display: block;
+  width: 100%;
+  margin: 16px auto;
+  color: inherit;
+  text-decoration: none;
+}
+
+.toastui-export-youtube-fallback-card {
+  overflow: hidden;
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 14px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.toastui-export-youtube-fallback-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: rgba(127, 127, 127, 0.12);
+}
+
+.toastui-export-youtube-fallback-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.toastui-export-youtube-fallback-badge {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ff0033;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 `;
 
@@ -678,6 +747,66 @@ ${exportViewportResetCss}
         navigateToHash('#' + id);
       });
     });
+    function getYouTubeVideoId(src){
+      if(!src){return '';}
+      try {
+        var url = new URL(src, window.location.href);
+        var host = url.hostname.replace(/^www\\./,'').replace(/^m\\./,'');
+        if(host !== 'youtube.com' && host !== 'youtube-nocookie.com'){return '';}
+        var parts = url.pathname.split('/').filter(Boolean);
+        if(parts[0] !== 'embed' || !parts[1]){return '';}
+        return parts[1];
+      } catch(err) {
+        return '';
+      }
+    }
+    function createYouTubeFallback(iframe, videoId){
+      var width = iframe.getAttribute('width');
+      var height = iframe.getAttribute('height');
+      var title = iframe.getAttribute('title') || 'Open YouTube video';
+      var aspectRatio = width && height ? width + ' / ' + height : '16 / 9';
+      var href = 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId);
+      var link = document.createElement('a');
+      var card = document.createElement('div');
+      var image = document.createElement('img');
+      var body = document.createElement('div');
+      var text = document.createElement('span');
+      var badge = document.createElement('span');
+      link.className = 'toastui-export-youtube-fallback';
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.setAttribute('data-toastui-youtube-fallback', 'true');
+      if(width){
+        link.style.maxWidth = width + 'px';
+      }
+      card.className = 'toastui-export-youtube-fallback-card';
+      image.src = 'https://i.ytimg.com/vi/' + encodeURIComponent(videoId) + '/hqdefault.jpg';
+      image.alt = title;
+      image.loading = 'lazy';
+      image.style.aspectRatio = aspectRatio;
+      image.style.objectFit = 'cover';
+      body.className = 'toastui-export-youtube-fallback-body';
+      text.textContent = title;
+      badge.className = 'toastui-export-youtube-fallback-badge';
+      badge.textContent = 'YouTube';
+      body.appendChild(text);
+      body.appendChild(badge);
+      card.appendChild(image);
+      card.appendChild(body);
+      link.appendChild(card);
+      return link;
+    }
+    function replaceStandaloneYouTubeEmbeds(){
+      if(window.location.protocol !== 'file:'){return;}
+      document.querySelectorAll('iframe[src]').forEach(function(iframe){
+        var src = iframe.getAttribute('src') || '';
+        var videoId = getYouTubeVideoId(src);
+        if(!videoId){return;}
+        iframe.replaceWith(createYouTubeFallback(iframe, videoId));
+      });
+    }
+    replaceStandaloneYouTubeEmbeds();
     ${'<'}/script>
   </body>
 </html>
