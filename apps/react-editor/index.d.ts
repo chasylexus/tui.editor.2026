@@ -1,5 +1,9 @@
 import { Component } from 'react';
-import ToastuiEditor, { EditorOptions, ViewerOptions, EventMap } from '@techie_doubts/tui.editor.2026';
+import ToastuiEditor, {
+  EditorOptions,
+  ViewerOptions,
+  EventMap,
+} from '@techie_doubts/tui.editor.2026';
 import ToastuiEditorViewer from '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer';
 
 export interface EventMapping {

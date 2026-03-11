@@ -1,6 +1,6 @@
 import { EditorView, NodeView } from 'prosemirror-view';
 import { ProsemirrorNode, Slice, Fragment, Mark, Schema } from 'prosemirror-model';
-import { Transaction } from 'prosemirror-state';
+import { AllSelection, Transaction } from 'prosemirror-state';
 import { setBlockType, wrapIn } from 'prosemirror-commands';
 import EditorBase from '@/base';
 import { getWwCommands } from '@/commands/wwCommands';
@@ -640,6 +640,39 @@ export default class WysiwygEditor extends EditorBase {
           }
 
           return false;
+        },
+        copy: (_, ev) => {
+          const clipboardData =
+            (ev as ClipboardEvent).clipboardData || (window as WindowWithClipboard).clipboardData;
+
+          if (!clipboardData) {
+            return false;
+          }
+
+          const { selection } = this.view.state;
+          const hasFullDocSelection =
+            selection instanceof AllSelection ||
+            (!selection.empty &&
+              selection.from <= 1 &&
+              selection.to >= Math.max(this.view.state.doc.content.size - 1, 1));
+
+          if (!hasFullDocSelection) {
+            return false;
+          }
+
+          const [copyPayload] = this.eventEmitter.emit('query', 'getWysiwygCopyPayload', {
+            selectionType: 'all',
+          });
+
+          if (!copyPayload?.html) {
+            return false;
+          }
+
+          ev.preventDefault();
+          clipboardData.setData('text/html', copyPayload.html);
+          clipboardData.setData('text/plain', copyPayload.text || this.getSelectedText());
+
+          return true;
         },
         keyup: (_, ev: KeyboardEvent) => {
           this.eventEmitter.emit('keyup', this.editorType, ev);

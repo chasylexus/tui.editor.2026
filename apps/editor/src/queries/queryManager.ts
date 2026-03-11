@@ -494,6 +494,10 @@ const queryMap: Record<string, QueryFn> = {
     return editor.getMarkdown();
   },
 
+  getWysiwygCopyPayload(editor, payload) {
+    return (editor as any).getWysiwygCopyPayload?.(payload) ?? null;
+  },
+
   getPopupInitialValues(editor, payload) {
     const { popupName } = payload!;
 

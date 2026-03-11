@@ -362,7 +362,7 @@ describe('GFM Exmaple', () => {
         <p>bar</p>
       `,
     },
-    // TODO: need to find a way to parse merged-column and re-activate this test case
+    // Temporarily disabled until merged-column parsing is supported.
     // {
     //   no: 203,
     //   input: source`

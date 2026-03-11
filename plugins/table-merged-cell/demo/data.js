@@ -29,3 +29,5 @@ const content3 = [
   '| table5 | table6 | table7 | table8 |',
   '| table9 | table10 | table11 | table22 |',
 ].join('\n');
+
+Object.assign(window, { content1, content2, content3 });

@@ -1,5 +1,6 @@
 import '@/i18n/en-us';
 import { oneLineTrim, stripIndents, source } from 'common-tags';
+import { AllSelection } from 'prosemirror-state';
 import { Emitter } from '@t/event';
 import { EditorOptions } from '@t/editor';
 import type { OpenTagToken } from '@techie_doubts/toastmark';
@@ -40,6 +41,22 @@ describe('editor', () => {
         { kind: 'string', type: 'text/plain' },
       ] as unknown) as DataTransferItemList;
     }
+
+    Object.defineProperty(event, 'clipboardData', {
+      value: clipboardData as DataTransfer,
+    });
+
+    target.dispatchEvent(event);
+
+    return { event, clipboardData };
+  }
+
+  function dispatchCopy(target: HTMLElement) {
+    const event = new Event('copy', { bubbles: true, cancelable: true }) as ClipboardEvent;
+    const clipboardData = {
+      setData: jest.fn(),
+      getData: jest.fn(),
+    } as any;
 
     Object.defineProperty(event, 'clipboardData', {
       value: clipboardData as DataTransfer,
@@ -503,6 +520,41 @@ describe('editor', () => {
 
       expect(editor.getMarkdown()).toContain('* 2\n\n## B');
       expect(editor.getMarkdown()).not.toContain('* 2## B');
+    });
+
+    it('should copy full wysiwyg selection as preview-friendly rich html', () => {
+      editor.setMarkdown(stripIndents`
+        Paragraph before
+
+        | A | B |
+        | --- | --- |
+        | 1 | 2 |
+      `);
+      editor.changeMode('wysiwyg');
+
+      const ww = (editor as any).wwEditor;
+      const { state } = ww.view;
+
+      ww.view.dispatch(state.tr.setSelection(new AllSelection(state.doc)));
+
+      const { clipboardData } = dispatchCopy(ww.view.dom);
+      const htmlCall = (clipboardData.setData as jest.Mock).mock.calls.find(
+        ([type]: [string, string]) => type === 'text/html'
+      );
+      const plainCall = (clipboardData.setData as jest.Mock).mock.calls.find(
+        ([type]: [string, string]) => type === 'text/plain'
+      );
+
+      expect(htmlCall).toBeTruthy();
+      expect(plainCall).toBeTruthy();
+      expect(htmlCall[1]).toContain('<table');
+      expect(htmlCall[1]).toContain('style="');
+      expect(htmlCall[1]).toContain('width: auto;');
+      expect(htmlCall[1]).toContain('height: auto;');
+      expect(htmlCall[1]).not.toContain('width: 960px;');
+      expect(htmlCall[1]).not.toContain('height: 32px;');
+      expect(htmlCall[1]).not.toContain('ProseMirror');
+      expect(plainCall[1]).toContain('Paragraph before');
     });
 
     it('should keep a blank line before heading after a wysiwyg edit near the second list item end', () => {

@@ -10,8 +10,6 @@ import {
 import { escapeXml } from '../commonmark/common';
 import { filterDisallowedTags } from './tagFilter';
 
-const CUSTOM_SYNTAX_LENGTH = 4;
-
 export const baseConvertors: HTMLConvertorMap = {
   heading(node, { entering }) {
     return {
@@ -227,6 +225,7 @@ export const baseConvertors: HTMLConvertorMap = {
       try {
         return customConvertor!(node, context);
       } catch (e) {
+        // eslint-disable-next-line no-console
         console.warn(
           `[@techie_doubts/tui.editor.2026] - The error occurred when ${info} block node was parsed in markdown renderer: ${e}`
         );
@@ -264,6 +263,7 @@ export const baseConvertors: HTMLConvertorMap = {
       try {
         return customConvertor!(node, context);
       } catch (e) {
+        // eslint-disable-next-line no-console
         console.warn(
           `[@techie_doubts/tui.editor.2026] - The error occurred when ${nomalizedInfo} inline node was parsed in markdown renderer: ${e}`
         );

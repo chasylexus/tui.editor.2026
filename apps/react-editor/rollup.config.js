@@ -20,6 +20,10 @@ export default [
       sourcemap: false,
     },
     plugins: [typescript(), commonjs(), nodeResolve(), banner(bannerText)],
-    external: ['react', '@techie_doubts/tui.editor.2026', '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer'],
+    external: [
+      'react',
+      '@techie_doubts/tui.editor.2026',
+      '@techie_doubts/tui.editor.2026/dist/toastui-editor-viewer',
+    ],
   },
 ];

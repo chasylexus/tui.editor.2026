@@ -23,7 +23,11 @@ describe('katexPlugin inline math', () => {
     if (!p) return '';
 
     const textNodes = Array.from(p.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE);
-    return textNodes.map((n) => n.textContent || '').join('').trim();
+
+    return textNodes
+      .map((n) => n.textContent || '')
+      .join('')
+      .trim();
   }
 
   beforeEach(() => {
@@ -36,6 +40,7 @@ describe('katexPlugin inline math', () => {
     });
 
     const elements = editor.getEditorElements();
+
     mdPreview = elements.mdPreview!;
 
     document.body.appendChild(container);
@@ -128,7 +133,7 @@ describe('katexPlugin inline math', () => {
     editor.setMarkdown('Inline: $a \\\\ b$ test');
     editor.changeMode('wysiwyg');
 
-    const wwEditor = (editor as any).wwEditor;
+    const { wwEditor } = editor as any;
     const { doc } = wwEditor.view.state;
     let posInFormula: number | null = null;
 
@@ -167,7 +172,7 @@ describe('katexPlugin inline math', () => {
     );
     editor.changeMode('wysiwyg');
 
-    const wwEditor = (editor as any).wwEditor;
+    const { wwEditor } = editor as any;
     const { doc } = wwEditor.view.state;
     let insertPos: number | null = null;
 
@@ -194,7 +199,7 @@ describe('katexPlugin inline math', () => {
 
     const markdown = editor.getMarkdown();
 
-    expect(markdown).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(markdown).toContain('$e^{i\\pi} + 1 = 0$');
     expect(markdown).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
     expect(markdown).not.toContain('\\\\pi');
     expect(markdown).not.toContain('\\\\neq');
@@ -210,7 +215,7 @@ describe('katexPlugin inline math', () => {
     );
     editor.changeMode('wysiwyg');
 
-    const wwEditor = (editor as any).wwEditor;
+    const { wwEditor } = editor as any;
     const { doc } = wwEditor.view.state;
     let insertPos: number | null = null;
 
@@ -250,7 +255,7 @@ describe('katexPlugin inline math', () => {
 
     const fixed = fixInlineMathBackslashes(markdown);
 
-    expect(fixed).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(fixed).toContain('$e^{i\\pi} + 1 = 0$');
     expect(fixed).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
     expect(fixed).not.toContain('\\\\pi');
     expect(fixed).not.toContain('\\\\neq');
@@ -266,7 +271,7 @@ describe('katexPlugin inline math', () => {
 
     const fixed = fixInlineMathBackslashes(markdown);
 
-    expect(fixed).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(fixed).toContain('$e^{i\\pi} + 1 = 0$');
     expect(fixed).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
     expect(fixed).toContain('$a \\\\ b$');
     expect(fixed).not.toContain('\\\\pi');
@@ -290,7 +295,7 @@ describe('katexPlugin inline math', () => {
     const fixed = fixInlineMathBackslashes(markdown);
 
     expect(fixed).toContain('$$');
-    expect(fixed).toContain("$e^{i\\pi} + 1 = 0$");
+    expect(fixed).toContain('$e^{i\\pi} + 1 = 0$');
     expect(fixed).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is');
     expect(fixed).not.toContain('\\\\pi');
     expect(fixed).not.toContain('\\\\neq');
@@ -309,7 +314,7 @@ describe('katexPlugin inline math', () => {
     editor.changeMode('wysiwyg');
 
     const wwRoot = editor.getEditorElements().wwEditor!;
-    const wwEditor = (editor as any).wwEditor;
+    const { wwEditor } = editor as any;
     const { doc } = wwEditor.view.state;
     let posInMiddleLine: number | null = null;
 
@@ -332,7 +337,9 @@ describe('katexPlugin inline math', () => {
     expect(posInMiddleLine).not.toBeNull();
     editor.setSelection(posInMiddleLine!, posInMiddleLine!);
 
-    let livePreview = wwRoot.querySelector('.toastui-inline-latex-live-preview') as HTMLElement | null;
+    let livePreview = wwRoot.querySelector(
+      '.toastui-inline-latex-live-preview'
+    ) as HTMLElement | null;
 
     expect(wwRoot.querySelectorAll('.toastui-inline-latex-editing-break').length).toBe(3);
     expect(livePreview).not.toBeNull();
@@ -404,7 +411,7 @@ describe('katexPlugin inline math', () => {
     editor.setMarkdown(multiline);
     editor.changeMode('wysiwyg');
 
-    const wwEditor = (editor as any).wwEditor;
+    const { wwEditor } = editor as any;
     const { doc } = wwEditor.view.state;
     let posInFirstDisplayStyleLine: number | null = null;
 
@@ -436,5 +443,4 @@ describe('katexPlugin inline math', () => {
     expect(markdown).toContain('\n    \\displaystyle \\int_0^\\infty');
     expect(markdown).toContain('\n    \\end{cases}$');
   });
-
 });

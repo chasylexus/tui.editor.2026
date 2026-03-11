@@ -14,6 +14,7 @@ import {
 
 const chartRenderMock = jest.fn(({ el }: { el: HTMLElement }) => {
   const marker = document.createElement('div');
+
   marker.className = '__chart-render';
   el.appendChild(marker);
 
@@ -24,18 +25,20 @@ const chartRenderMock = jest.fn(({ el }: { el: HTMLElement }) => {
   };
 });
 
-jest.mock('@techie_doubts/tui.chart.2026', () => ({
-  __esModule: true,
-  default: {
-    barChart: (args: { el: HTMLElement }) => chartRenderMock(args),
-    columnChart: (args: { el: HTMLElement }) => chartRenderMock(args),
-    areaChart: (args: { el: HTMLElement }) => chartRenderMock(args),
-    lineChart: (args: { el: HTMLElement }) => chartRenderMock(args),
-    pieChart: (args: { el: HTMLElement }) => chartRenderMock(args),
-    scatterChart: (args: { el: HTMLElement }) => chartRenderMock(args),
-    radarChart: (args: { el: HTMLElement }) => chartRenderMock(args),
-  },
-}));
+jest.mock('@techie_doubts/tui.chart.2026', () => {
+  return {
+    __esModule: true,
+    default: {
+      barChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+      columnChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+      areaChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+      lineChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+      pieChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+      scatterChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+      radarChart: (args: { el: HTMLElement }) => chartRenderMock(args),
+    },
+  };
+});
 
 describe('parseToChartOption()', () => {
   it('should parse option code into object', () => {
@@ -234,7 +237,7 @@ describe('chart render lifecycle', () => {
     chartRenderMock.mockClear();
     document.body.innerHTML = '';
     TestResizeObserver.instances = [];
-    global.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver;
+    global.ResizeObserver = (TestResizeObserver as unknown) as typeof ResizeObserver;
   });
 
   afterEach(() => {
@@ -242,10 +245,21 @@ describe('chart render lifecycle', () => {
     global.ResizeObserver = originalResizeObserver;
   });
 
-  async function waitFrames(frameCount: number) {
-    for (let i = 0; i < frameCount; i += 1) {
-      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+  function waitNextFrame() {
+    return new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+  }
+
+  async function waitFrames(frameCount: number): Promise<void> {
+    if (frameCount <= 0) {
+      return;
     }
+
+    await waitNextFrame();
+    await waitFrames(frameCount - 1);
   }
 
   it('should keep a single chart render on initial load/loadUI re-renders', async () => {
@@ -293,7 +307,9 @@ describe('chart render lifecycle', () => {
     root.appendChild(chartHost);
     document.body.appendChild(root);
 
-    const rootRectSpy = jest.spyOn(root, 'getBoundingClientRect').mockImplementation(() => createRect(width));
+    const rootRectSpy = jest
+      .spyOn(root, 'getBoundingClientRect')
+      .mockImplementation(() => createRect(width));
     const hostRectSpy = jest
       .spyOn(chartHost, 'getBoundingClientRect')
       .mockImplementation(() => createRect(width));
@@ -303,10 +319,12 @@ describe('chart render lifecycle', () => {
         usageStatistics: false,
         eventEmitter: eventEmitter as any,
         instance: {
-          getEditorElements: () => ({
-            mdPreview: chartHost,
-            wwEditor: chartHost,
-          }),
+          getEditorElements: () => {
+            return {
+              mdPreview: chartHost,
+              wwEditor: chartHost,
+            };
+          },
         },
       } as any,
       {} as PluginOptions
@@ -337,7 +355,7 @@ describe('chart render lifecycle', () => {
     width = 260;
     TestResizeObserver.instances[0].callback(
       [{ contentRect: { width } } as ResizeObserverEntry],
-      TestResizeObserver.instances[0] as unknown as ResizeObserver
+      (TestResizeObserver.instances[0] as unknown) as ResizeObserver
     );
 
     await waitFrames(12);
@@ -355,17 +373,21 @@ describe('chart render lifecycle', () => {
 
     document.body.appendChild(host);
 
-    const hostRectSpy = jest.spyOn(host, 'getBoundingClientRect').mockImplementation(() => createRect(width));
+    const hostRectSpy = jest
+      .spyOn(host, 'getBoundingClientRect')
+      .mockImplementation(() => createRect(width));
 
     const pluginInfo = chartPlugin(
       {
         usageStatistics: false,
         eventEmitter: eventEmitter as any,
         instance: {
-          getEditorElements: () => ({
-            mdPreview: host,
-            wwEditor: host,
-          }),
+          getEditorElements: () => {
+            return {
+              mdPreview: host,
+              wwEditor: host,
+            };
+          },
         },
       } as any,
       {} as PluginOptions
@@ -845,13 +867,13 @@ describe('setDefaultOptions', () => {
 
   it('should use custom thousands separator for axis and tooltip', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: {},
         tooltip: {},
         yAxis: {
           thousands: '_',
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -863,20 +885,23 @@ describe('setDefaultOptions', () => {
     expect((chartOptions as any).yAxis.label.formatter('1000000')).toBe('1_000_000');
 
     const tooltipFormatter = chartOptions.tooltip!.formatter as Function;
-    const formatted = tooltipFormatter.call({ store: { state: { options: chartOptions } } }, 1234567.8);
+    const formatted = tooltipFormatter.call(
+      { store: { state: { options: chartOptions } } },
+      1234567.8
+    );
 
     expect(formatted).toBe('1_234_567.80');
   });
 
   it('should apply xAxis formatter to tooltip header category', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: {},
         tooltip: {},
         xAxis: {
           thousands: '_',
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -919,11 +944,11 @@ describe('setDefaultOptions', () => {
 
   it('should not add thousands separator when y.thousands is not set', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: {},
         tooltip: {},
         yAxis: {},
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -932,14 +957,17 @@ describe('setDefaultOptions', () => {
     expect((chartOptions as any).yAxis.label).toBeUndefined();
 
     const tooltipFormatter = chartOptions.tooltip!.formatter as Function;
-    const formatted = tooltipFormatter.call({ store: { state: { options: chartOptions } } }, 1234567.8);
+    const formatted = tooltipFormatter.call(
+      { store: { state: { options: chartOptions } } },
+      1234567.8
+    );
 
     expect(formatted).toBe('1234567.80');
   });
 
   it('should alias series.styles by normalized series name to index keys', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
         series: {
           styles: {
@@ -949,7 +977,7 @@ describe('setDefaultOptions', () => {
             },
           },
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container,
       {
@@ -969,9 +997,9 @@ describe('setDefaultOptions', () => {
 
   it('should auto-enable showDot for sparse isolated points in line/area charts', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container,
       {
@@ -988,12 +1016,12 @@ describe('setDefaultOptions', () => {
 
   it('should not override explicit showDot option for sparse isolated points', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
         series: {
           showDot: false,
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container,
       {
@@ -1010,9 +1038,9 @@ describe('setDefaultOptions', () => {
 
   it('should connect null gaps by default for line chart', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -1039,9 +1067,9 @@ describe('setDefaultOptions', () => {
 
   it('should preserve numeric x categories when connecting null gaps', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -1066,12 +1094,12 @@ describe('setDefaultOptions', () => {
 
   it('should not override explicit series.eventDetectType', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
         series: {
           eventDetectType: 'point',
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -1157,12 +1185,12 @@ describe('setDefaultOptions', () => {
 
   it('should keep gaps when series.breakOnNull is true', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
         series: {
           breakOnNull: true,
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -1184,12 +1212,12 @@ describe('setDefaultOptions', () => {
 
   it('should keep gaps when series.connectNulls is false', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'line' },
         series: {
           connectNulls: false,
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -1233,7 +1261,7 @@ describe('setDefaultOptions', () => {
 
   it('should keep default scatter tooltip template and format coordinate values', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'scatter' },
         xAxis: {
           label: {
@@ -1245,7 +1273,7 @@ describe('setDefaultOptions', () => {
             formatter: (value: string) => `y=${value}`,
           },
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -1279,9 +1307,9 @@ describe('setDefaultOptions', () => {
       ],
     };
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'scatter' },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container,
       chartData as any
@@ -1300,10 +1328,10 @@ describe('setDefaultOptions', () => {
       ],
     };
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'scatter' },
         legend: { visible: true },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container,
       chartData as any
@@ -1314,7 +1342,7 @@ describe('setDefaultOptions', () => {
 
   it('should convert scatter label formatter keyword into formatter function', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'scatter' },
         series: {
           dataLabels: {
@@ -1322,7 +1350,7 @@ describe('setDefaultOptions', () => {
             formatter: 'label',
           },
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );
@@ -1335,7 +1363,7 @@ describe('setDefaultOptions', () => {
 
   it('should normalize type-scoped series theme for single scatter chart', () => {
     const chartOptions = setDefaultOptions(
-      {
+      ({
         editorChart: { type: 'scatter' },
         theme: {
           series: {
@@ -1351,7 +1379,7 @@ describe('setDefaultOptions', () => {
             },
           },
         },
-      } as unknown as ChartOptions,
+      } as unknown) as ChartOptions,
       {} as PluginOptions,
       container
     );

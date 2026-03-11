@@ -2026,6 +2026,166 @@ class ToastUIEditorCore {
     this.eventEmitter.emit('afterPreviewRender', this.preview);
   }
 
+  private renderMarkdownToPreviewHtml(markdown: string) {
+    const renderableMarkdown = this.toRenderableMarkdown(markdown);
+    const previewToastMark = this.createToastMark(renderableMarkdown);
+    const rootNode = previewToastMark.getRootNode();
+    const renderer = this.preview.getRenderer();
+    const rendered: string[] = [];
+    let node = rootNode.firstChild as MdNode | null;
+
+    while (node) {
+      rendered.push(renderer.render(node));
+      node = node.next as MdNode | null;
+    }
+
+    return this.eventEmitter.emitReduce(
+      'beforePreviewRender',
+      this.previewSanitizer(rendered.join(''))
+    );
+  }
+
+  private inlineStylesForClipboard(html: string) {
+    if (typeof document === 'undefined' || !document.body) {
+      return html;
+    }
+
+    const previewClassName = cls('md-preview');
+    const contentsClassName = cls('contents');
+    const styleProps = [
+      'font-family',
+      'font-size',
+      'font-weight',
+      'font-style',
+      'line-height',
+      'color',
+      'background-color',
+      'text-align',
+      'text-decoration',
+      'white-space',
+      'vertical-align',
+      'list-style-type',
+      'list-style-position',
+      'margin-top',
+      'margin-right',
+      'margin-bottom',
+      'margin-left',
+      'padding-top',
+      'padding-right',
+      'padding-bottom',
+      'padding-left',
+      'border-top',
+      'border-right',
+      'border-bottom',
+      'border-left',
+      'border-collapse',
+      'border-spacing',
+    ];
+    const sandbox = document.createElement('div');
+
+    sandbox.style.position = 'fixed';
+    sandbox.style.left = '-100000px';
+    sandbox.style.top = '0';
+    sandbox.style.width = '960px';
+    sandbox.style.opacity = '0';
+    sandbox.style.pointerEvents = 'none';
+    sandbox.innerHTML = `<div class="${previewClassName}"><div class="${contentsClassName}">${html}</div></div>`;
+    document.body.appendChild(sandbox);
+
+    const contents = sandbox.querySelector<HTMLElement>(`.${contentsClassName}`);
+
+    if (!contents) {
+      sandbox.remove();
+
+      return html;
+    }
+
+    const getStylePropsForElement = (el: Element) => {
+      const tagName = el.tagName.toLowerCase();
+
+      if (tagName === 'table') {
+        return [
+          'font-family',
+          'font-size',
+          'font-weight',
+          'font-style',
+          'color',
+          'background-color',
+          'text-align',
+          'vertical-align',
+          'margin-top',
+          'margin-right',
+          'margin-bottom',
+          'margin-left',
+          'border-top',
+          'border-right',
+          'border-bottom',
+          'border-left',
+          'border-collapse',
+          'border-spacing',
+        ];
+      }
+
+      if (tagName === 'th' || tagName === 'td') {
+        return [
+          'font-family',
+          'font-size',
+          'font-weight',
+          'font-style',
+          'color',
+          'background-color',
+          'text-align',
+          'vertical-align',
+          'white-space',
+          'padding-top',
+          'padding-right',
+          'padding-bottom',
+          'padding-left',
+          'border-top',
+          'border-right',
+          'border-bottom',
+          'border-left',
+        ];
+      }
+
+      return styleProps;
+    };
+
+    const inlineStyle = (el: Element) => {
+      const computed = window.getComputedStyle(el);
+      const tagName = el.tagName.toLowerCase();
+      const props = getStylePropsForElement(el);
+      const styleText = props
+        .map((prop) => {
+          const value = computed.getPropertyValue(prop);
+
+          return value ? `${prop}: ${value};` : '';
+        })
+        .filter(Boolean)
+        .join(' ');
+      let normalizedStyle = styleText;
+
+      if (tagName === 'table') {
+        normalizedStyle = `${styleText} width: auto;`;
+      } else if (tagName === 'th' || tagName === 'td') {
+        normalizedStyle = `${styleText} height: auto;`;
+      }
+
+      if (normalizedStyle) {
+        (el as HTMLElement).setAttribute('style', normalizedStyle.trim());
+      }
+    };
+
+    inlineStyle(contents);
+    Array.from(contents.querySelectorAll('*')).forEach(inlineStyle);
+
+    const richHtml = contents.innerHTML;
+
+    sandbox.remove();
+
+    return richHtml;
+  }
+
   private renderFootnotePreviewIfNeeded() {
     const sourceMarkdown = this.mdEditor.getMarkdown();
     const hasRenderedLineMap = Boolean(this.preview.getSourceToRenderedLineMap());
@@ -3000,6 +3160,19 @@ class ToastUIEditorCore {
     }
 
     return html;
+  }
+
+  getWysiwygCopyPayload(payload?: { selectionType?: string }) {
+    if (payload?.selectionType !== 'all') {
+      return null;
+    }
+
+    const markdown = this.getMarkdown();
+
+    return {
+      html: this.inlineStylesForClipboard(this.renderMarkdownToPreviewHtml(markdown)),
+      text: this.wwEditor.getSelectedText(),
+    };
   }
 
   /**
