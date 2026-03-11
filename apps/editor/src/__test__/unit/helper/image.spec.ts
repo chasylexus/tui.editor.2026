@@ -1,5 +1,10 @@
 import EventEmitter from '@/event/eventEmitter';
-import { addDefaultImageBlobHook, emitImageBlobHook } from '@/helper/image';
+import {
+  addDefaultImageBlobHook,
+  emitImageBlobHook,
+  hasMeaningfulClipboardText,
+  pasteImageOnly,
+} from '@/helper/image';
 
 describe('image processor', () => {
   let em: EventEmitter;
@@ -55,5 +60,44 @@ describe('image processor', () => {
       altText: 'audio.m4a',
       imageUrl: '/file.jpg',
     });
+  });
+
+  it('should prefer text clipboard data over image fallback when html contains meaningful content', () => {
+    const imageItem = {
+      type: 'image/png',
+      getAsFile: jest.fn(() => new File([new ArrayBuffer(1)], 'slide.png', { type: 'image/png' })),
+    };
+    const items = ([imageItem] as unknown) as DataTransferItemList;
+    const clipboardData = ({
+      getData: jest.fn((type: string) => {
+        if (type === 'text/html') {
+          return '<div><p>Slide title</p><p>Bullet</p></div>';
+        }
+
+        if (type === 'text/plain') {
+          return 'Slide title\nBullet';
+        }
+
+        return '';
+      }),
+    } as unknown) as DataTransfer;
+
+    expect(hasMeaningfulClipboardText(clipboardData)).toBe(true);
+    expect(pasteImageOnly(items, clipboardData)).toBeNull();
+  });
+
+  it('should still use image fallback when clipboard has only image data', () => {
+    const file = new File([new ArrayBuffer(1)], 'slide.png', { type: 'image/png' });
+    const imageItem = {
+      type: 'image/png',
+      getAsFile: jest.fn(() => file),
+    };
+    const items = ([imageItem] as unknown) as DataTransferItemList;
+    const clipboardData = ({
+      getData: jest.fn(() => ''),
+    } as unknown) as DataTransfer;
+
+    expect(hasMeaningfulClipboardText(clipboardData)).toBe(false);
+    expect(pasteImageOnly(items, clipboardData)).toBe(file);
   });
 });

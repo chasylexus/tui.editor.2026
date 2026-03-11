@@ -1,6 +1,48 @@
 import { HookCallback } from '@t/editor';
 import { Emitter } from '@t/event';
 
+function hasMeaningfulHtmlClipboard(htmlText: string) {
+  if (!htmlText.trim()) {
+    return false;
+  }
+
+  if (typeof DOMParser === 'undefined') {
+    return /<(table|div|p|span|ul|ol|li|blockquote|pre|code|h[1-6]|a|strong|b|em|i|u|s|del|td|th)\b/i.test(
+      htmlText
+    );
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText, 'text/html');
+  const text = (doc.body?.textContent || '').replace(/\u00a0/g, ' ').trim();
+
+  if (text) {
+    return true;
+  }
+
+  return Boolean(
+    doc.body?.querySelector(
+      'table,div,p,span,ul,ol,li,blockquote,pre,code,h1,h2,h3,h4,h5,h6,a,strong,b,em,i,u,s,del,td,th'
+    )
+  );
+}
+
+export function hasMeaningfulClipboardText(clipboardData?: DataTransfer | null) {
+  if (!clipboardData) {
+    return false;
+  }
+
+  const plainText = clipboardData.getData('text/plain') || '';
+
+  if (plainText.trim()) {
+    return true;
+  }
+
+  const htmlText = clipboardData.getData('text/html') || '';
+
+  return hasMeaningfulHtmlClipboard(htmlText);
+}
+
 export function addDefaultImageBlobHook(eventEmitter: Emitter) {
   eventEmitter.listen('addImageBlobHook', (blob: File, callback: HookCallback) => {
     const reader = new FileReader();
@@ -21,7 +63,11 @@ export function emitImageBlobHook(eventEmitter: Emitter, blob: File, type: strin
   eventEmitter.emit('addImageBlobHook', blob, hook, type);
 }
 
-export function pasteImageOnly(items: DataTransferItemList) {
+export function pasteImageOnly(items: DataTransferItemList, clipboardData?: DataTransfer | null) {
+  if (hasMeaningfulClipboardText(clipboardData)) {
+    return null;
+  }
+
   const images = Array.from(items).filter(({ type }) => type.indexOf('image') !== -1);
 
   if (images.length === 1) {

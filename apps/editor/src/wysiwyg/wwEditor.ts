@@ -565,7 +565,7 @@ export default class WysiwygEditor extends EditorBase {
 
             // if it contains rtf, it's most likely copy paste from office -> no image
             if (!containRtfItem) {
-              const imageBlob = pasteImageOnly(items);
+              const imageBlob = pasteImageOnly(items, clipboardData);
 
               if (imageBlob) {
                 ev.preventDefault();

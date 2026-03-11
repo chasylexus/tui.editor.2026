@@ -130,7 +130,7 @@ export default class MdEditor extends EditorBase {
 
     // if it contains rtf, it's most likely copy paste from office -> no image
     if (!containRtfItem) {
-      const imageBlob = pasteImageOnly(items);
+      const imageBlob = pasteImageOnly(items, ev.clipboardData || null);
 
       if (imageBlob) {
         ev.preventDefault();
