@@ -2189,8 +2189,17 @@ class ToastUIEditorCore {
   private renderWysiwygSelectionToHtml() {
     const editorRoot = this.wwEditor.view.dom;
     const domSelection = editorRoot.ownerDocument.getSelection();
+    const { state } = this.wwEditor.view;
+    const isCellSelection = Boolean(
+      (state.selection as { isCellSelection?: boolean }).isCellSelection
+    );
 
-    if (domSelection && !domSelection.isCollapsed && domSelection.rangeCount > 0) {
+    if (
+      !isCellSelection &&
+      domSelection &&
+      !domSelection.isCollapsed &&
+      domSelection.rangeCount > 0
+    ) {
       const wrapper = document.createElement('div');
 
       for (let index = 0; index < domSelection.rangeCount; index += 1) {
@@ -2215,12 +2224,18 @@ class ToastUIEditorCore {
       }
     }
 
-    const { state } = this.wwEditor.view;
     const slice = state.selection.content();
     const serializer = DOMSerializer.fromSchema(state.schema);
     const fallbackWrapper = document.createElement('div');
 
-    fallbackWrapper.appendChild(serializer.serializeFragment(slice.content));
+    if (isCellSelection) {
+      const table = document.createElement('table');
+
+      table.appendChild(serializer.serializeFragment(slice.content));
+      fallbackWrapper.appendChild(table);
+    } else {
+      fallbackWrapper.appendChild(serializer.serializeFragment(slice.content));
+    }
 
     return fallbackWrapper.innerHTML;
   }

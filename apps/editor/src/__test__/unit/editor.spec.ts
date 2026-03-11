@@ -12,6 +12,8 @@ import { createHTMLrenderer } from './markdown/util';
 import { cls } from '@/utils/dom';
 import * as imageHelper from '@/helper/image';
 import { getEditorToMdPos, getMdToEditorPos } from '@/markdown/helper/pos';
+import CellSelection from '@/wysiwyg/plugins/selection/cellSelection';
+import { TableOffsetMap } from '@/wysiwyg/helper/tableOffsetMap';
 
 const HEADING_CLS = `${cls('md-heading')} ${cls('md-heading1')}`;
 const DELIM_CLS = cls('md-delimiter');
@@ -107,6 +109,25 @@ describe('editor', () => {
     });
 
     return found;
+  }
+
+  function setWysiwygCellSelection(
+    startRowIdx: number,
+    startColIdx: number,
+    endRowIdx: number,
+    endColIdx: number
+  ) {
+    const ww = (editor as any).wwEditor;
+    const { state } = ww.view;
+    const map = TableOffsetMap.create(state.doc.resolve(1))!;
+    const startCellOffset = map.getCellInfo(startRowIdx, startColIdx).offset;
+    const endCellOffset = map.getCellInfo(endRowIdx, endColIdx).offset;
+    const selection = new CellSelection(
+      state.doc.resolve(startCellOffset),
+      state.doc.resolve(endCellOffset)
+    );
+
+    ww.view.dispatch(state.tr.setSelection(selection));
   }
 
   describe('instance API', () => {
@@ -658,6 +679,26 @@ describe('editor', () => {
       expect(htmlCall[1]).toContain('&nbsp;');
       expect(htmlCall[1]).not.toContain('<table');
       expect(plainCall[1]).toBe('\u00A0');
+    });
+
+    it('should copy a cell selection as rich table html in wysiwyg', () => {
+      editor.setMarkdown(`| A | B |\n| --- | --- |\n| 1 | 2 |`);
+      editor.changeMode('wysiwyg');
+
+      setWysiwygCellSelection(1, 0, 1, 1);
+
+      const ww = (editor as any).wwEditor;
+      const { clipboardData } = dispatchCopy(ww.view.dom);
+      const htmlCall = (clipboardData.setData as jest.Mock).mock.calls.find(
+        ([type]: [string, string]) => type === 'text/html'
+      );
+
+      expect(htmlCall).toBeTruthy();
+      expect(htmlCall[1]).toContain('<table');
+      expect(htmlCall[1]).toContain('<td');
+      expect(htmlCall[1]).toContain('1');
+      expect(htmlCall[1]).toContain('2');
+      expect(htmlCall[1]).not.toContain('ProseMirror');
     });
 
     it('should preserve a NBSP-only table cell through markdown to wysiwyg roundtrip', () => {
