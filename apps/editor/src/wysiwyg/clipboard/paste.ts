@@ -55,9 +55,13 @@ function getMaxColumnCount(rows: Node[]) {
 function hasMergedCells(rows: Node[]) {
   return rows.some((row) => {
     for (let i = 0; i < row.childCount; i += 1) {
-      const attrs = row.child(i).attrs;
+      const { attrs } = row.child(i);
 
-      if (attrs.extended || (attrs.colspan && attrs.colspan > 1) || (attrs.rowspan && attrs.rowspan > 1)) {
+      if (
+        attrs.extended ||
+        (attrs.colspan && attrs.colspan > 1) ||
+        (attrs.rowspan && attrs.rowspan > 1)
+      ) {
         return true;
       }
     }
@@ -96,7 +100,12 @@ function findNextSourceCell(row: Node, sourceIndex: number) {
   return { cell: null, nextIndex: row.childCount };
 }
 
-function flattenMergedRows(rows: Node[], schema: Schema, startFromBody: boolean, isInTable: boolean) {
+function flattenMergedRows(
+  rows: Node[],
+  schema: Schema,
+  startFromBody: boolean,
+  isInTable: boolean
+) {
   const flattenedRows: Node[][] = [];
   let activeRowspans = new Map<number, { remaining: number; cell: Node }>();
   let maxColumnCount = 0;
@@ -110,7 +119,9 @@ function flattenMergedRows(rows: Node[], schema: Schema, startFromBody: boolean,
     let sourceIndex = 0;
     let colIndex = 0;
 
-    while (true) {
+    let hasPendingCells = true;
+
+    while (hasPendingCells) {
       const activeRowspan = activeRowspans.get(colIndex);
 
       if (activeRowspan) {
@@ -130,10 +141,18 @@ function flattenMergedRows(rows: Node[], schema: Schema, startFromBody: boolean,
       const { cell: sourceCell, nextIndex } = findNextSourceCell(row, sourceIndex);
 
       if (!sourceCell) {
-        const futureActiveCols = Array.from(activeRowspans.keys()).filter((col) => col > colIndex);
+        let hasFutureActiveCols = false;
 
-        if (!futureActiveCols.length) {
-          break;
+        for (const activeColumn of activeRowspans.keys()) {
+          if (activeColumn > colIndex) {
+            hasFutureActiveCols = true;
+            break;
+          }
+        }
+
+        if (!hasFutureActiveCols) {
+          hasPendingCells = false;
+          continue;
         }
 
         flatCells.push(createEmptyCell(cellType));
@@ -185,7 +204,12 @@ function flattenMergedRows(rows: Node[], schema: Schema, startFromBody: boolean,
   });
 }
 
-function createCells(orgRow: Node, maxColumnCount: number, cell: NodeType, keepMergedShape: boolean) {
+function createCells(
+  orgRow: Node,
+  maxColumnCount: number,
+  cell: NodeType,
+  keepMergedShape: boolean
+) {
   const cells = [];
   const cellCount = orgRow.childCount;
 
@@ -266,7 +290,12 @@ export function createRowsFromPastingTable(tableContent: Fragment) {
   return [...tableHeadRows, ...tableBodyRows];
 }
 
-function createTableHead(tableHeadRow: Node, maxColumnCount: number, schema: Schema, keepMergedShape: boolean) {
+function createTableHead(
+  tableHeadRow: Node,
+  maxColumnCount: number,
+  schema: Schema,
+  keepMergedShape: boolean
+) {
   const copiedRow = copyTableHeadRow(tableHeadRow, maxColumnCount, schema, keepMergedShape);
 
   return schema.nodes.tableHead.create(null, copiedRow);
@@ -303,9 +332,7 @@ function createTableFromPastingTable(
     const flattenedRows = flattenMergedRows(rows, schema, startFromBody, isInTable);
 
     if (startFromBody && isInTable) {
-      return schema.nodes.table.create(null, [
-        schema.nodes.tableBody.create(null, flattenedRows),
-      ]);
+      return schema.nodes.table.create(null, [schema.nodes.tableBody.create(null, flattenedRows)]);
     }
 
     const [tableHeadRow, ...tableBodyRows] = flattenedRows;
@@ -321,7 +348,9 @@ function createTableFromPastingTable(
   const columnCount = getMaxColumnCount(rows);
 
   if (startFromBody && isInTable) {
-    return schema.nodes.table.create(null, [createTableBody(rows, columnCount, schema, keepMergedShape)]);
+    return schema.nodes.table.create(null, [
+      createTableBody(rows, columnCount, schema, keepMergedShape),
+    ]);
   }
 
   const [tableHeadRow] = rows;

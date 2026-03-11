@@ -119,7 +119,7 @@ export default class MdEditor extends EditorBase {
     return Boolean((window as WindowWithClipboard).clipboardData);
   }
 
-  private handleImagePaste(items: DataTransferItemList | undefined, ev: ClipboardEvent) {
+  private handleImagePaste(items: DataTransferItemList | null | undefined, ev: ClipboardEvent) {
     if (!items) {
       return false;
     }
@@ -185,7 +185,7 @@ export default class MdEditor extends EditorBase {
         (ev as ClipboardEvent).clipboardData || (window as WindowWithClipboard).clipboardData;
       const items = clipboardData && clipboardData.items;
 
-      this.handleImagePaste(items || void 0, ev);
+      this.handleImagePaste(items || null, ev);
 
       this.stabilizeWindowScroll(scrollX, scrollY);
     });
@@ -290,7 +290,7 @@ export default class MdEditor extends EditorBase {
           const clipboardData = ev.clipboardData || (window as WindowWithClipboard).clipboardData;
           const items = clipboardData && clipboardData.items;
 
-          if (this.handleImagePaste(items || void 0, ev)) {
+          if (this.handleImagePaste(items || null, ev)) {
             this.stabilizeWindowScroll(scrollX, scrollY);
             return true;
           }
@@ -308,7 +308,7 @@ export default class MdEditor extends EditorBase {
           // letting the default ProseMirror parser normalize line breaks.
           if (shouldUseRawPlainTextPaste) {
             ev.preventDefault();
-            this.replaceSelection(plainText as string, void 0, void 0, false);
+            this.replaceSelection(plainText as string, null, null, false);
             this.stabilizeWindowScroll(scrollX, scrollY);
             return true;
           }
@@ -419,7 +419,7 @@ export default class MdEditor extends EditorBase {
     this.view.dispatch(scrollIntoView ? nextTr.scrollIntoView() : nextTr);
   }
 
-  replaceSelection(text: string, start?: MdPos, end?: MdPos, scrollIntoView = true) {
+  replaceSelection(text: string, start?: MdPos | null, end?: MdPos | null, scrollIntoView = true) {
     let newTr;
     const { tr, schema, doc } = this.view.state;
     const lineTexts = text.split(reLineEnding);

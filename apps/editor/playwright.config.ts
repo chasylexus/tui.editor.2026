@@ -1,13 +1,13 @@
-const path = require('path');
-const { defineConfig, devices } = require('@playwright/test');
+import path from 'node:path';
+import { defineConfig, devices } from '@playwright/test';
 
 const repoRoot = path.resolve(__dirname, '../..');
 
-module.exports = defineConfig({
+export default defineConfig({
   testDir: path.join(__dirname, 'e2e'),
   fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  forbidOnly: false,
+  retries: 0,
   workers: 1,
   reporter: 'line',
   timeout: 60000,

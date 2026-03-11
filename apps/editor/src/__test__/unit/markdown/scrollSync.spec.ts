@@ -34,8 +34,12 @@ function createScrollSync(markdown: string) {
 
   const toastMark = {
     getLineTexts: () => Array(lineCount).fill('line'),
-    findNodeAtPosition: jest.fn(() => ({ id: 999 })),
-    findFirstNodeAtLine: jest.fn(() => ({ id: 999 })),
+    findNodeAtPosition: jest.fn(() => {
+      return { id: 999 };
+    }),
+    findFirstNodeAtLine: jest.fn(() => {
+      return { id: 999 };
+    }),
   };
   const editorView = {
     dom: editorDom,
@@ -43,16 +47,23 @@ function createScrollSync(markdown: string) {
       doc: {
         childCount: lineCount,
         content: {
-          findIndex: jest.fn(() => ({ index: 0 })),
+          findIndex: jest.fn(() => {
+            return { index: 0 };
+          }),
         },
       },
     },
-    posAtCoords: jest.fn(() => ({ pos: 1, inside: 0 })),
+    posAtCoords: jest.fn(() => {
+      return { pos: 1, inside: 0 };
+    }),
   };
   const mdEditor = {
     view: editorView,
     getToastMark: () => toastMark,
-    getSelection: () => [[1, 1], [1, 1]],
+    getSelection: () => [
+      [1, 1],
+      [1, 1],
+    ],
     getMarkdown: () => markdown,
   };
   const preview = {
@@ -72,7 +83,7 @@ describe('ScrollSync', () => {
 
   it('should fallback to ratio mapping for editor->preview when footnotes exist and node mapping is missing', () => {
     const { scrollSync } = createScrollSync('Footnote ref[^a].\n\n[^a]: Footnote text.');
-    const runSpy = jest.spyOn(scrollSync as any, 'run').mockImplementation(() => {});
+    const runSpy = jest.spyOn(scrollSync as any, 'run').mockImplementation(() => null);
     const mapSpy = jest
       .spyOn(scrollSync as any, 'getPreviewScrollTopByFootnoteLineMap')
       .mockReturnValue(null);
@@ -85,7 +96,7 @@ describe('ScrollSync', () => {
 
   it('should keep mapped footnote line sync when footnotes mapping is available', () => {
     const { scrollSync } = createScrollSync('Footnote ref[^a].\n\n[^a]: Footnote text.');
-    const runSpy = jest.spyOn(scrollSync as any, 'run').mockImplementation(() => {});
+    const runSpy = jest.spyOn(scrollSync as any, 'run').mockImplementation(() => null);
     const mapSpy = jest
       .spyOn(scrollSync as any, 'getPreviewScrollTopByFootnoteLineMap')
       .mockReturnValue(777);

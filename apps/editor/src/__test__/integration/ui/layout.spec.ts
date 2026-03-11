@@ -10,10 +10,6 @@ function getElement(selector: string) {
   return document.querySelector<HTMLElement>(selector)!;
 }
 
-function getElements(selector: string) {
-  return document.querySelectorAll<HTMLElement>(selector)!;
-}
-
 function getEditorMain() {
   return getElement(`.${cls('main')}`)!;
 }

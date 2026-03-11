@@ -543,7 +543,7 @@ export default class WysiwygEditor extends EditorBase {
 
           const lowered = href.toLowerCase();
 
-          if (lowered.startsWith('javascript:') || lowered.startsWith('data:')) {
+          if (/^(?:javascript|data):/i.test(lowered)) {
             ev.preventDefault();
             return true;
           }
@@ -630,6 +630,13 @@ export default class WysiwygEditor extends EditorBase {
 
               return true;
             }
+          }
+
+          if (!richHtmlClipboard && plainText.includes('\u00A0')) {
+            ev.preventDefault();
+            this.replaceSelection(plainText);
+
+            return true;
           }
 
           return false;

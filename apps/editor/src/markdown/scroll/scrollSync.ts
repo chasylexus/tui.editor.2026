@@ -374,6 +374,7 @@ export class ScrollSync {
         targetScrollTop = scrollTopByEditing;
       } else {
         const { children } = editorView.dom;
+
         if (hasFootnoteSyntax(this.mdEditor.getMarkdown())) {
           const mappedTop = this.getPreviewScrollTopByFootnoteLineMap(children, scrollTop);
 

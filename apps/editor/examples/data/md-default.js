@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 /* eslint-disable no-var */
 var content = [
   '![image](https://uicdn.toast.com/toastui/img/tui-editor-bi.png)',

@@ -175,7 +175,9 @@ describe('keymap', () => {
         setContent(html);
         wwe.setSelection(20, 20); // in a1 cell
 
-        expect(() => forceKeymapFn('table', 'moveToCell', ['right'])).not.toThrow();
+        const moveToRightCell = () => forceKeymapFn('table', 'moveToCell', ['right']);
+
+        expect(moveToRightCell).not.toThrow();
       });
     });
 

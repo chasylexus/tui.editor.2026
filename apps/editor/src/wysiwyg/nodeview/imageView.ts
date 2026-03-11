@@ -121,6 +121,7 @@ export class ImageView implements NodeView {
     wrapper.dataset.recorderLabel = label;
 
     const startButton = document.createElement('span');
+
     startButton.className = 'toastui-inline-recorder-action toastui-inline-recorder-action-primary';
     startButton.dataset.recorderId = recorderId;
     startButton.dataset.recorderAction = 'start';
@@ -130,6 +131,7 @@ export class ImageView implements NodeView {
     startButton.textContent = '';
 
     const stopButton = document.createElement('span');
+
     stopButton.className = 'toastui-inline-recorder-action toastui-inline-recorder-action-stop';
     stopButton.dataset.recorderId = recorderId;
     stopButton.dataset.recorderAction = 'stop';
@@ -140,10 +142,12 @@ export class ImageView implements NodeView {
     stopButton.textContent = '';
 
     const dot = document.createElement('span');
+
     dot.className = 'toastui-inline-recorder-dot';
     dot.setAttribute('aria-hidden', 'true');
 
     const status = document.createElement('span');
+
     status.className = 'toastui-inline-recorder-status';
     status.dataset.recorderStatus = recorderId;
     status.textContent = 'Ready 000:00:00';
@@ -191,7 +195,7 @@ export class ImageView implements NodeView {
   }
 
   private createMediaElement(node: ProsemirrorNode) {
-    const { imageUrl, altText } = node.attrs;
+    const { imageUrl } = node.attrs;
     const inlineRecorder = parseInlineRecorderSource(imageUrl);
 
     if (inlineRecorder) {

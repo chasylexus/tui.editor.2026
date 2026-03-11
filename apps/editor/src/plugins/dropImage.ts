@@ -60,7 +60,7 @@ function extractDroppedLocalPaths(dataTransfer: DataTransfer | null | undefined)
   const getData =
     typeof dataTransfer.getData === 'function'
       ? (type: string) => dataTransfer.getData(type)
-      : (_type: string) => '';
+      : () => '';
 
   const candidates: string[] = [];
   const uriListRaw = getData('text/uri-list');
@@ -129,20 +129,23 @@ export function dropImage({ eventEmitter }: Context) {
 
           if (items) {
             const droppedPaths = extractDroppedLocalPaths(dragEvent.dataTransfer);
-            const droppedPathsByName = droppedPaths.reduce<Record<string, string[]>>((acc, path) => {
-              const name = getBaseName(path);
+            const droppedPathsByName = droppedPaths.reduce<Record<string, string[]>>(
+              (acc, path) => {
+                const name = getBaseName(path);
 
-              if (!name) {
+                if (!name) {
+                  return acc;
+                }
+
+                if (!acc[name]) {
+                  acc[name] = [];
+                }
+                acc[name].push(path);
+
                 return acc;
-              }
-
-              if (!acc[name]) {
-                acc[name] = [];
-              }
-              acc[name].push(path);
-
-              return acc;
-            }, {});
+              },
+              {}
+            );
 
             const consumeDroppedPathForFile = (file: File) => {
               const nativePath = getFileNativePath(file);

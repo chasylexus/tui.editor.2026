@@ -229,14 +229,12 @@ function setProductionConfigForAll(config) {
 
 module.exports = (env) => {
   const lintFailFlag = env?.LINT_FAIL;
+
   minify = !!env.minify;
   analyze = !!env.analyze;
   isProduction = env.WEBPACK_BUILD;
   failOnLintError =
-    lintFailFlag === false ||
-    lintFailFlag === 0 ||
-    lintFailFlag === '0' ||
-    lintFailFlag === 'false'
+    lintFailFlag === false || lintFailFlag === 0 || lintFailFlag === '0' || lintFailFlag === 'false'
       ? false
       : isProduction;
 

@@ -1,5 +1,5 @@
 import { cls } from '@/utils/dom';
-import { fireEvent, getByLabelText, getByText, screen } from '@testing-library/dom';
+import { fireEvent, getByText, screen } from '@testing-library/dom';
 import { Editor } from '@/index';
 import '@/i18n/en-us';
 

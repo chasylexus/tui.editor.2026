@@ -217,7 +217,9 @@ describe('WysiwygEditor', () => {
   it('should open external links in a new tab when clicking in wysiwyg', () => {
     setContent('<p><a href="https://example.com/docs">Open</a></p>');
 
-    const link = wwe.view.dom.querySelector('a[href="https://example.com/docs"]') as HTMLAnchorElement;
+    const link = wwe.view.dom.querySelector(
+      'a[href="https://example.com/docs"]'
+    ) as HTMLAnchorElement;
     const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
 
     link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));

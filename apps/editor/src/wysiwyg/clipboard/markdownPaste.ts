@@ -22,7 +22,16 @@ const INLINE_MARKDOWN_PATTERNS = [
 
 const FOOTNOTE_MARKDOWN_PATTERN = /\[\^[^\]\n]+\]|\^\[[^\]\n]+\]|^\s{0,3}\[\^[^\]\n]+\]:/m;
 
-const SIMPLE_HTML_WRAPPER_TAGS = new Set(['html', 'head', 'body', 'meta', 'div', 'span', 'p', 'br']);
+const SIMPLE_HTML_WRAPPER_TAGS = new Set([
+  'html',
+  'head',
+  'body',
+  'meta',
+  'div',
+  'span',
+  'p',
+  'br',
+]);
 
 const RICH_HTML_TAG_SELECTOR = [
   'table',
@@ -128,7 +137,11 @@ function escapeTableCell(value: string) {
 }
 
 function normalizeHtmlTableCellText(value: string) {
-  return value.replace(/\r\n/g, '\n').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function getCellSpanInfo(cell: Element): HtmlCellSpanInfo {
@@ -156,7 +169,7 @@ function hasOnlySingleTableContent(doc: Document) {
     return false;
   }
 
-  const body = doc.body;
+  const { body } = doc;
 
   if (!body) {
     return true;
@@ -206,9 +219,6 @@ export function convertHtmlTableToNormalizedMarkdownTable(html: string) {
   }
 
   const rows = getTopLevelTableRows(table);
-  const hasThead = Array.from(table.children).some(
-    (child) => child.tagName && child.tagName.toLowerCase() === 'thead'
-  );
 
   if (!rows.length) {
     return null;
@@ -278,10 +288,10 @@ export function convertHtmlTableToNormalizedMarkdownTable(html: string) {
 
   rows.forEach((_, rowIndex) => {
     const row = rowsData[rowIndex];
-    const rowTokens = new Array(maxColumnCount).fill('').map((_, colIndex) => {
+    const rowTokens = new Array(maxColumnCount).fill('').map((cellValue, colIndex) => {
       const cell = row?.get(colIndex);
 
-      return cell ? escapeTableCell(cell.text) : '';
+      return cell ? escapeTableCell(cell.text) : cellValue;
     });
 
     markdownRows.push(formatMarkdownRow(rowTokens));
@@ -291,8 +301,7 @@ export function convertHtmlTableToNormalizedMarkdownTable(html: string) {
     return null;
   }
 
-  const header = markdownRows[0];
-  const bodyRows = markdownRows.slice(1);
+  const [header, ...bodyRows] = markdownRows;
   const delimiter = formatMarkdownRow(new Array(maxColumnCount).fill('---'));
 
   // Always normalize HTML table paste through markdown path. This guarantees
@@ -382,7 +391,11 @@ function parseMergedCellSyntax(cell: string) {
   };
 }
 
-function countVisibleColumnsFrom(startCol: number, totalColumns: number, activeSpans: Map<number, ActiveSpan>) {
+function countVisibleColumnsFrom(
+  startCol: number,
+  totalColumns: number,
+  activeSpans: Map<number, ActiveSpan>
+) {
   let count = 0;
 
   for (let col = startCol; col < totalColumns; col += 1) {
@@ -432,10 +445,10 @@ function normalizeTopRowMergedTableBlock(
   });
 
   const totalColumns = Math.max(headerWidth, delimiterCells.length);
-  const normalizedBodyRows: Array<Array<string | null | undefined>> = [];
+  const normalizedBodyRows: Array<Array<string | null>> = [];
 
   bodyCells.forEach((row) => {
-    const slots: Array<string | null | undefined> = new Array(totalColumns).fill(undefined);
+    const slots: Array<string | null> = new Array(totalColumns).fill(null);
     const parsedRowCells = row.map(parseMergedCellSyntax);
     const nextActiveSpans = new Map<number, ActiveSpan>();
     let rowCellIndex = 0;
@@ -523,15 +536,15 @@ function normalizeTopRowMergedTableBlock(
 
   const stringifyRow = (cells: Array<string | null | undefined>) =>
     formatMarkdownTableLine(
-      cells
-        .filter((cell) => cell !== null)
-        .map((cell) => (typeof cell === 'string' ? cell : '')),
+      cells.filter((cell) => cell !== null).map((cell) => (typeof cell === 'string' ? cell : '')),
       indent
     );
 
   return [
     formatMarkdownTableLine(
-      expandedFirstRow.concat(new Array(Math.max(0, totalColumns - expandedFirstRow.length)).fill('')),
+      expandedFirstRow.concat(
+        new Array(Math.max(0, totalColumns - expandedFirstRow.length)).fill('')
+      ),
       indent
     ),
     formatMarkdownTableLine(new Array(totalColumns).fill('---'), indent),
@@ -563,7 +576,7 @@ function normalizeMarkdownTableBlock(lines: string[]) {
   const hasHeaderMergedCellSyntax = headerCells.some((cell) => MERGED_CELL_PREFIX_RE.test(cell));
 
   if (hasHeaderMergedCellSyntax) {
-    const indent = (lines[0].match(/^(\s*)\|/) || ['', ''])[1];
+    const [, indent = ''] = lines[0].match(/^(\s*)\|/) || [];
 
     return normalizeTopRowMergedTableBlock(
       headerCells,
@@ -592,13 +605,13 @@ function normalizeMarkdownTableBlock(lines: string[]) {
     return null;
   }
 
-  const indent = (lines[0].match(/^(\s*)\|/) || ['', ''])[1];
+  const [, indent = ''] = lines[0].match(/^(\s*)\|/) || [];
   const pad = (cells: string[]) =>
     cells.concat(new Array(Math.max(0, maxColumnCount - cells.length)).fill(''));
   const normalized = [
     formatMarkdownTableLine(pad(headerCells), indent),
     formatMarkdownTableLine(new Array(maxColumnCount).fill('---'), indent),
-    ...((bodyCells as string[][]).map((cells) => formatMarkdownTableLine(pad(cells), indent))),
+    ...(bodyCells as string[][]).map((cells) => formatMarkdownTableLine(pad(cells), indent)),
   ];
 
   return normalized;

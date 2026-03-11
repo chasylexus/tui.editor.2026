@@ -1,10 +1,6 @@
 import { HookCallback } from '@t/editor';
 import { Emitter } from '@t/event';
 
-function isImageFile(blob: Blob | File) {
-  return String(blob.type || '').toLowerCase().startsWith('image/');
-}
-
 export function addDefaultImageBlobHook(eventEmitter: Emitter) {
   eventEmitter.listen('addImageBlobHook', (blob: File, callback: HookCallback) => {
     const reader = new FileReader();

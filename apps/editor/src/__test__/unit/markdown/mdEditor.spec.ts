@@ -13,10 +13,10 @@ function getEditorHTML(editor: MarkdownEditor) {
 
 function dispatchPlainTextPaste(editor: MarkdownEditor, text: string) {
   const event = new Event('paste', { bubbles: true, cancelable: true }) as ClipboardEvent;
-  const clipboardData = {
+  const clipboardData = ({
     getData: jest.fn((type: string) => (type === 'text/plain' ? text : '')),
-    items: [{ kind: 'string', type: 'text/plain' }] as unknown as DataTransferItemList,
-  } as unknown as DataTransfer;
+    items: ([{ kind: 'string', type: 'text/plain' }] as unknown) as DataTransferItemList,
+  } as unknown) as DataTransfer;
 
   Object.defineProperty(event, 'clipboardData', {
     value: clipboardData,
@@ -180,7 +180,7 @@ describe('MarkdownEditor', () => {
 
     const pasted = mde.getMarkdown();
 
-    expect((clipboardData.getData as jest.Mock)).toHaveBeenCalledWith('text/plain');
+    expect(clipboardData.getData as jest.Mock).toHaveBeenCalledWith('text/plain');
     expect(pasted.replace(/\n$/, '')).toBe(markdown);
     expect(pasted).toContain('мар,5000,4900\n\ntype: line');
   });

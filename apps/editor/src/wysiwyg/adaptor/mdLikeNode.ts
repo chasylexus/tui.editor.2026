@@ -46,12 +46,13 @@ export function createMdLikeNode(node: ProsemirrorNode | Mark): MdLikeNode {
     literal: !isContainer(nodeType) && isPmNode(node) ? node.textContent : null,
   };
 
+  const imageTitle = formatImageSizeSpec(attrs.imageWidth, attrs.imageHeight);
   const nodeTypeMap = {
     heading: { level: attrs.level },
     link: { destination: attrs.linkUrl, title: attrs.title },
     image: {
       destination: attrs.imageUrl,
-      title: formatImageSizeSpec(attrs.imageWidth, attrs.imageHeight) || undefined,
+      ...(imageTitle ? { title: imageTitle } : {}),
     },
     codeBlock: { info: attrs.language },
     bulletList: { type: 'list', listData: { type: 'bullet' } },

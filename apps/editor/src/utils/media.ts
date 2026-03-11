@@ -1,5 +1,6 @@
 const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'flac', 'opus', 'weba'];
 const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'webm', 'ogv', 'mov', 'mkv'];
+
 export const INLINE_RECORDER_SCHEME = 'record://audio';
 
 interface ParsedEmbedVideo {
@@ -16,6 +17,7 @@ function getLowerPathWithoutQuery(raw: string) {
 
   try {
     const url = new URL(value);
+
     return url.pathname.toLowerCase();
   } catch (_error) {
     return value.split(/[?#]/, 1)[0].toLowerCase();
@@ -58,8 +60,8 @@ function parseTimeTokenToSeconds(token: string | null) {
   while (result) {
     matched = true;
 
-    const amount = Number.parseInt(result[1], 10);
-    const unit = result[2];
+    const [, amountText, unit] = result;
+    const amount = Number.parseInt(amountText, 10);
 
     if (Number.isFinite(amount)) {
       if (unit === 'h') {

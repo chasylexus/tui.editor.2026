@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 /* eslint-disable no-var */
 var fullFeatured2026Content = `# Demo
 

@@ -7,22 +7,31 @@ import { EditorCommand } from '@t/spec';
 function removeInlineStyleFromAttrs(attrs: Record<string, any>) {
   const htmlAttrs = attrs?.htmlAttrs;
 
-  if (!htmlAttrs || typeof htmlAttrs !== 'object' || !Object.prototype.hasOwnProperty.call(htmlAttrs, 'style')) {
+  if (
+    !htmlAttrs ||
+    typeof htmlAttrs !== 'object' ||
+    !Object.prototype.hasOwnProperty.call(htmlAttrs, 'style')
+  ) {
     return null;
   }
 
-  const { style: _removedStyle, ...restHtmlAttrs } = htmlAttrs;
-  const normalizedHtmlAttrs = Object.keys(restHtmlAttrs).reduce<Record<string, string>>((acc, key) => {
-    const value = restHtmlAttrs[key];
+  const restHtmlAttrs = { ...htmlAttrs };
 
-    if (value === null || value === undefined) {
+  delete restHtmlAttrs.style;
+  const normalizedHtmlAttrs = Object.keys(restHtmlAttrs).reduce<Record<string, string>>(
+    (acc, key) => {
+      const value = restHtmlAttrs[key];
+
+      if (value === null || typeof value === 'undefined') {
+        return acc;
+      }
+
+      acc[key] = String(value);
+
       return acc;
-    }
-
-    acc[key] = String(value);
-
-    return acc;
-  }, {});
+    },
+    {}
+  );
 
   return {
     ...attrs,
@@ -42,7 +51,7 @@ function shouldUnwrapSpanMark(
     return false;
   }
 
-  const htmlAttrs = attrsWithoutStyle.htmlAttrs;
+  const { htmlAttrs } = attrsWithoutStyle;
 
   return !htmlAttrs || !Object.keys(htmlAttrs).length;
 }
@@ -86,7 +95,7 @@ function clearStyle(): EditorCommand {
       return false;
     }
 
-    let tr = state.tr;
+    let { tr } = state;
     let changed = false;
 
     doc.nodesBetween(from, to, (node: ProsemirrorNode, pos: number) => {

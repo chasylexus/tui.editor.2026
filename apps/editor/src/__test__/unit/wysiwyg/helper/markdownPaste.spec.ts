@@ -200,18 +200,18 @@ describe('convertHtmlTableToNormalizedMarkdownTable()', () => {
 describe('normalizeMarkdownTableShape()', () => {
   it('should pad malformed markdown table rows to rectangular shape', () => {
     const input = [
-      "| <span style=\"font-size: 9pt;\">1. Аналитические продукты</span> | <span style=\"font-size: 9pt;\">Brand Lift</span> |",
+      '| <span style="font-size: 9pt;">1. Аналитические продукты</span> | <span style="font-size: 9pt;">Brand Lift</span> |',
       '| ------------------------- | ---------- |',
-      "| <span style=\"font-size: 9pt;\">Sales Lift</span> |",
-      "| <span style=\"font-size: 9pt;\">Search Lift</span> |",
+      '| <span style="font-size: 9pt;">Sales Lift</span> |',
+      '| <span style="font-size: 9pt;">Search Lift</span> |',
     ].join('\n');
 
     expect(normalizeMarkdownTableShape(input)).toBe(
       [
-        "| <span style=\"font-size: 9pt;\">1. Аналитические продукты</span> | <span style=\"font-size: 9pt;\">Brand Lift</span> |",
+        '| <span style="font-size: 9pt;">1. Аналитические продукты</span> | <span style="font-size: 9pt;">Brand Lift</span> |',
         '| --- | --- |',
-        "| <span style=\"font-size: 9pt;\">Sales Lift</span> |  |",
-        "| <span style=\"font-size: 9pt;\">Search Lift</span> |  |",
+        '| <span style="font-size: 9pt;">Sales Lift</span> |  |',
+        '| <span style="font-size: 9pt;">Search Lift</span> |  |',
       ].join('\n')
     );
   });

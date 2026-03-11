@@ -60,10 +60,4 @@ function writeData(dir) {
 
 const data = writeData(directory);
 
-fs.writeFile(`snowpack/examples/${fileName}`, data, 'utf8', (err) => {
-  if (err) {
-    console.error(err);
-  } else {
-    console.log('index.html is created successfully');
-  }
-});
+fs.writeFileSync(`snowpack/examples/${fileName}`, data, 'utf8');

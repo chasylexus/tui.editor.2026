@@ -36,7 +36,9 @@ describe('editor', () => {
     } as any;
 
     if (withItems) {
-      clipboardData.items = [{ kind: 'string', type: 'text/plain' }] as unknown as DataTransferItemList;
+      clipboardData.items = ([
+        { kind: 'string', type: 'text/plain' },
+      ] as unknown) as DataTransferItemList;
     }
 
     Object.defineProperty(event, 'clipboardData', {
@@ -189,7 +191,7 @@ describe('editor', () => {
       editor.setMarkdown('Inline: $a\nb$ test');
       editor.changeMode('wysiwyg');
 
-      const doc = (editor as any).wwEditor.view.state.doc;
+      const { doc } = (editor as any).wwEditor.view.state;
       let posInMath: number | null = null;
 
       doc.descendants((node: any, pos: number) => {
@@ -226,7 +228,7 @@ describe('editor', () => {
       editor.setMarkdown(multiline);
       editor.changeMode('wysiwyg');
 
-      const doc = (editor as any).wwEditor.view.state.doc;
+      const { doc } = (editor as any).wwEditor.view.state;
       let posInMath: number | null = null;
 
       doc.descendants((node: any, pos: number) => {
@@ -255,9 +257,9 @@ describe('editor', () => {
       expect(markdown).toContain('gin{cases}\n');
       expect(markdown).toContain('\\mathbb N\\\\\n');
       expect(markdown).toMatch(/\\mathbb N\\\\\n\s*\\\\displaystyle/);
-      expect(/\n\s*\\\\displaystyle\s*\(n-1\)!\\\\quad\\\\forall n\\\\in\\\\mathbb N\\\\/.test(markdown)).toBe(
-        true
-      );
+      expect(
+        /\n\s*\\\\displaystyle\s*\(n-1\)!\\\\quad\\\\forall n\\\\in\\\\mathbb N\\\\/.test(markdown)
+      ).toBe(true);
       expect((markdown.match(/\n/g) || []).length).toBeGreaterThanOrEqual(3);
     });
 
@@ -272,7 +274,7 @@ describe('editor', () => {
       editor.setMarkdown(multiline);
       editor.changeMode('wysiwyg');
 
-      const doc = (editor as any).wwEditor.view.state.doc;
+      const { doc } = (editor as any).wwEditor.view.state;
       let posInMiddleLine: number | null = null;
 
       doc.descendants((node: any, pos: number) => {
@@ -312,7 +314,7 @@ describe('editor', () => {
       editor.setMarkdown(multiline);
       editor.changeMode('wysiwyg');
 
-      const doc = (editor as any).wwEditor.view.state.doc;
+      const { doc } = (editor as any).wwEditor.view.state;
       let posNearPenultimateEnd: number | null = null;
 
       doc.descendants((node: any, pos: number) => {
@@ -510,6 +512,7 @@ describe('editor', () => {
       editor.changeMode('wysiwyg');
 
       const [insertPos] = editor.convertPosToMatchEditorMode([3, 4]) as [number, number];
+
       editor.setSelection(insertPos, insertPos);
       editor.insertText('x');
       editor.changeMode('markdown');
@@ -625,7 +628,9 @@ describe('editor', () => {
 
         expect(wwImg.getAttribute('width')).toBe('200');
         expect(wwImg.getAttribute('height')).toBe('200');
-        expect(editor.getMarkdown()).toContain('![Minion](https://octodex.github.com/images/minion.png =200x200)');
+        expect(editor.getMarkdown()).toContain(
+          '![Minion](https://octodex.github.com/images/minion.png =200x200)'
+        );
       });
 
       it('should keep ```! as wrapped code block when changing to wysiwyg', () => {
@@ -876,7 +881,7 @@ describe('editor', () => {
 
       expect(paragraph).not.toBeNull();
 
-      const tr = wwView.state.tr;
+      const { tr } = wwView.state;
 
       tr.setNodeMarkup(paragraphPos, null, {
         ...paragraph!.attrs,
@@ -1765,8 +1770,8 @@ describe('editor', () => {
             ![audio](~/Downloads/demo.m4a)
           `,
           hooks: {
-            resolveMediaPath: (source: string, mediaType: string) =>
-              `/__local_media?path=${encodeURIComponent(source)}&type=${encodeURIComponent(
+            resolveMediaPath: (mediaSource: string, mediaType: string) =>
+              `/__local_media?path=${encodeURIComponent(mediaSource)}&type=${encodeURIComponent(
                 mediaType
               )}`,
           },
@@ -1774,12 +1779,8 @@ describe('editor', () => {
 
         const html = getPreviewHTML();
 
-        expect(html).toContain(
-          'src="/__local_media?path=~%2FDownloads%2Fdemo.png&amp;type=image"'
-        );
-        expect(html).toContain(
-          'src="/__local_media?path=~%2FDownloads%2Fdemo.m4a&amp;type=audio"'
-        );
+        expect(html).toContain('src="/__local_media?path=~%2FDownloads%2Fdemo.png&amp;type=image"');
+        expect(html).toContain('src="/__local_media?path=~%2FDownloads%2Fdemo.m4a&amp;type=audio"');
       });
     });
   });

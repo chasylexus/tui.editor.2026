@@ -57,7 +57,9 @@ test('keeps multiline inline latex stable when repeatedly editing the function a
   expect(state.breakCount).toBe(3);
 });
 
-test('keeps multiline inline latex stable when editing the third line payload', async ({ page }) => {
+test('keeps multiline inline latex stable when editing the third line payload', async ({
+  page,
+}) => {
   await page.evaluate((markdown) => window.__HARNESS__.setMarkdown(markdown), gammaMarkdown);
   await page.evaluate(() => window.__HARNESS__.changeMode('wysiwyg'));
   await page.evaluate(() => window.__HARNESS__.focusByText('t^{n-1}', 't^{n-1'.length));
@@ -84,7 +86,7 @@ test('does not over-escape inline latex when editing adjacent plain text then sw
 
   const markdown = await page.evaluate(() => window.__HARNESS__.getMarkdown());
 
-  expect(markdown).toContain("$e^{i\\pi} + 1 = 0$");
+  expect(markdown).toContain('$e^{i\\pi} + 1 = 0$');
   expect(markdown).toContain('$f(x)=ax^2+bx+c$ where $a \\neq 0$ and $a, b, c \\in R$ is ');
   expect(markdown).not.toContain('\\\\pi');
   expect(markdown).not.toContain('\\\\neq');

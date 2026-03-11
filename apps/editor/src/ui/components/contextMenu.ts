@@ -61,7 +61,8 @@ export class ContextMenu extends Component<Props, State> {
 
   private adjustPositionToViewport() {
     const menuEl = this.refs.el as HTMLElement | undefined;
-    const pos = this.state.pos;
+    const { pos } = this.state;
+
     if (!menuEl || !pos) {
       return;
     }

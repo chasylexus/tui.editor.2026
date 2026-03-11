@@ -21,9 +21,11 @@ async function renderNarrowWysiwyg(page, markdown: string) {
   await page.evaluate(() => window.__HARNESS__.waitForIdle(8));
 }
 
-async function getWysiwygMetrics(page) {
+function getWysiwygMetrics(page) {
   return page.evaluate(() => {
-    const root = document.querySelector('.toastui-editor-ww-container .toastui-editor-contents.ProseMirror');
+    const root = document.querySelector(
+      '.toastui-editor-ww-container .toastui-editor-contents.ProseMirror'
+    );
     const paragraph = root?.querySelector(':scope > p');
     const table = root?.querySelector('table');
     const textCell = Array.from(root?.querySelectorAll('td') || []).find((cell) =>
@@ -62,7 +64,9 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
 });
 
-test('keeps paragraph runs with NBSP unbroken in wysiwyg on a narrow viewport', async ({ page }) => {
+test('keeps paragraph runs with NBSP unbroken in wysiwyg on a narrow viewport', async ({
+  page,
+}) => {
   await renderNarrowWysiwyg(page, longParagraphMarkdown);
   const metrics = await getWysiwygMetrics(page);
 
@@ -73,7 +77,9 @@ test('keeps paragraph runs with NBSP unbroken in wysiwyg on a narrow viewport', 
   expect(metrics.paragraph!.scrollWidth).toBeGreaterThan(metrics.paragraph!.clientWidth);
 });
 
-test('keeps table cell runs with NBSP unbroken in wysiwyg on a narrow viewport', async ({ page }) => {
+test('keeps table cell runs with NBSP unbroken in wysiwyg on a narrow viewport', async ({
+  page,
+}) => {
   await renderNarrowWysiwyg(page, longTableMarkdown);
   const metrics = await getWysiwygMetrics(page);
 
@@ -108,4 +114,14 @@ test('keeps table-cell editing stable when text includes NBSP runs', async ({ pa
   const roundtrip = await page.evaluate(() => window.__HARNESS__.getMarkdown());
 
   expect(roundtrip).toContain(`x${nbsp.repeat(80)}yQ`);
+});
+
+test('pastes standalone NBSP in wysiwyg from plain text clipboard', async ({ page }) => {
+  await page.evaluate(() => window.__HARNESS__.setMarkdown(''));
+  await page.evaluate(() => window.__HARNESS__.changeMode('wysiwyg'));
+
+  const result = await page.evaluate(() => window.__HARNESS__.pastePlainText('\u00A0'));
+
+  expect(result.defaultPrevented).toBe(true);
+  expect(result.markdown).toBe('\u00A0');
 });

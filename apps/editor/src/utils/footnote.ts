@@ -237,8 +237,8 @@ function parseTransformedFootnotesSection(section: string) {
       return null;
     }
 
-    const id = matched[1];
-    const definitionLines = [matched[2] || ''];
+    const [, id, definition = ''] = matched;
+    const definitionLines = [definition];
 
     idx += 1;
 
@@ -545,11 +545,7 @@ export function transformMarkdownFootnotes(markdown: string) {
     const definitionLines = definition.split('\n');
     const mappedSourceLines = definitionSourceLines.get(id) || [];
 
-    for (
-      let idx = 0;
-      idx < definitionLines.length && idx < mappedSourceLines.length;
-      idx += 1
-    ) {
+    for (let idx = 0; idx < definitionLines.length && idx < mappedSourceLines.length; idx += 1) {
       sourceToRenderedLineMap[mappedSourceLines[idx]] = currentSectionLine + idx;
     }
 

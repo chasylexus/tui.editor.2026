@@ -206,6 +206,37 @@
           async waitForIdle(frames) {
             await waitFrames(frames || 8);
           },
+          async pastePlainText(text) {
+            const wwRoot = editor
+              .getEditorElements()
+              .wwEditor.querySelector('.toastui-editor-contents.ProseMirror');
+
+            if (!wwRoot) {
+              return { defaultPrevented: false, markdown: editor.getMarkdown() };
+            }
+
+            wwRoot.focus();
+
+            const event = new Event('paste', { bubbles: true, cancelable: true });
+            const clipboardData = {
+              getData(type) {
+                return type === 'text/plain' ? text : '';
+              },
+              items: [{ kind: 'string', type: 'text/plain' }],
+            };
+
+            Object.defineProperty(event, 'clipboardData', {
+              value: clipboardData,
+            });
+
+            wwRoot.dispatchEvent(event);
+            await waitFrames(4);
+
+            return {
+              defaultPrevented: event.defaultPrevented,
+              markdown: editor.getMarkdown(),
+            };
+          },
           getMarkdown() {
             return editor.getMarkdown();
           },

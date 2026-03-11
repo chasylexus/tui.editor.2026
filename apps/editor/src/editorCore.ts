@@ -364,17 +364,14 @@ class ToastUIEditorCore {
 
     const containerRect = container.getBoundingClientRect();
     const caretTop = container.scrollTop + (coords.top - containerRect.top);
-    const targetTop = this.clampNumber(
-      caretTop - container.clientHeight * ratio,
-      0,
-      maxScrollTop
-    );
+    const targetTop = this.clampNumber(caretTop - container.clientHeight * ratio, 0, maxScrollTop);
     const viewTop = container.scrollTop;
     const viewBottom = viewTop + container.clientHeight;
     const padding = Math.max(8, Math.round(container.clientHeight * 0.04));
     const inViewport = caretTop >= viewTop + padding && caretTop <= viewBottom - padding;
     const farFromTarget =
-      Math.abs(container.scrollTop - targetTop) > Math.max(24, Math.round(container.clientHeight * 0.12));
+      Math.abs(container.scrollTop - targetTop) >
+      Math.max(24, Math.round(container.clientHeight * 0.12));
 
     if (!inViewport || farFromTarget) {
       container.scrollTop = targetTop;
@@ -410,7 +407,8 @@ class ToastUIEditorCore {
       if (source) {
         const start = source[0] as MdPos;
         const end = source[1] as MdPos;
-        const inRange = this.compareMdPos(target, start) >= 0 && this.compareMdPos(target, end) <= 0;
+        const inRange =
+          this.compareMdPos(target, start) >= 0 && this.compareMdPos(target, end) <= 0;
 
         if (inRange) {
           return {
@@ -471,7 +469,7 @@ class ToastUIEditorCore {
     const safePos = this.clampNumber(pos, minPos, maxPos);
     const $pos = doc.resolve(safePos);
 
-    for (let depth = $pos.depth; depth >= 0; depth -= 1) {
+    for (let { depth } = $pos; depth >= 0; depth -= 1) {
       const node = $pos.node(depth);
       const blockId = node.attrs?.mdBlockId;
 
@@ -515,7 +513,10 @@ class ToastUIEditorCore {
     const canonical = this.canonicalMd;
     const window = 24;
     const safeSerializedOffset = this.clampNumber(serializedOffset, 0, serializedMarkdown.length);
-    const pre = serializedMarkdown.slice(Math.max(0, safeSerializedOffset - window), safeSerializedOffset);
+    const pre = serializedMarkdown.slice(
+      Math.max(0, safeSerializedOffset - window),
+      safeSerializedOffset
+    );
     const post = serializedMarkdown.slice(
       safeSerializedOffset,
       Math.min(serializedMarkdown.length, safeSerializedOffset + window)
@@ -538,7 +539,8 @@ class ToastUIEditorCore {
       if (
         score > bestScore ||
         (score === bestScore &&
-          Math.abs(candidate - approxCanonicalOffset) < Math.abs(bestOffset - approxCanonicalOffset))
+          Math.abs(candidate - approxCanonicalOffset) <
+            Math.abs(bestOffset - approxCanonicalOffset))
       ) {
         bestScore = score;
         bestOffset = candidate;
@@ -652,12 +654,18 @@ class ToastUIEditorCore {
       return null;
     }
 
-    let best = ranges[0];
+    const [firstRange] = ranges;
+    let best = firstRange;
     let bestDistance = Number.POSITIVE_INFINITY;
 
     ranges.forEach((range) => {
-      const distance =
-        nearPos < range.start ? range.start - nearPos : nearPos > range.end ? nearPos - range.end : 0;
+      let distance = 0;
+
+      if (nearPos < range.start) {
+        distance = range.start - nearPos;
+      } else if (nearPos > range.end) {
+        distance = nearPos - range.end;
+      }
 
       if (distance < bestDistance) {
         best = range;
@@ -675,7 +683,10 @@ class ToastUIEditorCore {
       return null;
     }
 
-    return ranges.reduce((best, current) => (current.start < best.start ? current : best), ranges[0]);
+    return ranges.reduce(
+      (best, current) => (current.start < best.start ? current : best),
+      ranges[0]
+    );
   }
 
   eventEmitter: Emitter;
@@ -974,9 +985,7 @@ class ToastUIEditorCore {
 
     this.inlineRecorderClickHandler = (ev: Event) => {
       const target = ev.target as HTMLElement | null;
-      const actionNode = target?.closest?.('.toastui-inline-recorder-action') as
-        | HTMLElement
-        | null;
+      const actionNode = target?.closest?.('.toastui-inline-recorder-action') as HTMLElement | null;
 
       if (!actionNode) {
         return;
@@ -1006,7 +1015,7 @@ class ToastUIEditorCore {
           return;
         }
 
-        void this.startOrResumeInlineRecorder(recorderId, label);
+        this.ignoreRejectedPromise(this.startOrResumeInlineRecorder(recorderId, label));
         return;
       }
 
@@ -1074,7 +1083,8 @@ class ToastUIEditorCore {
   }
 
   private formatInlineRecorderDuration(totalSeconds: number) {
-    const safeTotal = Number.isFinite(totalSeconds) && totalSeconds > 0 ? Math.floor(totalSeconds) : 0;
+    const safeTotal =
+      Number.isFinite(totalSeconds) && totalSeconds > 0 ? Math.floor(totalSeconds) : 0;
     const hours = Math.min(999, Math.floor(safeTotal / 3600));
     const minutes = Math.floor((safeTotal % 3600) / 60);
     const seconds = safeTotal % 60;
@@ -1176,6 +1186,7 @@ class ToastUIEditorCore {
     const wrapperNodes = this.options.el.querySelectorAll(
       `.toastui-inline-recorder[data-recorder-id="${normalizedId}"]`
     );
+
     wrapperNodes.forEach((node) => {
       if (!(node instanceof HTMLElement)) {
         return;
@@ -1190,6 +1201,7 @@ class ToastUIEditorCore {
     const statusNodes = this.options.el.querySelectorAll(
       `.toastui-inline-recorder-status[data-recorder-status="${normalizedId}"]`
     );
+
     statusNodes.forEach((node) => {
       if (!(node instanceof HTMLElement)) {
         return;
@@ -1201,6 +1213,7 @@ class ToastUIEditorCore {
     const buttonNodes = this.options.el.querySelectorAll(
       `.toastui-inline-recorder-action[data-recorder-id="${normalizedId}"]`
     );
+
     buttonNodes.forEach((node) => {
       if (!(node instanceof HTMLElement)) {
         return;
@@ -1250,6 +1263,47 @@ class ToastUIEditorCore {
     });
   }
 
+  private ignoreRejectedPromise(promise: Promise<unknown>) {
+    promise.catch(() => null);
+  }
+
+  private refineMappedWysiwygCursorPos(
+    from: number,
+    targetOffset: number,
+    blockInfo: MdRootBlockInfo | null
+  ) {
+    const initialOffset = this.getMdOffsetForWysiwygPos(from);
+
+    if (typeof initialOffset === 'number' && Math.abs(initialOffset - targetOffset) <= 1) {
+      return from;
+    }
+
+    if (!blockInfo) {
+      return this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
+    }
+
+    const blockRange = this.getNearestWwBlockRangeByMdBlockId(blockInfo.blockId, from);
+
+    if (!blockRange) {
+      return this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
+    }
+
+    const blockStartOffsetInSerialized = this.getMdOffsetForWysiwygPos(blockRange.start);
+
+    if (typeof blockStartOffsetInSerialized !== 'number') {
+      return this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
+    }
+
+    const drift = blockStartOffsetInSerialized - blockInfo.startOffset;
+
+    return this.refineWysiwygCursorPosByMdOffset(
+      targetOffset + drift,
+      from,
+      blockRange.start,
+      blockRange.end
+    );
+  }
+
   private async startOrResumeInlineRecorder(recorderId: string, label: string) {
     const normalizedId = String(recorderId || '').trim();
 
@@ -1292,7 +1346,8 @@ class ToastUIEditorCore {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = this.getPreferredInlineRecorderMimeType(recorderCtor);
-      const recorder = mimeType ? new recorderCtor(stream, { mimeType }) : new recorderCtor(stream);
+      const RecorderCtor = recorderCtor;
+      const recorder = mimeType ? new RecorderCtor(stream, { mimeType }) : new RecorderCtor(stream);
       const session: InlineRecorderSession = {
         recorder,
         stream,
@@ -1308,7 +1363,7 @@ class ToastUIEditorCore {
         }
       });
       recorder.addEventListener('stop', () => {
-        void this.handleInlineRecorderStop(normalizedId);
+        this.ignoreRejectedPromise(this.handleInlineRecorderStop(normalizedId));
       });
 
       this.inlineRecorderSessions.set(normalizedId, session);
@@ -1328,7 +1383,11 @@ class ToastUIEditorCore {
     const normalizedId = String(recorderId || '').trim();
     const session = this.inlineRecorderSessions.get(normalizedId);
 
-    if (!session || session.recorder.state !== 'recording' || typeof session.recorder.pause !== 'function') {
+    if (
+      !session ||
+      session.recorder.state !== 'recording' ||
+      typeof session.recorder.pause !== 'function'
+    ) {
       return;
     }
 
@@ -1432,7 +1491,11 @@ class ToastUIEditorCore {
     return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  private replaceInlineRecorderWithAudioLink(recorderId: string, nextSource: string, fallbackLabel = 'audio') {
+  private replaceInlineRecorderWithAudioLink(
+    recorderId: string,
+    nextSource: string,
+    fallbackLabel = 'audio'
+  ) {
     const normalizedId = String(recorderId || '').trim();
     const normalizedSource = String(nextSource || '').trim();
 
@@ -1469,7 +1532,11 @@ class ToastUIEditorCore {
     const session = this.inlineRecorderSessions.get(normalizedId);
 
     if (!session) {
-      this.setInlineRecorderDomState(normalizedId, 'idle', this.getInlineRecorderStateMessage('idle', 0));
+      this.setInlineRecorderDomState(
+        normalizedId,
+        'idle',
+        this.getInlineRecorderStateMessage('idle', 0)
+      );
       return;
     }
 
@@ -2097,7 +2164,9 @@ class ToastUIEditorCore {
       state.selection instanceof TextSelection
         ? state.selection
         : TextSelection.create(state.doc, state.selection.from, state.selection.to);
-    const markedDoc = state.tr.setSelection(selection).insertText(anchor, selection.from, selection.to).doc;
+    const markedDoc = state.tr
+      .setSelection(selection)
+      .insertText(anchor, selection.from, selection.to).doc;
     const markdown = this.serializeWysiwygDocToMarkdown(markedDoc);
     const anchorIndex = markdown.indexOf(anchor);
 
@@ -2181,6 +2250,7 @@ class ToastUIEditorCore {
       }
 
       const midDistance = Math.abs(midOffset - targetMdOffset);
+
       if (
         midDistance < (bestDistance as number) ||
         (midDistance === bestDistance && Math.abs(mid - startPos) < Math.abs(bestPos - startPos))
@@ -2260,7 +2330,10 @@ class ToastUIEditorCore {
         startIndex,
         from
       );
-      const cursor = this.clampMdPos(this.canonicalMd, this.mdOffsetToPos(this.canonicalMd, canonicalOffset));
+      const cursor = this.clampMdPos(
+        this.canonicalMd,
+        this.mdOffsetToPos(this.canonicalMd, canonicalOffset)
+      );
 
       return this.createSnapshotSelection(cursor, cursor);
     }
@@ -2274,7 +2347,10 @@ class ToastUIEditorCore {
     const withoutMarkers = markedMarkdown.replace(markerStart, '').replace(markerEnd, '');
     const anchorOffset = startIndex;
     const headOffset = endIndex - markerStart.length;
-    const anchor = this.clampMdPos(withoutMarkers, this.mdOffsetToPos(withoutMarkers, anchorOffset));
+    const anchor = this.clampMdPos(
+      withoutMarkers,
+      this.mdOffsetToPos(withoutMarkers, anchorOffset)
+    );
     const head = this.clampMdPos(withoutMarkers, this.mdOffsetToPos(withoutMarkers, headOffset));
 
     return this.createSnapshotSelection(anchor, head);
@@ -2282,8 +2358,7 @@ class ToastUIEditorCore {
 
   private addWwEditRange(range: WwEditRange) {
     const hasTrackableBlocks = range.mdBlockIds.length > 0;
-    const mustFallbackToFullSerialize =
-      Boolean(range.hasMissingId) && !hasTrackableBlocks;
+    const mustFallbackToFullSerialize = Boolean(range.hasMissingId) && !hasTrackableBlocks;
 
     if (mustFallbackToFullSerialize || hasFootnoteSyntax(this.canonicalMd)) {
       this.pendingWwInvalidMapping = true;
@@ -2411,10 +2486,12 @@ class ToastUIEditorCore {
       }
     }
 
-    const merged = nextBlocks.map((block, index) => ({
-      ...block,
-      separator: prevBlocks[index].separator,
-    }));
+    const merged = nextBlocks.map((block, index) => {
+      return {
+        ...block,
+        separator: prevBlocks[index].separator,
+      };
+    });
 
     return this.joinMdBlocks(merged);
   }
@@ -3232,37 +3309,11 @@ class ToastUIEditorCore {
         let refinedFrom = from;
 
         if (shouldRefine) {
-          const targetOffset = mappedWwTargetMdOffset as number;
-          const blockInfo = mappedWwBlockInfo;
-          const initialOffset = this.getMdOffsetForWysiwygPos(from);
-
-          if (typeof initialOffset === 'number' && Math.abs(initialOffset - targetOffset) <= 1) {
-            refinedFrom = from;
-          } else if (blockInfo) {
-            const blockRange = this.getNearestWwBlockRangeByMdBlockId(blockInfo.blockId, from);
-
-            if (blockRange) {
-              const blockStartOffsetInSerialized = this.getMdOffsetForWysiwygPos(blockRange.start);
-
-              if (typeof blockStartOffsetInSerialized === 'number') {
-                const drift = blockStartOffsetInSerialized - blockInfo.startOffset;
-                const adjustedTargetOffset = targetOffset + drift;
-
-                refinedFrom = this.refineWysiwygCursorPosByMdOffset(
-                  adjustedTargetOffset,
-                  from,
-                  blockRange.start,
-                  blockRange.end
-                );
-              } else {
-                refinedFrom = this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
-              }
-            } else {
-              refinedFrom = this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
-            }
-          } else {
-            refinedFrom = this.refineWysiwygCursorPosByMdOffset(targetOffset, from);
-          }
+          refinedFrom = this.refineMappedWysiwygCursorPos(
+            from,
+            mappedWwTargetMdOffset as number,
+            mappedWwBlockInfo
+          );
         }
         const refinedTo = shouldRefine ? refinedFrom : to;
 

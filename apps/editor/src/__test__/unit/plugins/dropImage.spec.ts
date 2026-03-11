@@ -1,9 +1,11 @@
 import EventEmitter from '@/event/eventEmitter';
 import { dropImage } from '@/plugins/dropImage';
 
-jest.mock('@/helper/manipulation', () => ({
-  createTextSelection: jest.fn(() => 'selection'),
-}));
+jest.mock('@/helper/manipulation', () => {
+  return {
+    createTextSelection: jest.fn(() => 'selection'),
+  };
+});
 
 describe('dropImage plugin', () => {
   it('should handle dropped media files and place cursor at drop position', () => {
@@ -18,7 +20,9 @@ describe('dropImage plugin', () => {
     const view = {
       state: { tr },
       dispatch: jest.fn(),
-      posAtCoords: jest.fn(() => ({ pos: 12 })),
+      posAtCoords: jest.fn(() => {
+        return { pos: 12 };
+      }),
     } as any;
     const imageFile = new File([new ArrayBuffer(1)], 'image.png', { type: 'image/png' });
     const audioFile = new File([new ArrayBuffer(1)], 'voice.m4a', { type: 'audio/mp4' });
@@ -41,12 +45,28 @@ describe('dropImage plugin', () => {
     expect(view.dispatch).toHaveBeenCalledTimes(1);
     expect(ev.preventDefault).toHaveBeenCalledTimes(1);
     expect(ev.stopPropagation).toHaveBeenCalledTimes(1);
-    expect(emitSpy).toHaveBeenCalledWith('addImageBlobHook', imageFile, expect.any(Function), 'drop');
-    expect(emitSpy).toHaveBeenCalledWith('addImageBlobHook', audioFile, expect.any(Function), 'drop');
-    expect(emitSpy).toHaveBeenCalledWith('addImageBlobHook', videoFile, expect.any(Function), 'drop');
+    expect(emitSpy).toHaveBeenCalledWith(
+      'addImageBlobHook',
+      imageFile,
+      expect.any(Function),
+      'drop'
+    );
+    expect(emitSpy).toHaveBeenCalledWith(
+      'addImageBlobHook',
+      audioFile,
+      expect.any(Function),
+      'drop'
+    );
+    expect(emitSpy).toHaveBeenCalledWith(
+      'addImageBlobHook',
+      videoFile,
+      expect.any(Function),
+      'drop'
+    );
     const emittedFiles = emitSpy.mock.calls
       .filter((args) => args[0] === 'addImageBlobHook')
       .map((args) => (args[1] as File).name);
+
     expect(emittedFiles).toEqual(['image.png', 'voice.m4a', 'video.mp4']);
   });
 
@@ -62,7 +82,9 @@ describe('dropImage plugin', () => {
     const view = {
       state: { tr },
       dispatch: jest.fn(),
-      posAtCoords: jest.fn(() => ({ pos: 5 })),
+      posAtCoords: jest.fn(() => {
+        return { pos: 5 };
+      }),
     } as any;
     const textFile = new File([new ArrayBuffer(1)], 'text.txt', { type: 'text/plain' });
     const ev = {
@@ -100,7 +122,9 @@ describe('dropImage plugin', () => {
     const view = {
       state: { tr },
       dispatch: jest.fn(),
-      posAtCoords: jest.fn(() => ({ pos: 9 })),
+      posAtCoords: jest.fn(() => {
+        return { pos: 9 };
+      }),
     } as any;
     const audioFile = new File([new ArrayBuffer(1)], 'voice.m4a', { type: 'audio/mp4' });
     const videoFile = new File([new ArrayBuffer(1)], 'clip.mp4', { type: 'video/mp4' });
@@ -133,7 +157,17 @@ describe('dropImage plugin', () => {
       imageUrl: '/Users/test/clip.mp4',
       altText: 'clip.mp4',
     });
-    expect(emitSpy).not.toHaveBeenCalledWith('addImageBlobHook', audioFile, expect.any(Function), 'drop');
-    expect(emitSpy).not.toHaveBeenCalledWith('addImageBlobHook', videoFile, expect.any(Function), 'drop');
+    expect(emitSpy).not.toHaveBeenCalledWith(
+      'addImageBlobHook',
+      audioFile,
+      expect.any(Function),
+      'drop'
+    );
+    expect(emitSpy).not.toHaveBeenCalledWith(
+      'addImageBlobHook',
+      videoFile,
+      expect.any(Function),
+      'drop'
+    );
   });
 });
