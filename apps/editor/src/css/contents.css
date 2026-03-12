@@ -248,6 +248,17 @@ table.ProseMirror-selectednode {
   min-height: 0;
 }
 
+.toastui-editor-contents iframe.toastui-media-excalidraw {
+  aspect-ratio: 4 / 3;
+  min-height: 320px;
+  background: transparent;
+}
+
+.toastui-editor-contents iframe.toastui-media-excalidraw[height] {
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
 .toastui-editor-contents .toastui-inline-recorder {
   display: inline-flex;
   align-items: center;

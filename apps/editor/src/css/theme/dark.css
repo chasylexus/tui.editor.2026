@@ -40,10 +40,6 @@
   color: #eee !important;
 }
 
-.toastui-editor-dark .toastui-editor-defaultUI-toolbar .toastui-editor-toolbar-icons.anchor::before {
-  color: inherit !important;
-}
-
 .toastui-editor-dark .toastui-editor-toolbar-icons.mark.active,
 .toastui-editor-dark .toastui-editor-toolbar-icons.superscript.active,
 .toastui-editor-dark .toastui-editor-toolbar-icons.subscript.active,

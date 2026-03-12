@@ -1,13 +1,88 @@
 const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'flac', 'opus', 'weba'];
 const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'webm', 'ogv', 'mov', 'mkv'];
 const DRAWIO_EXTENSIONS = ['drawio', 'dio', 'drawio.xml'];
+const EXCALIDRAW_EXTENSIONS = ['excalidraw', 'excalidraw.json'];
 
 export const INLINE_RECORDER_SCHEME = 'record://audio';
 export const DRAWIO_VIEWER_ORIGIN = 'https://viewer.diagrams.net';
 export const DRAWIO_LOCAL_VIEWER_PATH = '/dist/cdn/td-drawio-viewer.html';
+export const EXCALIDRAW_LOCAL_VIEWER_PATH = '/dist/cdn/td-excalidraw-viewer.html';
+
+function encodePathSegment(segment: string) {
+  if (!segment || /^[A-Za-z]:$/.test(segment)) {
+    return segment;
+  }
+
+  const preservedEncodings: string[] = [];
+  const placeholderPrefix = '~CODXENC';
+  const placeholderSuffix = '~';
+  const maskedSegment = segment.replace(/%[0-9A-Fa-f]{2}/g, (match) => {
+    const index = preservedEncodings.push(match.toUpperCase()) - 1;
+
+    return `${placeholderPrefix}${index}${placeholderSuffix}`;
+  });
+  const encoded = encodeURIComponent(maskedSegment);
+
+  return encoded.replace(
+    new RegExp(`${placeholderPrefix}(\\d+)${placeholderSuffix}`, 'g'),
+    (_match, indexText) => preservedEncodings[Number(indexText)] || ''
+  );
+}
+
+function encodePathPreservingSlashes(value: string) {
+  return value
+    .split('/')
+    .map((segment) => encodePathSegment(segment))
+    .join('/');
+}
+
+function splitMediaReferenceSuffix(value: string) {
+  const queryIndex = value.indexOf('?');
+  const hashIndex = value.indexOf('#');
+  let splitIndex = -1;
+
+  if (queryIndex >= 0 && hashIndex >= 0) {
+    splitIndex = Math.min(queryIndex, hashIndex);
+  } else if (queryIndex >= 0) {
+    splitIndex = queryIndex;
+  } else if (hashIndex >= 0) {
+    splitIndex = hashIndex;
+  }
+
+  if (splitIndex < 0) {
+    return { pathPart: value, suffix: '' };
+  }
+
+  return {
+    pathPart: value.slice(0, splitIndex),
+    suffix: value.slice(splitIndex),
+  };
+}
+
+export function normalizeMediaReference(rawValue: string) {
+  const value = String(rawValue || '').trim();
+
+  if (!value || /^(data:|blob:|record:\/\/audio)/i.test(value)) {
+    return value;
+  }
+
+  const normalizedSlashes = value.replace(/\\/g, '/');
+
+  try {
+    const url = new URL(normalizedSlashes);
+
+    url.pathname = encodePathPreservingSlashes(url.pathname.replace(/\\/g, '/'));
+
+    return url.toString();
+  } catch (_error) {
+    const { pathPart, suffix } = splitMediaReferenceSuffix(normalizedSlashes);
+
+    return `${encodePathPreservingSlashes(pathPart)}${suffix}`;
+  }
+}
 
 function absolutizeUrl(rawValue: string) {
-  const value = String(rawValue || '').trim();
+  const value = normalizeMediaReference(rawValue);
 
   if (!value) {
     return value;
@@ -256,6 +331,59 @@ export function isDrawioReference(rawValue: string) {
   return hasExtension(value, DRAWIO_EXTENSIONS);
 }
 
+export function isExcalidrawReference(rawValue: string) {
+  const value = String(rawValue || '').trim();
+
+  if (!value) {
+    return false;
+  }
+
+  return hasExtension(value, EXCALIDRAW_EXTENSIONS) || isExcalidrawShareUrl(value);
+}
+
+export function isExcalidrawShareUrl(rawValue: string) {
+  const value = String(rawValue || '').trim();
+
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const hash = String(url.hash || '');
+    const isSupportedHost = host === 'excalidraw.com' || host === 'app.excalidraw.com';
+    const isShareLikePath =
+      hash.startsWith('#json=') ||
+      hash.startsWith('#room=') ||
+      url.pathname.startsWith('/readonly/');
+
+    return isSupportedHost && isShareLikePath;
+  } catch (_error) {
+    return false;
+  }
+}
+
+export function isExcalidrawJsonShareUrl(rawValue: string) {
+  const value = String(rawValue || '').trim();
+
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const hash = String(url.hash || '');
+
+    return (
+      (host === 'excalidraw.com' || host === 'app.excalidraw.com') && hash.startsWith('#json=')
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
 export function createDrawioViewerUrl(drawioUrl: string, title: string) {
   const normalizedUrl = absolutizeUrl(drawioUrl);
 
@@ -280,6 +408,25 @@ export function createDrawioViewerUrl(drawioUrl: string, title: string) {
   return `${DRAWIO_VIEWER_ORIGIN}/?${params.toString()}#U${encodeURIComponent(normalizedUrl)}`;
 }
 
+export function createExcalidrawViewerUrl(excalidrawUrl: string, title: string) {
+  const normalizedUrl = absolutizeUrl(excalidrawUrl);
+
+  if (typeof window === 'undefined' || !window.location) {
+    return normalizedUrl;
+  }
+
+  if (isExcalidrawShareUrl(normalizedUrl) && !isExcalidrawJsonShareUrl(normalizedUrl)) {
+    return normalizedUrl;
+  }
+
+  const viewerUrl = new URL(EXCALIDRAW_LOCAL_VIEWER_PATH, window.location.href);
+
+  viewerUrl.searchParams.set('src', normalizedUrl);
+  viewerUrl.searchParams.set('title', String(title || 'Excalidraw'));
+
+  return viewerUrl.toString();
+}
+
 export function createDrawioResponsiveStyle(
   width: number | null | undefined,
   height: number | null | undefined
@@ -298,6 +445,13 @@ export function createDrawioResponsiveStyle(
   }
 
   return styleParts.join(';');
+}
+
+export function createExcalidrawResponsiveStyle(
+  width: number | null | undefined,
+  height: number | null | undefined
+) {
+  return createDrawioResponsiveStyle(width, height);
 }
 
 export function createInlineRecorderSource(recorderId: string) {

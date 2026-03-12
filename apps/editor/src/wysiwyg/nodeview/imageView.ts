@@ -12,12 +12,15 @@ import {
   isDrawioReference,
   createDrawioViewerUrl,
   createDrawioResponsiveStyle,
+  isExcalidrawReference,
+  createExcalidrawViewerUrl,
+  createExcalidrawResponsiveStyle,
 } from '@/utils/media';
 
 import { Emitter } from '@t/event';
 
 type GetPos = (() => number) | boolean;
-type MediaType = 'image' | 'audio' | 'video' | 'embed' | 'drawio';
+type MediaType = 'image' | 'audio' | 'video' | 'embed' | 'drawio' | 'excalidraw';
 
 const IMAGE_LINK_CLASS_NAME = 'image-link';
 
@@ -226,6 +229,35 @@ export class ImageView implements NodeView {
     return iframe;
   }
 
+  private createExcalidrawElement(node: ProsemirrorNode) {
+    const iframe = document.createElement('iframe');
+    const { imageUrl, altText, imageWidth, imageHeight } = node.attrs;
+    const resolvedExcalidrawUrl = this.resolveMediaPath(imageUrl, 'excalidraw');
+
+    iframe.className = 'toastui-media toastui-media-excalidraw';
+    iframe.title = altText || 'Excalidraw';
+    iframe.setAttribute('loading', 'lazy');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+    iframe.src = createExcalidrawViewerUrl(resolvedExcalidrawUrl, altText || 'Excalidraw');
+    iframe.setAttribute(
+      'style',
+      createExcalidrawResponsiveStyle(
+        typeof imageWidth === 'number' ? imageWidth : null,
+        typeof imageHeight === 'number' ? imageHeight : null
+      )
+    );
+
+    if (typeof imageWidth === 'number' && imageWidth > 0) {
+      iframe.width = String(imageWidth);
+    }
+
+    if (typeof imageHeight === 'number' && imageHeight > 0) {
+      iframe.height = String(imageHeight);
+    }
+
+    return iframe;
+  }
+
   private createMediaElement(node: ProsemirrorNode) {
     const { imageUrl } = node.attrs;
     const inlineRecorder = parseInlineRecorderSource(imageUrl);
@@ -248,6 +280,10 @@ export class ImageView implements NodeView {
 
     if (isDrawioReference(imageUrl)) {
       return this.createDrawioElement(node);
+    }
+
+    if (isExcalidrawReference(imageUrl)) {
+      return this.createExcalidrawElement(node);
     }
 
     return this.createImageElement(node);

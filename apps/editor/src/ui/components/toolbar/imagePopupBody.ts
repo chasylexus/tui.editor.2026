@@ -6,7 +6,7 @@ import { cls } from '@/utils/dom';
 import { Component } from '@/ui/vdom/component';
 import html from '@/ui/vdom/template';
 import { parseImageDimensionInput } from '@/convertors/imageSize';
-import { createInlineRecorderSource } from '@/utils/media';
+import { createInlineRecorderSource, normalizeMediaReference } from '@/utils/media';
 
 const TYPE_UI = 'ui';
 
@@ -118,7 +118,7 @@ export class ImagePopupBody extends Component<Props, State> {
   private emitAddImage() {
     const imageUrlEl = this.refs.url as HTMLInputElement;
     const altTextEl = this.refs.altText as HTMLInputElement;
-    const imageUrl = imageUrlEl.value;
+    const imageUrl = normalizeMediaReference(imageUrlEl.value);
     const altText = altTextEl.value || 'image';
     const sizePayload = this.getImageSizePayload();
 
@@ -134,6 +134,7 @@ export class ImagePopupBody extends Component<Props, State> {
     }
 
     if (imageUrl) {
+      imageUrlEl.value = imageUrl;
       this.props.execCommand('addImage', { imageUrl, altText, ...sizePayload });
     }
   }
@@ -202,7 +203,7 @@ export class ImagePopupBody extends Component<Props, State> {
         <input
           id="toastuiMediaRefInput"
           type="text"
-          placeholder="./diagram.drawio or ./audio.m4a or https://www.youtube.com/watch?v=..."
+          placeholder="./diagram.drawio or ./scene.excalidraw or ./audio.m4a or https://www.youtube.com/watch?v=..."
           ref=${(el: HTMLInputElement) => (this.refs.url = el)}
         />
         <div style="position: relative; margin-top: 8px;">
@@ -224,7 +225,7 @@ export class ImagePopupBody extends Component<Props, State> {
           <input
             id="toastuiImageFileInput"
             type="file"
-            accept="image/*,audio/*,video/*,.drawio,.dio,.drawio.xml"
+            accept="image/*,audio/*,video/*,.drawio,.dio,.drawio.xml,.excalidraw,.excalidraw.json"
             onChange=${this.changeFile}
             ref=${(el: HTMLInputElement) => (this.refs.file = el)}
           />

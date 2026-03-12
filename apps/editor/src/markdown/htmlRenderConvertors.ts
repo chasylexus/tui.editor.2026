@@ -31,11 +31,15 @@ import {
   isDrawioReference,
   createDrawioViewerUrl,
   createDrawioResponsiveStyle,
+  isExcalidrawReference,
+  createExcalidrawViewerUrl,
+  createExcalidrawResponsiveStyle,
+  normalizeMediaReference,
 } from '@/utils/media';
 import { registerTagWhitelistIfPossible } from '@/sanitizer/htmlSanitizer';
 
 type TokenAttrs = Record<string, any>;
-type MediaType = 'image' | 'audio' | 'video' | 'embed' | 'drawio';
+type MediaType = 'image' | 'audio' | 'video' | 'embed' | 'drawio' | 'excalidraw';
 type ResolveMediaPath = (path: string, mediaType: MediaType) => string;
 
 const reCloseTag = /^\s*<\s*\//;
@@ -197,7 +201,7 @@ const baseConvertors: HTMLConvertorMap = {
     }
 
     const linkNode = node as LinkMdNode;
-    const destination = String(linkNode.destination || '').trim();
+    const destination = normalizeMediaReference(String(linkNode.destination || '').trim());
     const altText = extractNodeText(linkNode.firstChild).trim() || 'media';
     const size = parseImageSizeSpec(linkNode.title);
     const inlineRecorder = parseInlineRecorderSource(destination);
@@ -309,6 +313,35 @@ const baseConvertors: HTMLConvertorMap = {
           type: 'openTag',
           tagName: 'iframe',
           classNames: ['toastui-media', 'toastui-media-drawio'],
+          attributes: iframeAttributes,
+        },
+        { type: 'closeTag', tagName: 'iframe' },
+      ];
+    }
+
+    if (isExcalidrawReference(destination)) {
+      registerTagWhitelistIfPossible('iframe');
+      const iframeAttributes: TokenAttrs = {
+        src: createExcalidrawViewerUrl(destination, altText || 'Excalidraw'),
+        title: altText || 'Excalidraw',
+        loading: 'lazy',
+        sandbox: 'allow-scripts allow-same-origin allow-popups',
+        style: createExcalidrawResponsiveStyle(size?.width, size?.height),
+      };
+
+      if (size && size.width !== null) {
+        iframeAttributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        iframeAttributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'iframe',
+          classNames: ['toastui-media', 'toastui-media-excalidraw'],
           attributes: iframeAttributes,
         },
         { type: 'closeTag', tagName: 'iframe' },
@@ -445,7 +478,7 @@ export function getHTMLRenderConvertors(
     }
 
     const linkNode = node as LinkMdNode;
-    const destination = String(linkNode.destination || '').trim();
+    const destination = normalizeMediaReference(String(linkNode.destination || '').trim());
     const altText = extractNodeText(linkNode.firstChild).trim() || 'media';
     const size = parseImageSizeSpec(linkNode.title);
     const inlineRecorder = parseInlineRecorderSource(destination);
@@ -559,6 +592,36 @@ export function getHTMLRenderConvertors(
           type: 'openTag',
           tagName: 'iframe',
           classNames: ['toastui-media', 'toastui-media-drawio'],
+          attributes: iframeAttributes,
+        },
+        { type: 'closeTag', tagName: 'iframe' },
+      ];
+    }
+
+    if (isExcalidrawReference(destination)) {
+      registerTagWhitelistIfPossible('iframe');
+      const resolvedExcalidraw = resolvePath(destination, 'excalidraw');
+      const iframeAttributes: TokenAttrs = {
+        src: createExcalidrawViewerUrl(resolvedExcalidraw, altText || 'Excalidraw'),
+        title: altText || 'Excalidraw',
+        loading: 'lazy',
+        sandbox: 'allow-scripts allow-same-origin allow-popups',
+        style: createExcalidrawResponsiveStyle(size && size.width, size && size.height),
+      };
+
+      if (size && size.width !== null) {
+        iframeAttributes.width = String(size.width);
+      }
+
+      if (size && size.height !== null) {
+        iframeAttributes.height = String(size.height);
+      }
+
+      return [
+        {
+          type: 'openTag',
+          tagName: 'iframe',
+          classNames: ['toastui-media', 'toastui-media-excalidraw'],
           attributes: iframeAttributes,
         },
         { type: 'closeTag', tagName: 'iframe' },

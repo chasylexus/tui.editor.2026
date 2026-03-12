@@ -69,7 +69,7 @@ export class WwToDOMAdaptor implements ToDOMAdaptor {
     customRenderer: CustomHTMLRenderer,
     resolveMediaPath?: (
       path: string,
-      mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio'
+      mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio' | 'excalidraw'
     ) => string
   ) {
     const convertors = getHTMLRenderConvertors(linkAttributes, customRenderer, resolveMediaPath);

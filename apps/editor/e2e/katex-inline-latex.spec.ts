@@ -92,3 +92,15 @@ test('does not over-escape inline latex when editing adjacent plain text then sw
   expect(markdown).not.toContain('\\\\neq');
   expect(markdown).not.toContain('\\\\in');
 });
+
+test('keeps simple inline latex with asterisk and underscore stable across mode switches', async ({
+  page,
+}) => {
+  await page.evaluate((markdown) => window.__HARNESS__.setMarkdown(markdown), '$R^*_+$');
+  await page.evaluate(() => window.__HARNESS__.changeMode('wysiwyg'));
+  await page.evaluate(() => window.__HARNESS__.changeMode('markdown'));
+
+  const markdown = await page.evaluate(() => window.__HARNESS__.getMarkdown());
+
+  expect(markdown).toBe('$R^*_+$');
+});

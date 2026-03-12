@@ -2,7 +2,7 @@ import { source } from 'common-tags';
 
 import Editor from '@techie_doubts/tui.editor.2026';
 import katexPlugin from '@/index';
-import { fixInlineMathBackslashes } from '@/utils/inlineMath';
+import { fixInlineMathBackslashes, normalizeInlineMathEscapes } from '@/utils/inlineMath';
 import { repairCollapsedInlineLatexLineBreaks } from '@/wysiwyg/inlineLatexWysiwygPlugin';
 
 describe('katexPlugin inline math', () => {
@@ -280,6 +280,19 @@ describe('katexPlugin inline math', () => {
     expect(fixed).not.toContain('\\\\\\\\neq');
     expect(fixed).not.toContain('\\\\in');
     expect(fixed).not.toContain('\\\\\\\\in');
+  });
+
+  it('should normalize escaped asterisk and underscore inside inline latex', () => {
+    expect(normalizeInlineMathEscapes('$R^\\*_+$')).toBe('$R^*_+$');
+    expect(normalizeInlineMathEscapes('$R^\\*\\_+$')).toBe('$R^*_+$');
+  });
+
+  it('should keep $R^*_+$ stable across markdown to wysiwyg roundtrip', () => {
+    editor.setMarkdown('$R^*_+$');
+    editor.changeMode('wysiwyg');
+    editor.changeMode('markdown');
+
+    expect(editor.getMarkdown()).toBe('$R^*_+$');
   });
 
   it('should keep block latex delimiters from shifting inline-latex normalization state', () => {

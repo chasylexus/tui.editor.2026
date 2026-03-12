@@ -41,7 +41,7 @@ interface Options {
   sanitizer: Sanitizer;
   resolveMediaPath?: (
     path: string,
-    mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio'
+    mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio' | 'excalidraw'
   ) => string;
 }
 

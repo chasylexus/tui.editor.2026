@@ -468,6 +468,11 @@
   flex-wrap: nowrap;
 }
 
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-dropdown-toolbar {
+  position: fixed;
+  z-index: 260;
+}
+
 .toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-mode-switch,
 .toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-md-tab-container {
   touch-action: manipulation;
@@ -515,6 +520,7 @@
 /* toolbar popup */
 .toastui-editor-popup {
   width: 400px;
+  max-width: calc(100vw - 16px);
   margin-right: auto;
   background: #fff;
   z-index: 30;
@@ -522,6 +528,10 @@
   border-radius: 2px;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
   border: 1px solid #dadde6;
+}
+
+.toastui-editor-defaultUI.toastui-editor-mobile-device .toastui-editor-popup {
+  max-width: calc(100vw - 16px);
 }
 
 .toastui-editor-popup-body {
@@ -1046,14 +1056,26 @@
 .toastui-editor-toolbar-icons.anchor {
   background-image: none;
   color: #555;
+  position: relative;
 }
 
 .toastui-editor-toolbar-icons.anchor::before {
   content: '\2693\FE0E';
-  display: block;
-  font-size: 20px;
-  line-height: 24px;
-  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols', serif;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family:
+    'Apple Symbols',
+    'Segoe UI Symbol',
+    'Noto Sans Symbols 2',
+    'Noto Sans Symbols',
+    serif;
+  font-size: 26px;
+  line-height: 1;
+  color: inherit;
+  transform: translateY(1px);
 }
 
 .toastui-editor-toolbar-icons.anchor.active {
@@ -1063,10 +1085,6 @@
 .toastui-editor-dark .toastui-editor-toolbar-icons.anchor,
 .toastui-editor-dark .toastui-editor-toolbar-icons.clear-style {
   color: #eee !important;
-}
-
-.toastui-editor-dark .toastui-editor-toolbar-icons.anchor::before {
-  color: inherit !important;
 }
 
 .toastui-editor-dark .toastui-editor-toolbar-icons.anchor.active,

@@ -155,12 +155,14 @@ function addCopyPluginForThemeCss(config) {
         patterns: [
           { from: './src/css/theme/*.css', to: './theme/td-editor-[name].min.css' },
           { from: './src/html/td-drawio-viewer.html', to: './td-drawio-viewer.html' },
+          { from: './src/html/td-excalidraw-viewer.html', to: './td-excalidraw-viewer.html' },
         ],
       }
     : {
         patterns: [
           { from: './src/css/theme/*.css', to: './theme/td-editor-[name].css' },
           { from: './src/html/td-drawio-viewer.html', to: './td-drawio-viewer.html' },
+          { from: './src/html/td-excalidraw-viewer.html', to: './td-excalidraw-viewer.html' },
         ],
       };
 

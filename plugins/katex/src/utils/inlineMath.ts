@@ -304,7 +304,13 @@ function isEscapedAt(text: string, index: number) {
 }
 
 export function normalizeInlineMathEscapes(markdown: string) {
-  if (!markdown || !markdown.includes('$') || !markdown.includes('\\_')) return markdown;
+  if (
+    !markdown ||
+    !markdown.includes('$') ||
+    (!markdown.includes('\\_') && !markdown.includes('\\*'))
+  ) {
+    return markdown;
+  }
 
   let out = '';
   let inFence = false;
@@ -395,8 +401,8 @@ export function normalizeInlineMathEscapes(markdown: string) {
           continue;
         }
 
-        if (inner.includes('\\_')) {
-          inner = inner.replaceAll('\\_', '_');
+        if (inner.includes('\\_') || inner.includes('\\*')) {
+          inner = inner.replaceAll('\\_', '_').replaceAll('\\*', '*');
         }
 
         out += `${inner}$`;

@@ -46,15 +46,40 @@ class DropdownToolbarButtonComp extends Component<Props, State> {
     const triggerHeight = this.refs.el?.offsetHeight || DEFAULT_TRIGGER_HEIGHT;
     const dropdownHeight = this.refs.dropdownEl?.offsetHeight || DEFAULT_DROPDOWN_HEIGHT;
     const triggerRect = this.refs.el.getBoundingClientRect();
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     const spaceAbove = triggerRect.top;
     const spaceBelow = viewportHeight - triggerRect.bottom;
-    const openUpward = spaceBelow < dropdownHeight + POPUP_INDENT && spaceAbove > spaceBelow;
+    const mobileRoot = closest(this.refs.el, `.${cls('mobile-device')}`) as HTMLElement | null;
+    const openUpward =
+      Boolean(mobileRoot) ||
+      (spaceBelow < dropdownHeight + POPUP_INDENT && spaceAbove > spaceBelow);
     const top = openUpward
-      ? rect.top - triggerHeight - dropdownHeight - POPUP_INDENT
-      : rect.top + POPUP_INDENT;
+      ? triggerRect.top - dropdownHeight - POPUP_INDENT
+      : triggerRect.bottom + POPUP_INDENT;
 
-    return { ...rect, left: null, right: 10, top: Math.max(POPUP_INDENT, top) };
+    if (mobileRoot) {
+      const right = Math.max(POPUP_INDENT, viewportWidth - triggerRect.right);
+
+      return {
+        left: null,
+        position: 'fixed',
+        right,
+        top: Math.max(POPUP_INDENT, top),
+      };
+    }
+
+    return {
+      ...rect,
+      left: null,
+      right: 10,
+      top: Math.max(
+        POPUP_INDENT,
+        openUpward
+          ? rect.top - triggerHeight - dropdownHeight - POPUP_INDENT
+          : rect.top + POPUP_INDENT
+      ),
+    };
   }
 
   private handleClickDocument = ({ target }: MouseEvent) => {

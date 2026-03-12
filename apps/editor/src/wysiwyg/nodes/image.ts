@@ -11,6 +11,10 @@ import {
   isDrawioReference,
   createDrawioViewerUrl,
   createDrawioResponsiveStyle,
+  isExcalidrawReference,
+  createExcalidrawViewerUrl,
+  createExcalidrawResponsiveStyle,
+  normalizeMediaReference,
 } from '@/utils/media';
 
 import { EditorCommand } from '@t/spec';
@@ -183,6 +187,22 @@ export class Image extends NodeSchema {
           ];
         }
 
+        if (isExcalidrawReference(imageUrl)) {
+          return [
+            'iframe',
+            {
+              class: 'toastui-media toastui-media-excalidraw',
+              src: createExcalidrawViewerUrl(imageUrl, altText || 'Excalidraw'),
+              title: altText || 'Excalidraw',
+              loading: 'lazy',
+              sandbox: 'allow-scripts allow-same-origin allow-popups',
+              style: createExcalidrawResponsiveStyle(attrs.imageWidth, attrs.imageHeight),
+              ...(attrs.imageWidth && { width: attrs.imageWidth }),
+              ...(attrs.imageHeight && { height: attrs.imageHeight }),
+            },
+          ];
+        }
+
         return [
           attrs.rawHTML || 'img',
           {
@@ -201,13 +221,14 @@ export class Image extends NodeSchema {
   private addImage(): EditorCommand {
     return (payload) => ({ schema, tr }, dispatch) => {
       const { imageUrl, altText, imageWidth, imageHeight } = payload || {};
+      const normalizedImageUrl = normalizeMediaReference(imageUrl);
 
-      if (!imageUrl) {
+      if (!normalizedImageUrl) {
         return false;
       }
 
       const node = schema.nodes.image.createAndFill({
-        imageUrl,
+        imageUrl: normalizedImageUrl,
         ...(altText && { altText }),
         ...(typeof imageWidth === 'number' && imageWidth > 0 && { imageWidth }),
         ...(typeof imageHeight === 'number' && imageHeight > 0 && { imageHeight }),

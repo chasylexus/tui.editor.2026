@@ -111,3 +111,34 @@ test('keeps mobile content paddings compact', async ({ page }) => {
   expect(parseFloat(metrics.contents.paddingRight)).toBeLessThanOrEqual(6);
   expect(parseFloat(metrics.contents.paddingTop)).toBeLessThanOrEqual(8);
 });
+
+test('opens the mobile overflow dropdown upward above the bottom toolbar', async ({ page }) => {
+  await page.evaluate(() => {
+    const toolbar = document.querySelector(
+      '.toastui-editor-mobile-device .toastui-editor-toolbar'
+    ) as HTMLElement | null;
+
+    if (toolbar) {
+      toolbar.scrollLeft = toolbar.scrollWidth;
+    }
+  });
+
+  const moreButton = page.locator(
+    '.toastui-editor-mobile-device .toastui-editor-toolbar-icons.more'
+  );
+
+  await moreButton.evaluate((button: HTMLButtonElement) => button.click());
+
+  const dropdown = page.locator('.toastui-editor-mobile-device .toastui-editor-dropdown-toolbar');
+
+  await expect(dropdown).toBeVisible();
+
+  const dropdownBox = await dropdown.boundingBox();
+  const toolbarBox = await page
+    .locator('.toastui-editor-mobile-device .toastui-editor-toolbar')
+    .boundingBox();
+
+  expect(dropdownBox).not.toBeNull();
+  expect(toolbarBox).not.toBeNull();
+  expect(dropdownBox!.bottom).toBeLessThanOrEqual(toolbarBox!.top + 2);
+});

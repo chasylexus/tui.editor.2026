@@ -501,6 +501,40 @@ describe('Default toolbar', () => {
       expect(editor.getMarkdown()).toBe('![architecture](./architecture.drawio =800x500)');
     });
 
+    it('should normalize spaces in media paths added through media popup', () => {
+      const urlText = getByText(imagePopup, 'URL or path to file')
+        .nextElementSibling as HTMLInputElement;
+      const descriptionText = getByText(imagePopup, 'Description')
+        .nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(imagePopup, 'OK');
+
+      urlText.value = './architecture diagram.drawio';
+      descriptionText.value = 'architecture';
+
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('![architecture](./architecture%20diagram.drawio)');
+    });
+
+    it('should add excalidraw document path with width and height through media popup', () => {
+      const urlText = getByText(imagePopup, 'URL or path to file')
+        .nextElementSibling as HTMLInputElement;
+      const descriptionText = getByText(imagePopup, 'Description')
+        .nextElementSibling as HTMLInputElement;
+      const widthText = getByText(imagePopup, 'Width').nextElementSibling as HTMLInputElement;
+      const heightText = getByText(imagePopup, 'Height').nextElementSibling as HTMLInputElement;
+      const okBtn = getByText(imagePopup, 'OK');
+
+      urlText.value = './architecture.excalidraw';
+      descriptionText.value = 'architecture';
+      widthText.value = '840';
+      heightText.value = '560';
+
+      okBtn.click();
+
+      expect(editor.getMarkdown()).toBe('![architecture](./architecture.excalidraw =840x560)');
+    });
+
     it('should add wrong class when url/path is not filled out', () => {
       const urlText = getByText(imagePopup, 'URL or path to file')
         .nextElementSibling as HTMLInputElement;

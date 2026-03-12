@@ -2009,6 +2009,8 @@ describe('editor', () => {
             ![audio](~/Downloads/demo.m4a)
 
             ![drawio](~/Downloads/demo.drawio =700x500)
+
+            ![excalidraw](~/Downloads/demo.excalidraw =680x420)
           `,
           hooks: {
             resolveMediaPath: (mediaSource: string, mediaType: string) =>
@@ -2031,6 +2033,12 @@ describe('editor', () => {
         );
         expect(html).toContain('width="700"');
         expect(html).toContain('height="500"');
+        expect(html).toContain('class="toastui-media toastui-media-excalidraw"');
+        expect(html).toContain(
+          'src="http://localhost/dist/cdn/td-excalidraw-viewer.html?src=http%3A%2F%2Flocalhost%2F__local_media%3Fpath%3D%7E%252FDownloads%252Fdemo.excalidraw%26type%3Dexcalidraw&amp;title=excalidraw"'
+        );
+        expect(html).toContain('width="680"');
+        expect(html).toContain('height="420"');
       });
     });
   });

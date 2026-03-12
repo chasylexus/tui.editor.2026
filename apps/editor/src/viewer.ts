@@ -129,7 +129,7 @@ class ToastUIEditorViewer {
       isViewer: true,
       resolveMediaPath: (
         path: string,
-        mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio'
+        mediaType: 'image' | 'audio' | 'video' | 'embed' | 'drawio' | 'excalidraw'
       ) => this.eventEmitter.emitReduce('resolveMediaPath', path, mediaType),
     });
 
