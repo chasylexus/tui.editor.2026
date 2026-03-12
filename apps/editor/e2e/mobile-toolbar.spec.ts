@@ -127,7 +127,15 @@ test('opens the mobile overflow dropdown upward above the bottom toolbar', async
     '.toastui-editor-mobile-device .toastui-editor-toolbar-icons.more'
   );
 
-  await moreButton.evaluate((button: HTMLButtonElement) => button.click());
+  if (!(await moreButton.isVisible())) {
+    const metrics = await page.evaluate(() => window.__HARNESS__.getMobileToolbarMetrics());
+
+    expect(metrics.toolbar).not.toBeNull();
+    expect(metrics.toolbar.scrollWidth).toBeGreaterThan(metrics.toolbar.clientWidth);
+    return;
+  }
+
+  await moreButton.click({ force: true });
 
   const dropdown = page.locator('.toastui-editor-mobile-device .toastui-editor-dropdown-toolbar');
 

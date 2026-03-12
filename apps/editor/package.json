@@ -1,6 +1,6 @@
 {
   "name": "@techie_doubts/tui.editor.2026",
-  "version": "3.3.18",
+  "version": "3.3.19",
   "publishConfig": {
     "access": "public"
   },
@@ -46,6 +46,7 @@
   "files": [
     "dist/*.js",
     "dist/*.css",
+    "dist/*.html",
     "dist/theme",
     "dist/esm",
     "dist/i18n",

@@ -1075,7 +1075,7 @@
   font-size: 26px;
   line-height: 1;
   color: inherit;
-  transform: translateY(1px);
+  transform: translateY(3px);
 }
 
 .toastui-editor-toolbar-icons.anchor.active {

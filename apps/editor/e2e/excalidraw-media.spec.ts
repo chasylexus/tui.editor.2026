@@ -92,7 +92,9 @@ test('renders same-origin excalidraw references through the local viewer page in
   const frameHandle = await iframe.elementHandle();
   const frame = await frameHandle!.contentFrame();
 
-  await expect.poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT }).toBe(1);
+  await expect
+    .poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .toBe(1);
 });
 
 test('renders same-origin excalidraw references through the local viewer page in wysiwyg', async ({
@@ -114,7 +116,9 @@ test('renders same-origin excalidraw references through the local viewer page in
   const frameHandle = await iframe.elementHandle();
   const frame = await frameHandle!.contentFrame();
 
-  await expect.poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT }).toBe(1);
+  await expect
+    .poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .toBe(1);
 });
 
 test('renders percent-encoded local filesystem paths with spaces for excalidraw media', async ({
@@ -127,8 +131,12 @@ test('renders percent-encoded local filesystem paths with spaces for excalidraw 
   const frameHandle = await iframe.elementHandle();
   const frame = await frameHandle!.contentFrame();
 
-  await expect.poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT }).toBe(1);
-  await expect.poll(() => frame!.locator('#status').textContent(), { timeout: EXCALIDRAW_RENDER_TIMEOUT }).not.toContain('Failed');
+  await expect
+    .poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .toBe(1);
+  await expect
+    .poll(() => frame!.locator('#status').textContent(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .not.toContain('Failed');
 });
 
 test('respects explicit excalidraw size changes in markdown preview', async ({ page }) => {
@@ -153,7 +161,10 @@ test('respects explicit excalidraw size changes in markdown preview', async ({ p
 
   expect(firstBox).not.toBeNull();
   expect(updatedBox).not.toBeNull();
-  expect(updatedBox!.height).toBeGreaterThan(firstBox!.height + 8);
+  const { height: updatedHeight } = updatedBox!;
+  const { height: firstHeight } = firstBox!;
+
+  expect(updatedHeight).toBeGreaterThan(firstHeight + 8);
 });
 
 test('crops local excalidraw scenes to content bounds instead of keeping large left whitespace', async ({
@@ -170,11 +181,13 @@ test('crops local excalidraw scenes to content bounds instead of keeping large l
     .elementHandle();
   const frame = await iframeHandle!.contentFrame();
 
-  await expect.poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT }).toBe(1);
+  await expect
+    .poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .toBe(1);
 
   const geometry = await frame!.evaluate(() => {
     const svg = document.querySelector('#root svg');
-    const body = document.body;
+    const { body } = document;
     const root = document.getElementById('root');
 
     if (!svg || !body || !root) {
@@ -218,12 +231,16 @@ test('renders Excalidraw #json share links through the local viewer and honors e
   const frameHandle = await iframe.elementHandle();
   const frame = await frameHandle!.contentFrame();
 
-  await expect.poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT }).toBe(1);
-  await expect.poll(() => frame!.locator('#status').textContent(), { timeout: EXCALIDRAW_RENDER_TIMEOUT }).not.toContain('Failed');
+  await expect
+    .poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .toBe(1);
+  await expect
+    .poll(() => frame!.locator('#status').textContent(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .not.toContain('Failed');
 
   const geometry = await frame!.evaluate(() => {
     const svg = document.querySelector('#root svg');
-    const body = document.body;
+    const { body } = document;
 
     if (!svg || !body) {
       return null;
@@ -254,7 +271,9 @@ test('keeps the Excalidraw share-link SVG bbox inside the final cropped viewBox'
   const frameHandle = await iframe.elementHandle();
   const frame = await frameHandle!.contentFrame();
 
-  await expect.poll(() => frame!.locator('#root svg').count()).toBe(1);
+  await expect
+    .poll(() => frame!.locator('#root svg').count(), { timeout: EXCALIDRAW_RENDER_TIMEOUT })
+    .toBe(1);
 
   const geometry = await frame!.evaluate(() => {
     const svg = document.querySelector('#root svg');
@@ -282,12 +301,10 @@ test('keeps the Excalidraw share-link SVG bbox inside the final cropped viewBox'
   });
 
   expect(geometry).not.toBeNull();
-  expect(geometry!.viewBox.x).toBeLessThanOrEqual(geometry!.bbox.x - 10);
-  expect(geometry!.viewBox.y).toBeLessThanOrEqual(geometry!.bbox.y - 10);
-  expect(geometry!.bbox.x + geometry!.bbox.width).toBeLessThanOrEqual(
-    geometry!.viewBox.x + geometry!.viewBox.width + 0.5
-  );
-  expect(geometry!.bbox.y + geometry!.bbox.height).toBeLessThanOrEqual(
-    geometry!.viewBox.y + geometry!.viewBox.height + 0.5
-  );
+  const { bbox, viewBox } = geometry!;
+
+  expect(viewBox.x).toBeLessThanOrEqual(bbox.x - 10);
+  expect(viewBox.y).toBeLessThanOrEqual(bbox.y - 10);
+  expect(bbox.x + bbox.width).toBeLessThanOrEqual(viewBox.x + viewBox.width + 0.5);
+  expect(bbox.y + bbox.height).toBeLessThanOrEqual(viewBox.y + viewBox.height + 0.5);
 });
