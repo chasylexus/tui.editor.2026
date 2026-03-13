@@ -798,7 +798,61 @@ describe('setDefaultOptions', () => {
     );
 
     expect(chartOptions.chart!.width).toBe(600);
+    expect(chartOptions.chart!.height).toBeCloseTo(600 / 1.7);
+
+    rectSpy.mockRestore();
+  });
+
+  it('should use square auto dimensions for radar charts without explicit size', () => {
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: {
+          type: 'radar',
+        },
+        chart: {
+          width: 'auto',
+          height: 'auto',
+        },
+      } as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect(chartOptions.chart!.width).toBe(600);
     expect(chartOptions.chart!.height).toBe(600);
+  });
+
+  it('should cap auto width to a moderate default on wide containers', () => {
+    const rectSpy = jest.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+      width: 1280,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: 1280,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect);
+
+    const chartOptions = setDefaultOptions(
+      {
+        editorChart: {
+          type: 'line',
+        },
+        chart: {
+          width: 'auto',
+          height: 'auto',
+        },
+      } as ChartOptions,
+      {} as PluginOptions,
+      container
+    );
+
+    expect(chartOptions.chart!.width).toBe(800);
+    expect(chartOptions.chart!.height).toBeCloseTo(800 / 1.7);
 
     rectSpy.mockRestore();
   });

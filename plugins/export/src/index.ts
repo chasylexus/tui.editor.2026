@@ -163,6 +163,175 @@ function blobToDataUrl(blob: Blob) {
   });
 }
 
+function isSameOriginUrl(url: string) {
+  try {
+    return new URL(url, window.location.href).origin === window.location.origin;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function encodeUtf8Base64(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  const chunkSize = 0x8000;
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + chunkSize)));
+  }
+
+  return window.btoa(binary);
+}
+
+function getViewerSourceUrl(iframe: HTMLIFrameElement) {
+  const rawSrc = iframe.getAttribute('src') || iframe.src || '';
+
+  if (!rawSrc) {
+    return '';
+  }
+
+  try {
+    const url = new URL(rawSrc, window.location.href);
+    const embeddedSrc = url.searchParams.get('src');
+
+    return embeddedSrc || url.toString();
+  } catch (_error) {
+    return rawSrc;
+  }
+}
+
+function getIframeMaxWidth(iframe: HTMLIFrameElement) {
+  if (iframe.style.maxWidth) {
+    return iframe.style.maxWidth;
+  }
+
+  const widthAttr = Number.parseFloat(iframe.getAttribute('width') || '');
+
+  if (Number.isFinite(widthAttr) && widthAttr > 0) {
+    return `${widthAttr}px`;
+  }
+
+  return '';
+}
+
+function createSnapshotContainer(
+  cloneIframe: HTMLIFrameElement,
+  snapshotSvg: SVGSVGElement,
+  kind: 'drawio' | 'excalidraw'
+) {
+  const wrapper = document.createElement('figure');
+  const maxWidth = getIframeMaxWidth(cloneIframe);
+
+  wrapper.className = `${cloneIframe.className} toastui-export-diagram toastui-export-diagram-${kind}`;
+  wrapper.style.display = 'block';
+  wrapper.style.width = '100%';
+  wrapper.style.margin = '0';
+
+  if (maxWidth) {
+    wrapper.style.maxWidth = maxWidth;
+  }
+
+  snapshotSvg.style.display = 'block';
+  snapshotSvg.style.width = '100%';
+  snapshotSvg.style.height = 'auto';
+  snapshotSvg.style.maxWidth = '100%';
+  snapshotSvg.removeAttribute('width');
+  snapshotSvg.removeAttribute('height');
+
+  wrapper.appendChild(snapshotSvg);
+
+  return wrapper;
+}
+
+async function attachDiagramSourceMetadata(
+  wrapper: HTMLElement,
+  iframe: HTMLIFrameElement,
+  kind: 'drawio' | 'excalidraw',
+  fetchImpl: typeof fetch
+) {
+  const sourceUrl = getViewerSourceUrl(iframe);
+  const payload: Record<string, string | null> = {
+    kind,
+    title: iframe.getAttribute('title') || '',
+    sourceUrl: sourceUrl || null,
+    sourceBase64: null,
+  };
+
+  if (sourceUrl && isSameOriginUrl(sourceUrl)) {
+    try {
+      const response = await fetchImpl(sourceUrl);
+
+      if (response.ok) {
+        payload.sourceBase64 = encodeUtf8Base64(await response.text());
+      }
+    } catch (_error) {
+      // Best-effort only: the export remains viewable without embedded source text.
+    }
+  }
+
+  const script = document.createElement('script');
+
+  script.type = 'application/json';
+  script.setAttribute('data-toastui-export-source', kind);
+  script.textContent = JSON.stringify(payload);
+
+  wrapper.appendChild(script);
+}
+
+function cloneDiagramSvg(iframe: HTMLIFrameElement) {
+  try {
+    const doc = iframe.contentDocument;
+    const svg = doc?.querySelector('svg');
+
+    if (!svg) {
+      return null;
+    }
+
+    return svg.cloneNode(true) as SVGSVGElement;
+  } catch (_error) {
+    return null;
+  }
+}
+
+export async function inlineEmbeddedDiagramSnapshots(
+  original: HTMLElement,
+  clone: HTMLElement,
+  fetchImpl: typeof fetch = window.fetch.bind(window)
+) {
+  const selectors: Array<{ selector: string; kind: 'drawio' | 'excalidraw' }> = [
+    { selector: 'iframe.toastui-media-drawio', kind: 'drawio' },
+    { selector: 'iframe.toastui-media-excalidraw', kind: 'excalidraw' },
+  ];
+
+  await Promise.all(
+    selectors.map(async ({ selector, kind }) => {
+      const originalIframes = Array.from(original.querySelectorAll<HTMLIFrameElement>(selector));
+      const cloneIframes = Array.from(clone.querySelectorAll<HTMLIFrameElement>(selector));
+
+      await Promise.all(
+        originalIframes.map(async (originalIframe, idx) => {
+          const cloneIframe = cloneIframes[idx];
+
+          if (!originalIframe || !cloneIframe) {
+            return;
+          }
+
+          const snapshotSvg = cloneDiagramSvg(originalIframe);
+
+          if (!snapshotSvg) {
+            return;
+          }
+
+          const wrapper = createSnapshotContainer(cloneIframe, snapshotSvg, kind);
+
+          await attachDiagramSourceMetadata(wrapper, originalIframe, kind, fetchImpl);
+          cloneIframe.replaceWith(wrapper);
+        })
+      );
+    })
+  );
+}
+
 async function inlineImagesIn(rootEl: HTMLElement) {
   const imgs = Array.from(rootEl.querySelectorAll('img'));
 
@@ -197,7 +366,7 @@ async function inlineImagesIn(rootEl: HTMLElement) {
   );
 }
 
-function inlineCanvases(fromRoot: HTMLElement, toRoot: HTMLElement) {
+export function inlineCanvases(fromRoot: HTMLElement, toRoot: HTMLElement) {
   const srcCanvases = Array.from(fromRoot.querySelectorAll('canvas'));
   const dstCanvases = Array.from(toRoot.querySelectorAll('canvas'));
 
@@ -209,12 +378,20 @@ function inlineCanvases(fromRoot: HTMLElement, toRoot: HTMLElement) {
     try {
       const dataUrl = canvas.toDataURL('image/png');
       const img = document.createElement('img');
+      const rect = canvas.getBoundingClientRect();
+      const computedStyle = getComputedStyle(canvas);
+      const renderedWidth =
+        rect.width ||
+        Number.parseFloat(computedStyle.width) ||
+        Number.parseFloat(canvas.style.width);
 
       img.src = dataUrl;
       img.width = canvas.width;
       img.height = canvas.height;
-      img.style.width = canvas.style.width;
-      img.style.height = canvas.style.height;
+      img.style.display = 'block';
+      img.style.width = '100%';
+      img.style.height = 'auto';
+      img.style.maxWidth = `${renderedWidth || canvas.width}px`;
       target.replaceWith(img);
     } catch (e) {
       // eslint-disable-next-line no-console
@@ -669,6 +846,19 @@ body {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+
+.toastui-export-diagram {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
+.toastui-export-diagram > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
 `;
 
   return `<!doctype html>
@@ -913,6 +1103,7 @@ export default function exportPlugin(
         addCustomAnchorTargets(clone, extractMarkdownAnchors(markdownSource));
         restoreFragmentLinks(clone, markdownSource);
         markSelfAnchors(clone);
+        await inlineEmbeddedDiagramSnapshots(wysiwygRoot, clone);
         await inlineImagesIn(clone);
 
         htmlBody = clone.innerHTML;

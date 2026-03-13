@@ -10,6 +10,14 @@ width: 700
 height: 420
 \`\`\``;
 
+const autoSizedLineChartMarkdown = `\`\`\`chart
+,series a,series b
+category 1,1.234,2.345
+category 2,3.456,4.567
+
+type: line
+\`\`\``;
+
 const scatterChartMarkdown = `\`\`\`chart
 Item,X,Y
 G,5,5
@@ -183,4 +191,13 @@ test('allows a radar chart to grow when the markdown width and height increase',
   expect(box).not.toBeNull();
   expect(box.chart.width).toBeGreaterThan(700);
   expect(box.chart.height).toBeGreaterThan(450);
+});
+
+test('caps auto-sized charts to a moderate default width on wide containers', async ({ page }) => {
+  const box = await renderChartAtWidth(page, autoSizedLineChartMarkdown, 1400);
+
+  expect(box).not.toBeNull();
+  expect(box.chart.width).toBeGreaterThan(760);
+  expect(box.chart.width).toBeLessThanOrEqual(805);
+  expect(box.chart.height).toBeGreaterThan(300);
 });

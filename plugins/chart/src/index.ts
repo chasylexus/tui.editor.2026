@@ -84,6 +84,16 @@ const DEFAULT_DIMENSION_OPTIONS = {
   width: 'auto',
 };
 const FALLBACK_CONTAINER_WIDTH = 600;
+const DEFAULT_AUTO_CHART_WIDTH = 800;
+const DEFAULT_CHART_ASPECT_RATIO_BY_TYPE: Record<string, number> = {
+  bar: 1.7,
+  column: 1.7,
+  area: 1.7,
+  line: 1.7,
+  scatter: 4 / 3,
+  pie: 1,
+  radar: 1,
+};
 const RESERVED_KEYS = ['type', 'url'];
 const TOOLTIP_FRACTION_DIGITS = 2;
 const chart = {
@@ -480,7 +490,22 @@ export function parseToChartOption(text: string) {
 }
 
 function getAdjustedDimension(size: 'auto' | number, containerWidth: number) {
-  return size === 'auto' ? containerWidth : size;
+  return size === 'auto' ? Math.min(containerWidth, DEFAULT_AUTO_CHART_WIDTH) : size;
+}
+
+function getDefaultChartAspectRatio(chartType: string) {
+  return DEFAULT_CHART_ASPECT_RATIO_BY_TYPE[chartType] || DEFAULT_CHART_ASPECT_RATIO_BY_TYPE.column;
+}
+
+function getAutoChartHeight(
+  chartType: string,
+  width: number,
+  minHeight: number,
+  maxHeight: number
+) {
+  const aspectRatio = getDefaultChartAspectRatio(chartType);
+
+  return clamp(width / aspectRatio, minHeight, maxHeight);
 }
 
 function getRenderableContainerWidth(chartContainer: HTMLElement) {
@@ -520,12 +545,16 @@ function getChartDimension(
 ) {
   const dimensionOptions = Object.assign({ ...DEFAULT_DIMENSION_OPTIONS }, pluginOptions);
   const { maxWidth, minWidth, maxHeight, minHeight } = dimensionOptions;
+  const chartType = chartOptions.editorChart?.type || 'column';
   // if no width or height specified, set width and height to container width
   const { width: containerWidth, isFallback } = getRenderableContainerWidth(chartContainer);
   let { width = dimensionOptions.width, height = dimensionOptions.height } = chartOptions.chart!;
 
   width = getAdjustedDimension(width, containerWidth);
-  height = getAdjustedDimension(height, containerWidth);
+  height =
+    height === 'auto'
+      ? getAutoChartHeight(chartType, width, minHeight, maxHeight)
+      : getAdjustedDimension(height, containerWidth);
 
   let adjustedWidth = clamp(width, minWidth, maxWidth);
   let adjustedHeight = clamp(height, minHeight, maxHeight);
