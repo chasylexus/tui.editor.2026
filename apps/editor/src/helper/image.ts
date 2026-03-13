@@ -1,6 +1,8 @@
 import { HookCallback } from '@t/editor';
 import { Emitter } from '@t/event';
 
+const FILE_MEDIA_EXTENSIONS = ['drawio', 'dio', 'drawio.xml', 'excalidraw', 'excalidraw.json'];
+
 function hasMeaningfulHtmlClipboard(htmlText: string) {
   if (!htmlText.trim()) {
     return false;
@@ -84,5 +86,11 @@ export function pasteImageOnly(items: DataTransferItemList, clipboardData?: Data
 export function isMediaFile(file: File) {
   const type = String(file.type || '').toLowerCase();
 
-  return type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/');
+  if (type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/')) {
+    return true;
+  }
+
+  const lowerName = String(file.name || '').toLowerCase();
+
+  return FILE_MEDIA_EXTENSIONS.some((extension) => lowerName.endsWith(`.${extension}`));
 }

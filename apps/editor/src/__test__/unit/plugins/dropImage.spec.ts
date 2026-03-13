@@ -27,6 +27,9 @@ describe('dropImage plugin', () => {
     const imageFile = new File([new ArrayBuffer(1)], 'image.png', { type: 'image/png' });
     const audioFile = new File([new ArrayBuffer(1)], 'voice.m4a', { type: 'audio/mp4' });
     const videoFile = new File([new ArrayBuffer(1)], 'video.mp4', { type: 'video/mp4' });
+    const excalidrawFile = new File([new ArrayBuffer(1)], 'scene.excalidraw', {
+      type: 'application/json',
+    });
     const textFile = new File([new ArrayBuffer(1)], 'text.txt', { type: 'text/plain' });
     const ev = {
       type: 'drop',
@@ -34,7 +37,7 @@ describe('dropImage plugin', () => {
       clientY: 240,
       preventDefault: jest.fn(),
       stopPropagation: jest.fn(),
-      dataTransfer: { files: [imageFile, audioFile, videoFile, textFile] },
+      dataTransfer: { files: [imageFile, audioFile, videoFile, excalidrawFile, textFile] },
     } as any;
 
     const handled = dropHandler.call(plugin, view, ev);
@@ -63,11 +66,17 @@ describe('dropImage plugin', () => {
       expect.any(Function),
       'drop'
     );
+    expect(emitSpy).toHaveBeenCalledWith(
+      'addImageBlobHook',
+      excalidrawFile,
+      expect.any(Function),
+      'drop'
+    );
     const emittedFiles = emitSpy.mock.calls
       .filter((args) => args[0] === 'addImageBlobHook')
       .map((args) => (args[1] as File).name);
 
-    expect(emittedFiles).toEqual(['image.png', 'voice.m4a', 'video.mp4']);
+    expect(emittedFiles).toEqual(['image.png', 'voice.m4a', 'video.mp4', 'scene.excalidraw']);
   });
 
   it('should ignore dropped non-media files', () => {

@@ -3,6 +3,7 @@ import {
   addDefaultImageBlobHook,
   emitImageBlobHook,
   hasMeaningfulClipboardText,
+  isMediaFile,
   pasteImageOnly,
 } from '@/helper/image';
 
@@ -99,5 +100,15 @@ describe('image processor', () => {
 
     expect(hasMeaningfulClipboardText(clipboardData)).toBe(false);
     expect(pasteImageOnly(items, clipboardData)).toBe(file);
+  });
+
+  it('should treat drawio and excalidraw files as media files for drop/upload flows', () => {
+    const drawioFile = new File([new ArrayBuffer(1)], 'diagram.drawio', { type: 'application/xml' });
+    const excalidrawFile = new File([new ArrayBuffer(1)], 'scene.excalidraw', {
+      type: 'application/json',
+    });
+
+    expect(isMediaFile(drawioFile)).toBe(true);
+    expect(isMediaFile(excalidrawFile)).toBe(true);
   });
 });

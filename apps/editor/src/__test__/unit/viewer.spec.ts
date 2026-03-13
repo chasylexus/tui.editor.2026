@@ -150,8 +150,8 @@ describe('Viewer', () => {
   });
 
   it('should normalize local and remote media references with spaces', () => {
-    expect(normalizeMediaReference('/Users/alexanderacosta/Downloads/bsv5 copy.drawio')).toBe(
-      '/Users/alexanderacosta/Downloads/bsv5%20copy.drawio'
+    expect(normalizeMediaReference('/Users/example/Downloads/sample diagram.drawio')).toBe(
+      '/Users/example/Downloads/sample%20diagram.drawio'
     );
     expect(normalizeMediaReference('./diagrams/system map.excalidraw')).toBe(
       './diagrams/system%20map.excalidraw'
